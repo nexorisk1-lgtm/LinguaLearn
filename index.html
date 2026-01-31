@@ -206,11 +206,11 @@
       <div class="onboarding-step" id="step-3">
         <div style="text-align: center; margin-bottom: 24px;"><h2 style="color: var(--blue); font-size: 22px;">Que voulez-vous améliorer ?</h2></div>
         <div id="objective-options">
-          <div class="objective-option selected" onclick="toggleOption(this)"><span style="font-size: 20px;">📖</span><span style="font-weight: 600;">Vocabulaire</span></div>
-          <div class="objective-option selected" onclick="toggleOption(this)"><span style="font-size: 20px;">✏️</span><span style="font-weight: 600;">Grammaire</span></div>
-          <div class="objective-option" onclick="toggleOption(this)"><span style="font-size: 20px;">🎤</span><span style="font-weight: 600;">Oral</span></div>
-          <div class="objective-option" onclick="toggleOption(this)"><span style="font-size: 20px;">✍️</span><span style="font-weight: 600;">Écrit</span></div>
-          <div class="objective-option" onclick="toggleOption(this)"><span style="font-size: 20px;">👂</span><span style="font-weight: 600;">Écoute</span></div>
+          <div class="objective-option selected" data-obj="vocab" onclick="toggleOption(this)"><span style="font-size: 20px;">📖</span><span style="font-weight: 600;">Vocabulaire</span></div>
+          <div class="objective-option selected" data-obj="grammar" onclick="toggleOption(this)"><span style="font-size: 20px;">✏️</span><span style="font-weight: 600;">Grammaire</span></div>
+          <div class="objective-option selected" data-obj="reading" onclick="toggleOption(this)"><span style="font-size: 20px;">📄</span><span style="font-weight: 600;">Lecture</span></div>
+          <div class="objective-option" data-obj="oral" onclick="toggleOption(this)"><span style="font-size: 20px;">🎤</span><span style="font-weight: 600;">Oral</span></div>
+          <div class="objective-option" data-obj="writing" onclick="toggleOption(this)"><span style="font-size: 20px;">✍️</span><span style="font-weight: 600;">Écrit</span></div>
         </div>
         <div style="display: flex; gap: 12px; margin-top: 24px;">
           <button class="btn btn-secondary" style="flex: 1;" onclick="prevStep(3)">← Retour</button>
@@ -1863,6 +1863,9 @@
     let flashcardIndex = 0;
     let flashcardStats = {knew:0, hesitated:0, didnt:0};
     let matchSelected = {target:null, fr:null};
+    
+    // V12.1: Objectifs sélectionnés lors de l'onboarding
+    let selectedObjectives = ['vocab', 'grammar', 'reading', 'writing', 'oral'];
 
     // ══════════════════════════════════════════════════════════════════
     // ONBOARDING (VERROUILLÉ)
@@ -1872,6 +1875,18 @@
         const fn = document.getElementById('onb-firstname').value;
         const pw = document.getElementById('onb-password').value;
         if (!fn || pw.length < 6) { alert('Remplis tous les champs (MDP min 6 car.)'); return; }
+      }
+      // V12.1: Collecter les objectifs sélectionnés à l'étape 3
+      if (step === 3) {
+        selectedObjectives = [];
+        document.querySelectorAll('#objective-options .objective-option.selected').forEach(opt => {
+          const obj = opt.dataset.obj;
+          if (obj) selectedObjectives.push(obj);
+        });
+        if (selectedObjectives.length === 0) {
+          alert('Sélectionne au moins un objectif.');
+          return;
+        }
       }
       document.getElementById('step-'+step).classList.remove('active');
       document.getElementById('step-'+(step+1)).classList.add('active');
@@ -1930,7 +1945,8 @@
         firstname: document.getElementById('onb-firstname').value,
         role: document.getElementById('onb-role').value,
         langs: selectedLangs,
-        level: 'B1'
+        level: 'B1',
+        objectives: selectedObjectives // V12.1: Sauvegarder les objectifs
       };
       localStorage.setItem('lingualearnna_user', JSON.stringify(currentUser));
       document.getElementById('onboarding-container').style.display = 'none';
@@ -1947,7 +1963,11 @@
       const fn = document.getElementById('login-firstname').value;
       if (!fn) { alert('Entre ton prénom'); return; }
       const saved = localStorage.getItem('lingualearnna_user');
-      currentUser = saved ? JSON.parse(saved) : {firstname:fn, role:'user', level:'B1', langs:['en']};
+      currentUser = saved ? JSON.parse(saved) : {firstname:fn, role:'user', level:'B1', langs:['en'], objectives:['vocab','grammar','reading','writing','oral']};
+      // V12.1: Charger les objectifs sauvegardés
+      if (currentUser.objectives) {
+        selectedObjectives = currentUser.objectives;
+      }
       document.getElementById('login-container').style.display = 'none';
       document.getElementById('main-header').classList.remove('hidden');
       document.getElementById('main-content').classList.remove('hidden');
@@ -2449,12 +2469,66 @@
       else { alert('🎉 Session terminée ! Tu as appris ' + learnWords.length + ' nouveaux mots.'); showPage('home'); }
     }
     
-    function toggleRecording() {
-      isRecording = !isRecording;
-      // Feedback simple
-      if (isRecording) {
-        alert('🎤 Enregistrement... (simulation)');
-        setTimeout(() => { isRecording = false; }, 2000);
+    // V12.1: Variables pour l'enregistrement audio réel
+    let mediaRecorder = null;
+    let audioChunks = [];
+    
+    async function toggleRecording() {
+      if (!isRecording) {
+        // Démarrer l'enregistrement
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          
+          mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+          };
+          
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            // Ici on pourrait envoyer l'audio à un service de speech-to-text
+            console.log('[Audio] Enregistrement terminé, taille:', audioBlob.size);
+            stream.getTracks().forEach(track => track.stop());
+          };
+          
+          mediaRecorder.start();
+          isRecording = true;
+          
+          // Feedback visuel
+          const recordBtn = document.querySelector('[onclick="toggleRecording()"]');
+          if (recordBtn) {
+            recordBtn.style.background = 'var(--red)';
+            recordBtn.textContent = '⏹️ Arrêter';
+          }
+          
+          console.log('[Audio] Enregistrement démarré');
+          
+        } catch (err) {
+          console.error('[Audio] Erreur accès micro:', err);
+          if (err.name === 'NotAllowedError') {
+            alert('⚠️ Accès au microphone refusé. Autorise l\'accès dans les paramètres du navigateur.');
+          } else if (err.name === 'NotFoundError') {
+            alert('⚠️ Aucun microphone détecté.');
+          } else {
+            alert('⚠️ Erreur d\'accès au microphone: ' + err.message);
+          }
+        }
+      } else {
+        // Arrêter l'enregistrement
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        isRecording = false;
+        
+        // Feedback visuel
+        const recordBtn = document.querySelector('[onclick="toggleRecording()"]');
+        if (recordBtn) {
+          recordBtn.style.background = '';
+          recordBtn.textContent = '🎤 Parler';
+        }
+        
+        console.log('[Audio] Enregistrement arrêté');
       }
     }
 
@@ -2730,16 +2804,32 @@
     }
     
     function renderProgressBars(data, hasData) {
-      // V11: Accueil - bloc progression (SANS CTA évaluation - déplacé vers Mon niveau)
+      // V12.1: Récupérer les objectifs depuis currentUser ou utiliser tous par défaut
+      const objectives = (currentUser && currentUser.objectives) ? currentUser.objectives : ['vocab', 'grammar', 'reading', 'writing', 'oral'];
+      
+      // Mapping objectif → label + clé progress
+      const objectiveMap = {
+        vocab: { label: 'Vocabulaire', key: 'vocab' },
+        grammar: { label: 'Grammaire', key: 'grammar' },
+        reading: { label: 'Lecture', key: 'reading' },
+        writing: { label: 'Écrit', key: 'writing' },
+        oral: { label: 'Oral', key: 'oral' },
+        listening: { label: 'Écoute', key: 'listening' }
+      };
+      
+      // V12.1: Accueil - bloc progression (filtré selon objectifs sélectionnés)
       const progressContainer = document.getElementById('home-progress-bars');
       if (progressContainer) {
         if (hasData && data.progress) {
-          progressContainer.innerHTML = `
-            <div style="margin-bottom:6px;"><div class="flex-between"><span style="font-size:10px;">Vocabulaire</span><span style="font-size:10px;">${data.progress.vocab}%</span></div><div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${data.progress.vocab}%;background:var(--blue);"></div></div></div>
-            <div style="margin-bottom:6px;"><div class="flex-between"><span style="font-size:10px;">Grammaire</span><span style="font-size:10px;">${data.progress.grammar}%</span></div><div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${data.progress.grammar}%;background:var(--blue);"></div></div></div>
-            <div style="margin-bottom:6px;"><div class="flex-between"><span style="font-size:10px;">Lecture</span><span style="font-size:10px;">${data.progress.reading}%</span></div><div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${data.progress.reading}%;background:var(--blue);"></div></div></div>
-            <div style="margin-bottom:6px;"><div class="flex-between"><span style="font-size:10px;">Écrit</span><span style="font-size:10px;">${data.progress.writing}%</span></div><div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${data.progress.writing}%;background:var(--blue);"></div></div></div>
-            <div><div class="flex-between"><span style="font-size:10px;">Oral</span><span style="font-size:10px;">${data.progress.oral}%</span></div><div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${data.progress.oral}%;background:var(--blue);"></div></div></div>`;
+          let html = '';
+          objectives.forEach((obj, i) => {
+            const config = objectiveMap[obj];
+            if (config && data.progress[config.key] !== undefined) {
+              const isLast = i === objectives.length - 1;
+              html += `<div style="margin-bottom:${isLast ? '0' : '6px'};"><div class="flex-between"><span style="font-size:10px;">${config.label}</span><span style="font-size:10px;">${data.progress[config.key]}%</span></div><div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${data.progress[config.key]}%;background:var(--blue);"></div></div></div>`;
+            }
+          });
+          progressContainer.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--gray);font-size:12px;">Aucun objectif sélectionné</div>';
         } else {
           // V11: Pas de CTA ici - le CTA est dans le bloc "Mon niveau"
           progressContainer.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray);"><p style="font-size:12px;">Aucune donnée pour cette langue</p><p style="font-size:10px;margin-top:8px;">Passe ta première évaluation pour voir ta progression.</p></div>';
@@ -2762,7 +2852,7 @@
         levelCTA.style.display = hasData ? 'none' : 'block';
       }
       
-      // Évaluations - CECRL progress
+      // Évaluations - CECRL progress (affiche tous les objectifs, pas filtré)
       const evalCecrlProgress = document.getElementById('eval-cecrl-progress');
       if (evalCecrlProgress) {
         if (hasData && data.progress) {
