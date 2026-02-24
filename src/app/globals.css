@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --blue: #002844;
+  --gold: #D9B438;
+  --gray: #555555;
+  --light: #F0F0F0;
+  --white: #FFFFFF;
+  --background: #FFFFFF;
+  --foreground: #002844;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gray);
+  border-radius: 3px;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply bg-white text-blue border-2 border-blue px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:bg-gray-light active:scale-[0.98];
+  }
+  .btn-gold {
+    @apply bg-gold text-blue px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98];
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-light p-6;
+  }
+}
