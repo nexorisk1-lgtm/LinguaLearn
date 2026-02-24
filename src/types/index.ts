@@ -1,6 +1,7 @@
 // ==========================================
 // LINGUALEARN - Types TypeScript
 // CDC V2.1 - Types centraux
+// CORRIGÉ: Objectifs/thèmes PAR LANGUE (#1)
 // ==========================================
 
 // --- Langues ---
@@ -104,12 +105,19 @@ export const DAYS_OF_WEEK: { id: DayOfWeek; labelFr: string; labelEn: string; sh
   { id: 'sun', labelFr: 'Dimanche', labelEn: 'Sunday', shortFr: 'D', shortEn: 'S' },
 ];
 
+// --- CORRECTION #1: Config PAR LANGUE ---
+export interface LanguageConfig {
+  objectives: LearningObjective[];
+  themes: string[];
+  hasGrcThemes: boolean;
+}
+
 // --- User Settings (stockage) ---
 export interface UserSettings {
   interfaceLang: InterfaceLanguage;
   learningLangs: LearningLanguage[];
-  selectedThemes: string[];
-  objectives: LearningObjective[];
+  // CORRECTION #1: objectifs et thèmes PAR LANGUE
+  languageConfigs: Record<string, LanguageConfig>;
   schedule: {
     days: DayOfWeek[];
     duration: SessionDuration;
@@ -117,11 +125,26 @@ export interface UserSettings {
   coachVoiceGender?: 'male' | 'female';
 }
 
+// --- Diagnostic choice per language ---
+export type DiagnosticChoice = 'test' | 'manual' | 'skip';
+
+export interface DiagnosticResult {
+  cecrlScore: number;
+  cecrlLevel: LevelCECRL;
+  // Détail par compétence (correction #7)
+  scoresByObjective: Record<string, { correct: number; total: number; percent: number }>;
+  grcScore?: number;
+  grcLevel?: LevelGRC;
+}
+
 // --- User Progress ---
 export interface UserProgress {
   levelCecrl: LevelCECRL;
   levelGrc?: LevelGRC;
   objectiveProgress: Record<LearningObjective, number>; // 0-100%
+  diagnosticResults?: DiagnosticResult;
+  diagnosticCompleted?: boolean;
+  grcDiagnosticCompleted?: boolean;
 }
 
 // --- User complet ---
@@ -131,9 +154,9 @@ export interface User {
   email: string;
   role: UserRole;
   settings: UserSettings;
-  progress: Record<LearningLanguage, UserProgress>;
-  hasGrcThemes: boolean;
+  progress: Record<string, UserProgress>;
   onboardingCompleted: boolean;
+  activeLang?: LearningLanguage; // CORRECTION #4: langue active sélectionnée
   createdAt: string;
 }
 
@@ -148,6 +171,9 @@ export interface DiagnosticQuestion {
   correctAnswer: number;
   language: LearningLanguage;
   theme?: string;
+  // CORRECTION #5/#6: type d'interaction
+  interactionType?: 'text' | 'listening' | 'speaking';
+  audioText?: string; // texte à lire par TTS pour listening
 }
 
 // --- Mapping objectifs → sections évaluation CECRL (Section 14.4) ---
@@ -173,4 +199,14 @@ export function scoreToGRC(scorePercent: number): LevelGRC {
   if (scorePercent < 60) return 'Intermédiaire';
   if (scorePercent < 80) return 'Senior';
   return 'Expert';
+}
+
+// --- Helper: get hasGrcThemes for a language ---
+export function getHasGrcThemes(user: User, langCode: string): boolean {
+  return user.settings.languageConfigs?.[langCode]?.hasGrcThemes || false;
+}
+
+// --- Helper: get objectives for a language ---
+export function getLangObjectives(user: User, langCode: string): LearningObjective[] {
+  return user.settings.languageConfigs?.[langCode]?.objectives || [];
 }

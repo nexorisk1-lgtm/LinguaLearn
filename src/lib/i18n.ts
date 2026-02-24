@@ -1,6 +1,7 @@
 // ==========================================
 // LINGUALEARN - Internationalisation
 // CDC V2.1 - 2 langues d'interface (FR, EN)
+// CORRIGÉ: nouvelles clés pour corrections #1-#10
 // ==========================================
 
 import { InterfaceLanguage } from '@/types';
@@ -32,7 +33,7 @@ const translations = {
     'onboarding.next': 'Suivant',
     'onboarding.previous': 'Précédent',
     'onboarding.finish': 'Terminer',
-    'onboarding.startDiagnostic': 'Commencer le diagnostic',
+    'onboarding.startDiagnostic': 'Continuer',
 
     // Écran 1
     'onboarding.screen1.title': 'Paramètres généraux',
@@ -40,13 +41,16 @@ const translations = {
     'onboarding.screen1.learningLangs': 'Langue(s) à apprendre',
     'onboarding.screen1.selectAtLeast1': 'Sélectionnez au moins une langue',
 
-    // Écran 2
+    // Écran 2 - PAR LANGUE (#1)
     'onboarding.screen2.title': 'Objectifs & Thématiques',
+    'onboarding.screen2.configFor': 'Configuration pour',
     'onboarding.screen2.objectives': 'Objectifs de progression',
     'onboarding.screen2.objectivesHint': 'Au moins 1 obligatoire',
     'onboarding.screen2.personalThemes': 'Thèmes personnels',
     'onboarding.screen2.proThemes': 'Thèmes professionnels (GRC & Cybersécurité)',
     'onboarding.screen2.selectAtLeast1Theme': 'Sélectionnez au moins un thème',
+    'onboarding.screen2.langOf': 'Langue',
+    'onboarding.screen2.nextLang': 'Langue suivante',
 
     // Écran 3
     'onboarding.screen3.title': 'Organisation',
@@ -54,13 +58,25 @@ const translations = {
     'onboarding.screen3.duration': 'Durée quotidienne',
     'onboarding.screen3.selectAtLeast1Day': 'Sélectionnez au moins un jour',
 
-    // Écran 4
+    // Écran 4 - Diagnostic optionnel (#2)
     'onboarding.screen4.title': 'Évaluations initiales',
     'onboarding.screen4.cecrDescription': 'Évaluation diagnostique CECRL',
     'onboarding.screen4.cecrMandatory': 'Obligatoire',
     'onboarding.screen4.grcDescription': 'Évaluation diagnostique GRC/Cyber',
     'onboarding.screen4.grcConditional': 'Thèmes professionnels détectés',
     'onboarding.screen4.filteredByObjectives': 'Filtré selon vos objectifs sélectionnés',
+    'onboarding.screen4.knowLevel': 'Connais-tu ton niveau en',
+    'onboarding.screen4.yes': 'Oui, je connais mon niveau',
+    'onboarding.screen4.no': 'Non',
+    'onboarding.screen4.selectLevel': 'Sélectionne ton niveau',
+    'onboarding.screen4.whatToDo': 'Que souhaites-tu faire ?',
+    'onboarding.screen4.takeTest': 'Faire une évaluation maintenant',
+    'onboarding.screen4.startA1': 'Commencer au niveau A1',
+    'onboarding.screen4.startA1Note': 'Si tu choisis A1, ta première évaluation certificative sera proposée dans 1 mois.',
+    'onboarding.screen4.grcTest': 'Faire une évaluation GRC maintenant',
+    'onboarding.screen4.startJunior': 'Commencer au niveau Junior',
+    'onboarding.screen4.grcSection': 'Évaluation GRC/Cyber pour',
+    'onboarding.screen4.cecrSection': 'Évaluation CECRL pour',
 
     // Diagnostic
     'diagnostic.title': 'Évaluation diagnostique',
@@ -74,19 +90,56 @@ const translations = {
     'diagnostic.yourLevel': 'Votre niveau',
     'diagnostic.goToDashboard': 'Accéder au tableau de bord',
     'diagnostic.objectivesFiltered': 'Questions filtrées selon vos objectifs :',
+    'diagnostic.cecrTitle': 'Évaluation CECRL',
+    'diagnostic.grcTitle': 'Évaluation GRC/Cyber',
+    'diagnostic.transition': 'Évaluation CECRL terminée ! Passons maintenant à l\'évaluation GRC/Cyber.',
+    'diagnostic.skipGrc': 'Reporter à plus tard',
+    'diagnostic.continueGrc': 'Commencer l\'évaluation GRC',
+    'diagnostic.listen': 'Écouter',
+    'diagnostic.listenAgain': 'Réécouter',
+    'diagnostic.audioNotAvailable': 'Audio non disponible',
+    'diagnostic.speakNow': 'Parle maintenant',
+    'diagnostic.recording': 'Enregistrement en cours...',
+    'diagnostic.micDenied': 'Micro non autorisé',
+    'diagnostic.oralNotEvaluated': 'Oral non évalué (micro non autorisé)',
+    // Bilan détaillé (#7)
+    'diagnostic.detailedResults': 'Bilan détaillé',
+    'diagnostic.strengths': 'Point fort',
+    'diagnostic.correct': 'Correct',
+    'diagnostic.toImprove': 'À améliorer',
+    'diagnostic.priority': 'Priorité',
+    'diagnostic.recommendation': 'Recommandation personnalisée',
+    'diagnostic.forLang': 'pour',
 
     // Dashboard
     'dashboard.hello': 'Hello',
     'dashboard.streak': 'Streak',
     'dashboard.days': 'jours',
     'dashboard.activeLang': 'Langue active',
+    'dashboard.switchLang': 'Changer de langue',
     'dashboard.levelCecrl': 'Niveau CECRL',
     'dashboard.levelGrc': 'Niveau GRC/Cyber',
+    'dashboard.notEvaluated': 'Non évalué',
+    'dashboard.takeDiagnostic': 'Faire le diagnostic',
     'dashboard.progress': 'Progression',
-    'dashboard.schedule': 'Calendrier',
+    'dashboard.schedule': 'Calendrier & Rappels',
     'dashboard.todayReview': 'Révision du jour',
     'dashboard.certifReminder': 'Rappel certification',
     'dashboard.challenges': 'Défis en cours',
+    'dashboard.nextCecrl': 'Prochaine certif CECRL',
+    'dashboard.nextGrc': 'Prochaine certif GRC',
+    'dashboard.pendingChallenges': 'Défis en attente',
+    'dashboard.startReview': 'Commencer la révision',
+    'dashboard.ranking': 'Classement hebdo',
+    'dashboard.noChallenges': 'Pas encore de défi',
+    'dashboard.challengeFriend': 'Défie un ami !',
+    'dashboard.launchChallenge': 'Lancer un défi',
+    'dashboard.challengeExplain': 'Les défis te permettent d\'affronter tes amis sur des quiz de langues.',
+
+    // Placeholder (#9)
+    'placeholder.title': 'Module en cours de développement',
+    'placeholder.subtitle': 'Ce module sera disponible dans une prochaine mise à jour.',
+    'placeholder.back': 'Retour au tableau de bord',
 
     // Général
     'general.loading': 'Chargement...',
@@ -122,7 +175,7 @@ const translations = {
     'onboarding.next': 'Next',
     'onboarding.previous': 'Previous',
     'onboarding.finish': 'Finish',
-    'onboarding.startDiagnostic': 'Start Diagnostic',
+    'onboarding.startDiagnostic': 'Continue',
 
     // Screen 1
     'onboarding.screen1.title': 'General Settings',
@@ -130,13 +183,16 @@ const translations = {
     'onboarding.screen1.learningLangs': 'Language(s) to learn',
     'onboarding.screen1.selectAtLeast1': 'Select at least one language',
 
-    // Screen 2
+    // Screen 2 - PER LANGUAGE (#1)
     'onboarding.screen2.title': 'Goals & Topics',
+    'onboarding.screen2.configFor': 'Settings for',
     'onboarding.screen2.objectives': 'Learning goals',
     'onboarding.screen2.objectivesHint': 'At least 1 required',
     'onboarding.screen2.personalThemes': 'Personal topics',
     'onboarding.screen2.proThemes': 'Professional topics (GRC & Cybersecurity)',
     'onboarding.screen2.selectAtLeast1Theme': 'Select at least one topic',
+    'onboarding.screen2.langOf': 'Language',
+    'onboarding.screen2.nextLang': 'Next language',
 
     // Screen 3
     'onboarding.screen3.title': 'Schedule',
@@ -144,13 +200,25 @@ const translations = {
     'onboarding.screen3.duration': 'Daily duration',
     'onboarding.screen3.selectAtLeast1Day': 'Select at least one day',
 
-    // Screen 4
+    // Screen 4 - Optional diagnostic (#2)
     'onboarding.screen4.title': 'Initial Assessments',
     'onboarding.screen4.cecrDescription': 'CEFR Diagnostic Assessment',
     'onboarding.screen4.cecrMandatory': 'Mandatory',
     'onboarding.screen4.grcDescription': 'GRC/Cyber Diagnostic Assessment',
     'onboarding.screen4.grcConditional': 'Professional topics detected',
     'onboarding.screen4.filteredByObjectives': 'Filtered by your selected goals',
+    'onboarding.screen4.knowLevel': 'Do you know your level in',
+    'onboarding.screen4.yes': 'Yes, I know my level',
+    'onboarding.screen4.no': 'No',
+    'onboarding.screen4.selectLevel': 'Select your level',
+    'onboarding.screen4.whatToDo': 'What would you like to do?',
+    'onboarding.screen4.takeTest': 'Take an assessment now',
+    'onboarding.screen4.startA1': 'Start at A1 level',
+    'onboarding.screen4.startA1Note': 'If you choose A1, your first certification will be offered in 1 month.',
+    'onboarding.screen4.grcTest': 'Take GRC assessment now',
+    'onboarding.screen4.startJunior': 'Start at Junior level',
+    'onboarding.screen4.grcSection': 'GRC/Cyber assessment for',
+    'onboarding.screen4.cecrSection': 'CEFR assessment for',
 
     // Diagnostic
     'diagnostic.title': 'Diagnostic Assessment',
@@ -164,19 +232,56 @@ const translations = {
     'diagnostic.yourLevel': 'Your level',
     'diagnostic.goToDashboard': 'Go to Dashboard',
     'diagnostic.objectivesFiltered': 'Questions filtered by your goals:',
+    'diagnostic.cecrTitle': 'CEFR Assessment',
+    'diagnostic.grcTitle': 'GRC/Cyber Assessment',
+    'diagnostic.transition': 'CEFR assessment complete! Now let\'s move on to the GRC/Cyber assessment.',
+    'diagnostic.skipGrc': 'Do later',
+    'diagnostic.continueGrc': 'Start GRC assessment',
+    'diagnostic.listen': 'Listen',
+    'diagnostic.listenAgain': 'Listen again',
+    'diagnostic.audioNotAvailable': 'Audio not available',
+    'diagnostic.speakNow': 'Speak now',
+    'diagnostic.recording': 'Recording...',
+    'diagnostic.micDenied': 'Microphone not allowed',
+    'diagnostic.oralNotEvaluated': 'Speaking not evaluated (mic not allowed)',
+    // Detailed report (#7)
+    'diagnostic.detailedResults': 'Detailed Report',
+    'diagnostic.strengths': 'Strength',
+    'diagnostic.correct': 'Correct',
+    'diagnostic.toImprove': 'To improve',
+    'diagnostic.priority': 'Priority',
+    'diagnostic.recommendation': 'Personalized recommendation',
+    'diagnostic.forLang': 'for',
 
     // Dashboard
     'dashboard.hello': 'Hello',
     'dashboard.streak': 'Streak',
     'dashboard.days': 'days',
     'dashboard.activeLang': 'Active language',
+    'dashboard.switchLang': 'Switch language',
     'dashboard.levelCecrl': 'CEFR Level',
     'dashboard.levelGrc': 'GRC/Cyber Level',
+    'dashboard.notEvaluated': 'Not evaluated',
+    'dashboard.takeDiagnostic': 'Take diagnostic',
     'dashboard.progress': 'Progress',
-    'dashboard.schedule': 'Schedule',
+    'dashboard.schedule': 'Schedule & Reminders',
     'dashboard.todayReview': 'Today\'s Review',
     'dashboard.certifReminder': 'Certification Reminder',
     'dashboard.challenges': 'Active Challenges',
+    'dashboard.nextCecrl': 'Next CEFR certif',
+    'dashboard.nextGrc': 'Next GRC certif',
+    'dashboard.pendingChallenges': 'Pending challenges',
+    'dashboard.startReview': 'Start review',
+    'dashboard.ranking': 'Weekly ranking',
+    'dashboard.noChallenges': 'No challenges yet',
+    'dashboard.challengeFriend': 'Challenge a friend!',
+    'dashboard.launchChallenge': 'Launch a challenge',
+    'dashboard.challengeExplain': 'Challenges let you compete with friends on language quizzes.',
+
+    // Placeholder (#9)
+    'placeholder.title': 'Module under development',
+    'placeholder.subtitle': 'This module will be available in a future update.',
+    'placeholder.back': 'Back to dashboard',
 
     // General
     'general.loading': 'Loading...',

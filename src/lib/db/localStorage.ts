@@ -1,6 +1,7 @@
 // ==========================================
 // LINGUALEARN - LocalStorage DB (DEV)
 // CDC V2.1 Section 3.3 - Environnement DEV
+// CORRIGÉ: Support languageConfigs PAR LANGUE
 // ==========================================
 
 import { User, UserSettings, UserProgress, LearningLanguage } from '@/types';
@@ -42,12 +43,10 @@ export function registerUser(
     settings: {
       interfaceLang: 'fr',
       learningLangs: [],
-      selectedThemes: [],
-      objectives: [],
+      languageConfigs: {},
       schedule: { days: [], duration: 20 },
     },
-    progress: {} as Record<LearningLanguage, UserProgress>,
-    hasGrcThemes: false,
+    progress: {},
     onboardingCompleted: false,
     createdAt: new Date().toISOString(),
   };
@@ -103,9 +102,18 @@ export function updateUserSettings(userId: string, settings: Partial<UserSetting
 
   users[index].settings = { ...users[index].settings, ...settings };
 
-  // Recalcul hasGrcThemes (CDC Section 6 - Écran 2)
-  const professionalThemeIds = ['meetings', 'risk', 'audit', 'compliance', 'control', 'consulting', 'governance', 'cybersecurity'];
-  users[index].hasGrcThemes = users[index].settings.selectedThemes.some(t => professionalThemeIds.includes(t));
+  saveUsers(users);
+  setCurrentUser(users[index]);
+  return users[index];
+}
+
+// --- Set active language (Correction #4) ---
+export function setActiveLang(userId: string, lang: LearningLanguage): User | null {
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === userId);
+  if (index === -1) return null;
+
+  users[index].activeLang = lang;
 
   saveUsers(users);
   setCurrentUser(users[index]);
@@ -115,7 +123,7 @@ export function updateUserSettings(userId: string, settings: Partial<UserSetting
 // --- User Progress ---
 export function updateUserProgress(
   userId: string,
-  language: LearningLanguage,
+  language: string,
   progress: Partial<UserProgress>
 ): User | null {
   const users = getUsers();
