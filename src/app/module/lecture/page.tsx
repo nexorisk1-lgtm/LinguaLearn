@@ -1,0 +1,666 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  ArrowLeft,
+  Volume2,
+  VolumeX,
+  BookOpen,
+  Search,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+
+import { getCurrentUser } from '@/lib/db/localStorage';
+import { User, ALL_THEMES } from '@/types';
+import { t, getThemeName } from '@/lib/i18n';
+import {
+  getReadingTexts,
+  getVocabulary,
+  speakText,
+} from '@/lib/db/bankHelpers';
+import { ReadingText, VocabWord } from '@/lib/db/bankTypes';
+
+export default function LecturePage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState<'texts' | 'dictionary'>('texts');
+  const [readingTexts, setReadingTexts] = useState<ReadingText[]>([]);
+  const [vocabulary, setVocabulary] = useState<VocabWord[]>([]);
+  const [expandedTexts, setExpandedTexts] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingTextId, setSpeakingTextId] = useState<string | null>(null);
+
+  // Dictionary tab state
+  const [dictMode, setDictMode] = useState<'enEn' | 'enFr' | 'frEn'>('enEn');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dictSearchResults, setDictSearchResults] = useState<VocabWord[]>([]);
+
+  // Double-click word lookup popup
+  const [selectedWord, setSelectedWord] = useState<VocabWord | null>(null);
+  const [wordNotFound, setWordNotFound] = useState(false);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+
+  // Initialize user and load data
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      router.push('/auth');
+      return;
+    }
+    setUser(currentUser);
+
+    const activeLang = currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en';
+    const userLevel = currentUser.progress?.[activeLang]?.levelCecrl || 'A1';
+    const userThemes = currentUser.settings.languageConfigs?.[activeLang]?.themes || ['travel'];
+
+    // Get reading texts
+    const texts = getReadingTexts(activeLang, userThemes, userLevel);
+    setReadingTexts(texts);
+
+    // Get vocabulary
+    const vocab = getVocabulary(activeLang, userThemes, userLevel);
+    setVocabulary(vocab);
+
+    setIsLoading(false);
+  }, [router]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin mb-4 inline-block">
+            <BookOpen className="w-8 h-8" style={{ color: '#002844' }} />
+          </div>
+          <p style={{ color: '#555555' }}>{t('onboarding.loading', user?.settings.interfaceLang || 'fr')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const interfaceLang = user.settings.interfaceLang || 'fr';
+  const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en';
+
+  // ==========================================
+  // TEXT TAB HANDLERS
+  // ==========================================
+
+  const toggleTextExpand = (textId: string) => {
+    const newExpanded = new Set(expandedTexts);
+    if (newExpanded.has(textId)) {
+      newExpanded.delete(textId);
+    } else {
+      newExpanded.add(textId);
+    }
+    setExpandedTexts(newExpanded);
+  };
+
+  const handleReadAloud = (textId: string, text: string) => {
+    if (isSpeaking && speakingTextId === textId) {
+      // Stop reading
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setSpeakingTextId(null);
+    } else {
+      // Start reading
+      setSpeakingTextId(textId);
+      setIsSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      const languageMap: Record<string, string> = {
+        en: 'en-US',
+        es: 'es-ES',
+        fr: 'fr-FR',
+        de: 'de-DE',
+        it: 'it-IT',
+        pt: 'pt-PT',
+        ru: 'ru-RU',
+        ja: 'ja-JP',
+        zh: 'zh-CN',
+      };
+
+      utterance.lang = languageMap[activeLang] || activeLang;
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setSpeakingTextId(null);
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setSpeakingTextId(null);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // ==========================================
+  // DOUBLE-CLICK WORD LOOKUP
+  // ==========================================
+
+  const handleTextDoubleClick = (e: React.MouseEvent<HTMLParagraphElement>) => {
+    const selection = window.getSelection();
+    if (!selection || selection.toString().trim().length === 0) return;
+
+    const selectedText = selection.toString().trim().toLowerCase();
+
+    // Search in vocabulary bank (case-insensitive)
+    const found = vocabulary.find(
+      (word) => word.word_target.toLowerCase() === selectedText
+    );
+
+    if (found) {
+      setSelectedWord(found);
+      setWordNotFound(false);
+    } else {
+      setSelectedWord(null);
+      setWordNotFound(true);
+    }
+
+    // Position popup near cursor
+    setPopupPosition({
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  const closeWordPopup = () => {
+    setSelectedWord(null);
+    setWordNotFound(false);
+  };
+
+  // ==========================================
+  // DICTIONARY TAB HANDLERS
+  // ==========================================
+
+  const handleDictSearch = () => {
+    if (!searchQuery.trim()) {
+      setDictSearchResults([]);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    let results: VocabWord[] = [];
+
+    if (dictMode === 'enEn') {
+      results = vocabulary.filter((word) =>
+        word.word_target.toLowerCase().includes(query)
+      );
+    } else if (dictMode === 'enFr') {
+      results = vocabulary.filter((word) =>
+        word.word_target.toLowerCase().includes(query)
+      );
+    } else if (dictMode === 'frEn') {
+      results = vocabulary.filter((word) =>
+        word.word_fr.toLowerCase().includes(query)
+      );
+    }
+
+    setDictSearchResults(results);
+  };
+
+  // ==========================================
+  // RENDER TEXT CARD
+  // ==========================================
+
+  const TextCard = ({ text }: { text: ReadingText }) => {
+    const isExpanded = expandedTexts.has(text.id);
+    const wordCount = text.body_text.split(/\s+/).length;
+    const isSpeakingThis = isSpeaking && speakingTextId === text.id;
+
+    return (
+      <div
+        className="rounded-lg border-2 p-4 transition-all hover:shadow-md"
+        style={{
+          borderColor: '#D9B438',
+          backgroundColor: '#ffffff',
+        }}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <h3 className="text-xl font-bold mb-2" style={{ color: '#002844' }}>
+              {text.title}
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+              <span
+                className="text-xs font-semibold px-2 py-1 rounded"
+                style={{
+                  backgroundColor: '#D9B438',
+                  color: '#002844',
+                }}
+              >
+                {text.level}
+              </span>
+              <span
+                className="text-xs font-semibold px-2 py-1 rounded"
+                style={{
+                  backgroundColor: '#f0f0f0',
+                  color: '#555555',
+                }}
+              >
+                {getThemeName(text.theme, interfaceLang, ALL_THEMES)}
+              </span>
+              <span
+                className="text-xs font-semibold px-2 py-1 rounded"
+                style={{
+                  backgroundColor: '#e8f4f8',
+                  color: '#002844',
+                }}
+              >
+                {wordCount} {interfaceLang === 'fr' ? 'mots' : 'words'}
+              </span>
+            </div>
+          </div>
+
+          {/* Read Aloud Button */}
+          <button
+            onClick={() => handleReadAloud(text.id, text.body_text)}
+            className="p-2 rounded-lg hover:opacity-80 transition-opacity ml-2 flex-shrink-0"
+            style={{ backgroundColor: isSpeakingThis ? '#ff6b6b' : '#D9B438' }}
+            title={
+              isSpeakingThis
+                ? t('reading.stopReading', interfaceLang)
+                : t('reading.readAloud', interfaceLang)
+            }
+            aria-label={
+              isSpeakingThis
+                ? t('reading.stopReading', interfaceLang)
+                : t('reading.readAloud', interfaceLang)
+            }
+          >
+            {isSpeakingThis ? (
+              <VolumeX className="w-4 h-4" style={{ color: '#ffffff' }} />
+            ) : (
+              <Volume2 className="w-4 h-4" style={{ color: '#002844' }} />
+            )}
+          </button>
+        </div>
+
+        {/* Expand/Collapse Button */}
+        <button
+          onClick={() => toggleTextExpand(text.id)}
+          className="w-full text-left py-2 px-2 rounded text-sm font-semibold transition-colors"
+          style={{
+            color: '#002844',
+            backgroundColor: '#f0f0f0',
+          }}
+        >
+          {isExpanded ? <ChevronUp className="w-4 h-4 inline mr-2" /> : <ChevronDown className="w-4 h-4 inline mr-2" />}
+          {isExpanded ? (t('vocab.definition', interfaceLang)) : (t('reading.texts', interfaceLang))}
+        </button>
+
+        {/* Expanded Content */}
+        {isExpanded && (
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: '#D9B438' }}>
+            <p
+              className="leading-relaxed cursor-text select-text"
+              style={{ color: '#555555', fontSize: '0.95rem' }}
+              onDoubleClick={handleTextDoubleClick}
+              title={t('reading.doubleClick', interfaceLang)}
+            >
+              {text.body_text}
+            </p>
+            <p
+              className="mt-4 text-xs italic"
+              style={{ color: '#D9B438' }}
+            >
+              {t('reading.doubleClick', interfaceLang)}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ==========================================
+  // RENDER DICTIONARY RESULT CARD
+  // ==========================================
+
+  const DictResultCard = ({ word }: { word: VocabWord }) => {
+    return (
+      <div
+        className="rounded-lg border-2 p-4 transition-all hover:shadow-md"
+        style={{
+          borderColor: '#D9B438',
+          backgroundColor: '#ffffff',
+        }}
+      >
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            {dictMode === 'enEn' && (
+              <>
+                <h3 className="text-lg font-bold mb-2" style={{ color: '#002844' }}>
+                  {word.word_target}
+                </h3>
+                <p style={{ color: '#555555', fontSize: '0.875rem' }}>
+                  {word.definition_en}
+                </p>
+              </>
+            )}
+            {dictMode === 'enFr' && (
+              <>
+                <h3 className="text-lg font-bold mb-2" style={{ color: '#002844' }}>
+                  {word.word_target}
+                </h3>
+                <p style={{ color: '#555555', fontSize: '0.875rem' }}>
+                  {word.word_fr}
+                </p>
+              </>
+            )}
+            {dictMode === 'frEn' && (
+              <>
+                <h3 className="text-lg font-bold mb-2" style={{ color: '#002844' }}>
+                  {word.word_fr}
+                </h3>
+                <p style={{ color: '#555555', fontSize: '0.875rem' }}>
+                  {word.word_target}
+                </p>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => speakText(word.word_target, activeLang)}
+            className="p-2 rounded-lg hover:opacity-80 transition-opacity ml-2 flex-shrink-0"
+            style={{ backgroundColor: '#D9B438' }}
+            title={t('vocab.listen', interfaceLang)}
+            aria-label={t('vocab.listen', interfaceLang)}
+          >
+            <Volume2 className="w-4 h-4" style={{ color: '#002844' }} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ==========================================
+  // RENDER WORD LOOKUP POPUP
+  // ==========================================
+
+  const WordLookupPopup = () => {
+    if (!selectedWord && !wordNotFound) return null;
+
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 z-40"
+          onClick={closeWordPopup}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+        />
+
+        {/* Popup */}
+        <div
+          className="fixed z-50 rounded-lg shadow-2xl p-6 max-w-sm border-2"
+          style={{
+            left: Math.min(popupPosition.x, window.innerWidth - 350),
+            top: Math.min(popupPosition.y + 20, window.innerHeight - 300),
+            borderColor: '#D9B438',
+            backgroundColor: '#ffffff',
+          }}
+        >
+          {/* Close Button */}
+          <button
+            onClick={closeWordPopup}
+            className="absolute top-2 right-2 p-1 hover:opacity-80 transition-opacity"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" style={{ color: '#002844' }} />
+          </button>
+
+          {/* Word Not Found */}
+          {wordNotFound && (
+            <div className="text-center">
+              <p style={{ color: '#555555', fontSize: '1rem' }}>
+                {t('reading.dict.noResult', interfaceLang)}
+              </p>
+            </div>
+          )}
+
+          {/* Word Found */}
+          {selectedWord && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-xl font-bold mb-2" style={{ color: '#002844' }}>
+                  {selectedWord.word_target}
+                </h3>
+                <p className="text-sm" style={{ color: '#555555' }}>
+                  {selectedWord.word_fr}
+                </p>
+              </div>
+
+              <div className="border-t pt-3" style={{ borderColor: '#D9B438' }}>
+                <p className="text-xs font-semibold mb-1" style={{ color: '#D9B438' }}>
+                  {t('vocab.definition', interfaceLang)}
+                </p>
+                <p className="text-sm" style={{ color: '#555555' }}>
+                  {selectedWord.definition_en}
+                </p>
+              </div>
+
+              {selectedWord.example_en && (
+                <div className="border-t pt-3" style={{ borderColor: '#D9B438' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#D9B438' }}>
+                    {t('vocab.example', interfaceLang)}
+                  </p>
+                  <p className="text-sm italic" style={{ color: '#555555' }}>
+                    {selectedWord.example_en}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-3 border-t" style={{ borderColor: '#D9B438' }}>
+                <button
+                  onClick={() => speakText(selectedWord.word_target, activeLang)}
+                  className="flex-1 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  style={{
+                    backgroundColor: '#D9B438',
+                    color: '#002844',
+                  }}
+                >
+                  <Volume2 className="w-4 h-4" />
+                  {t('vocab.listen', interfaceLang)}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Header */}
+      <header
+        className="px-4 md:px-8 py-6 md:py-8"
+        style={{
+          backgroundColor: '#002844',
+          color: '#ffffff',
+        }}
+      >
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard">
+            <button
+              className="p-2 rounded-lg hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: '#D9B438' }}
+              aria-label={t('module.back', interfaceLang)}
+            >
+              <ArrowLeft className="w-5 h-5" style={{ color: '#002844' }} />
+            </button>
+          </Link>
+          <h1 className="text-3xl md:text-4xl font-bold">
+            {t('reading.title', interfaceLang)}
+          </h1>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <div
+        className="px-4 md:px-8 py-4 flex gap-0 border-b-2"
+        style={{
+          borderColor: '#D9B438',
+          backgroundColor: '#ffffff',
+        }}
+      >
+        <button
+          onClick={() => setActiveTab('texts')}
+          className="px-4 py-3 font-semibold text-sm md:text-base transition-colors border-b-2"
+          style={{
+            color: activeTab === 'texts' ? '#D9B438' : '#555555',
+            borderColor: activeTab === 'texts' ? '#D9B438' : 'transparent',
+          }}
+        >
+          {t('reading.texts', interfaceLang)}
+        </button>
+        <button
+          onClick={() => setActiveTab('dictionary')}
+          className="px-4 py-3 font-semibold text-sm md:text-base transition-colors border-b-2"
+          style={{
+            color: activeTab === 'dictionary' ? '#D9B438' : '#555555',
+            borderColor: activeTab === 'dictionary' ? '#D9B438' : 'transparent',
+          }}
+        >
+          {t('reading.dictionary', interfaceLang)}
+        </button>
+      </div>
+
+      {/* Content */}
+      <main className="px-4 md:px-8 py-8">
+        {/* Texts Tab */}
+        {activeTab === 'texts' && (
+          <div>
+            {readingTexts.length > 0 ? (
+              <>
+                <p className="mb-6 font-semibold" style={{ color: '#555555' }}>
+                  {readingTexts.length} {interfaceLang === 'fr' ? 'texte(s)' : 'text(s)'}
+                </p>
+                <div className="space-y-6">
+                  {readingTexts.map((text) => (
+                    <TextCard key={text.id} text={text} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p style={{ color: '#555555', fontSize: '1.125rem' }}>
+                  {t('module.noContent', interfaceLang)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dictionary Tab */}
+        {activeTab === 'dictionary' && (
+          <div>
+            {/* Mode Selection */}
+            <div className="mb-8 p-6 rounded-lg border-2" style={{ borderColor: '#D9B438', backgroundColor: '#ffffff' }}>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#002844' }}>
+                {t('reading.dictionary', interfaceLang)}
+              </p>
+              <div className="flex gap-4 flex-wrap">
+                {(['enEn', 'enFr', 'frEn'] as const).map((mode) => (
+                  <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="dictMode"
+                      value={mode}
+                      checked={dictMode === mode}
+                      onChange={(e) => {
+                        setDictMode(e.target.value as typeof dictMode);
+                        setSearchQuery('');
+                        setDictSearchResults([]);
+                      }}
+                      className="w-4 h-4"
+                      style={{ accentColor: '#D9B438' }}
+                    />
+                    <span style={{ color: '#555555', fontWeight: dictMode === mode ? '600' : '400' }}>
+                      {t(`reading.dict.${mode}`, interfaceLang)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Search Box */}
+            <div className="mb-8">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleDictSearch();
+                    }}
+                    className="w-full px-4 py-3 rounded-lg border-2"
+                    style={{
+                      borderColor: '#D9B438',
+                      color: '#002844',
+                    }}
+                    placeholder={t('reading.dict.search', interfaceLang)}
+                  />
+                </div>
+                <button
+                  onClick={handleDictSearch}
+                  className="px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
+                  style={{
+                    backgroundColor: '#D9B438',
+                    color: '#002844',
+                  }}
+                >
+                  <Search className="w-4 h-4" />
+                  {t('general.search', interfaceLang) || 'Search'}
+                </button>
+              </div>
+            </div>
+
+            {/* Search Results */}
+            {dictSearchResults.length > 0 ? (
+              <>
+                <p className="mb-6 font-semibold" style={{ color: '#555555' }}>
+                  {dictSearchResults.length} {interfaceLang === 'fr' ? 'résultat(s)' : 'result(s)'}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {dictSearchResults.map((word) => (
+                    <DictResultCard key={word.id} word={word} />
+                  ))}
+                </div>
+              </>
+            ) : searchQuery.trim() ? (
+              <div className="text-center py-12">
+                <p style={{ color: '#555555', fontSize: '1.125rem' }}>
+                  {t('reading.dict.noResult', interfaceLang)}
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p style={{ color: '#555555', fontSize: '1rem' }}>
+                  {interfaceLang === 'fr'
+                    ? 'Commencez par sélectionner un mode et entrez un mot'
+                    : 'Start by selecting a mode and enter a word'}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Word Lookup Popup */}
+      <WordLookupPopup />
+    </div>
+  );
+}

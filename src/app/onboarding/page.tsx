@@ -273,9 +273,9 @@ export default function OnboardingPage() {
 
   // Progress bar
   const ProgressBar = () => (
-    <div className="w-full mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-gray-800">
+    <div className="w-full mb-4 sm:mb-6">
+      <div className="flex items-center justify-between mb-2 sm:mb-4">
+        <h1 className="text-lg sm:text-xl font-bold text-gray-800">
           {t('onboarding.step', interfaceLang)} {currentStep} {t('onboarding.of', interfaceLang)} 4
         </h1>
       </div>
@@ -287,8 +287,8 @@ export default function OnboardingPage() {
 
   // ============ SCREEN 1 ============
   const Screen1 = () => (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('onboarding.screen1.title', interfaceLang)}</h2>
+    <div className="space-y-5 sm:space-y-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-gray-800">{t('onboarding.screen1.title', interfaceLang)}</h2>
       <div>
         <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen1.interfaceLang', interfaceLang)}</label>
         <div className="flex gap-4">
@@ -570,10 +570,10 @@ export default function OnboardingPage() {
 
   // ============ MAIN RENDER ============
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="max-w-2xl mx-auto">
         <ProgressBar />
-        <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 md:p-10 mb-8">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 md:p-8 lg:p-10 mb-6 overflow-y-auto max-h-[calc(100vh-180px)]">
           {currentStep === 1 && <Screen1 />}
           {currentStep === 2 && <Screen2 />}
           {currentStep === 3 && <Screen3 />}
