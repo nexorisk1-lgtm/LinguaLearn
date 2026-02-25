@@ -1,7 +1,7 @@
 // ==========================================
 // LINGUALEARN - Internationalisation
 // CDC V2.1 - 2 langues d'interface (FR, EN)
-// CORRIGÉ: nouvelles clés pour corrections #1-#10
+// CORRIGÉ: nouvelles clés pour corrections v2
 // ==========================================
 
 import { InterfaceLanguage } from '@/types';
@@ -52,11 +52,12 @@ const translations = {
     'onboarding.screen2.langOf': 'Langue',
     'onboarding.screen2.nextLang': 'Langue suivante',
 
-    // Écran 3
+    // Écran 3 - PAR LANGUE
     'onboarding.screen3.title': 'Organisation',
     'onboarding.screen3.days': 'Jours de révision',
     'onboarding.screen3.duration': 'Durée quotidienne',
     'onboarding.screen3.selectAtLeast1Day': 'Sélectionnez au moins un jour',
+    'onboarding.screen3.scheduleFor': 'Rythme de révision pour',
 
     // Écran 4 - Diagnostic optionnel (#2)
     'onboarding.screen4.title': 'Évaluations initiales',
@@ -102,7 +103,6 @@ const translations = {
     'diagnostic.recording': 'Enregistrement en cours...',
     'diagnostic.micDenied': 'Micro non autorisé',
     'diagnostic.oralNotEvaluated': 'Oral non évalué (micro non autorisé)',
-    // Bilan détaillé (#7)
     'diagnostic.detailedResults': 'Bilan détaillé',
     'diagnostic.strengths': 'Point fort',
     'diagnostic.correct': 'Correct',
@@ -111,7 +111,7 @@ const translations = {
     'diagnostic.recommendation': 'Recommandation personnalisée',
     'diagnostic.forLang': 'pour',
 
-    // Dashboard
+    // Dashboard v2
     'dashboard.hello': 'Hello',
     'dashboard.streak': 'Streak',
     'dashboard.days': 'jours',
@@ -122,10 +122,10 @@ const translations = {
     'dashboard.notEvaluated': 'Non évalué',
     'dashboard.takeDiagnostic': 'Faire le diagnostic',
     'dashboard.progress': 'Progression',
-    'dashboard.schedule': 'Calendrier & Rappels',
+    'dashboard.schedule': 'Calendrier',
     'dashboard.todayReview': 'Révision du jour',
     'dashboard.certifReminder': 'Rappel certification',
-    'dashboard.challenges': 'Défis en cours',
+    'dashboard.challenges': 'Défis',
     'dashboard.nextCecrl': 'Prochaine certif CECRL',
     'dashboard.nextGrc': 'Prochaine certif GRC',
     'dashboard.pendingChallenges': 'Défis en attente',
@@ -135,6 +135,20 @@ const translations = {
     'dashboard.challengeFriend': 'Défie un ami !',
     'dashboard.launchChallenge': 'Lancer un défi',
     'dashboard.challengeExplain': 'Les défis te permettent d\'affronter tes amis sur des quiz de langues.',
+    // Dashboard v2 - nouveaux blocs
+    'dashboard.blockRevision': 'Révision & Évaluation',
+    'dashboard.blockProgress': 'Progression & Révisions',
+    'dashboard.nextEval': 'Prochaine évaluation',
+    'dashboard.in1month': 'dans 1 mois',
+    'dashboard.challengeReceived': 'Défi reçu',
+    'dashboard.acceptChallenge': 'Accepter',
+    'dashboard.declineChallenge': 'Refuser',
+    'dashboard.challengedYou': 't\'a défié !',
+    'dashboard.wordsToReview': 'Mots à réviser',
+    'dashboard.rulesToReview': 'Règles à réviser',
+    'dashboard.noReviewYet': 'Aucune révision pour le moment',
+    'dashboard.startLearning': 'Commence un module pour débloquer tes révisions !',
+    'dashboard.perDay': 'par jour',
 
     // Placeholder (#9)
     'placeholder.title': 'Module en cours de développement',
@@ -194,11 +208,12 @@ const translations = {
     'onboarding.screen2.langOf': 'Language',
     'onboarding.screen2.nextLang': 'Next language',
 
-    // Screen 3
+    // Screen 3 - PER LANGUAGE
     'onboarding.screen3.title': 'Schedule',
     'onboarding.screen3.days': 'Study days',
     'onboarding.screen3.duration': 'Daily duration',
     'onboarding.screen3.selectAtLeast1Day': 'Select at least one day',
+    'onboarding.screen3.scheduleFor': 'Study rhythm for',
 
     // Screen 4 - Optional diagnostic (#2)
     'onboarding.screen4.title': 'Initial Assessments',
@@ -244,7 +259,6 @@ const translations = {
     'diagnostic.recording': 'Recording...',
     'diagnostic.micDenied': 'Microphone not allowed',
     'diagnostic.oralNotEvaluated': 'Speaking not evaluated (mic not allowed)',
-    // Detailed report (#7)
     'diagnostic.detailedResults': 'Detailed Report',
     'diagnostic.strengths': 'Strength',
     'diagnostic.correct': 'Correct',
@@ -253,7 +267,7 @@ const translations = {
     'diagnostic.recommendation': 'Personalized recommendation',
     'diagnostic.forLang': 'for',
 
-    // Dashboard
+    // Dashboard v2
     'dashboard.hello': 'Hello',
     'dashboard.streak': 'Streak',
     'dashboard.days': 'days',
@@ -264,10 +278,10 @@ const translations = {
     'dashboard.notEvaluated': 'Not evaluated',
     'dashboard.takeDiagnostic': 'Take diagnostic',
     'dashboard.progress': 'Progress',
-    'dashboard.schedule': 'Schedule & Reminders',
+    'dashboard.schedule': 'Schedule',
     'dashboard.todayReview': 'Today\'s Review',
     'dashboard.certifReminder': 'Certification Reminder',
-    'dashboard.challenges': 'Active Challenges',
+    'dashboard.challenges': 'Challenges',
     'dashboard.nextCecrl': 'Next CEFR certif',
     'dashboard.nextGrc': 'Next GRC certif',
     'dashboard.pendingChallenges': 'Pending challenges',
@@ -277,6 +291,20 @@ const translations = {
     'dashboard.challengeFriend': 'Challenge a friend!',
     'dashboard.launchChallenge': 'Launch a challenge',
     'dashboard.challengeExplain': 'Challenges let you compete with friends on language quizzes.',
+    // Dashboard v2 - new blocks
+    'dashboard.blockRevision': 'Review & Evaluation',
+    'dashboard.blockProgress': 'Progress & Reviews',
+    'dashboard.nextEval': 'Next evaluation',
+    'dashboard.in1month': 'in 1 month',
+    'dashboard.challengeReceived': 'Challenge received',
+    'dashboard.acceptChallenge': 'Accept',
+    'dashboard.declineChallenge': 'Decline',
+    'dashboard.challengedYou': 'challenged you!',
+    'dashboard.wordsToReview': 'Words to review',
+    'dashboard.rulesToReview': 'Rules to review',
+    'dashboard.noReviewYet': 'No reviews yet',
+    'dashboard.startLearning': 'Start a module to unlock your reviews!',
+    'dashboard.perDay': 'per day',
 
     // Placeholder (#9)
     'placeholder.title': 'Module under development',

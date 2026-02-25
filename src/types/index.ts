@@ -113,16 +113,32 @@ export interface LanguageConfig {
 }
 
 // --- User Settings (stockage) ---
+export interface LanguageSchedule {
+  days: DayOfWeek[];
+  duration: SessionDuration;
+}
+
 export interface UserSettings {
   interfaceLang: InterfaceLanguage;
   learningLangs: LearningLanguage[];
   // CORRECTION #1: objectifs et thèmes PAR LANGUE
   languageConfigs: Record<string, LanguageConfig>;
-  schedule: {
-    days: DayOfWeek[];
-    duration: SessionDuration;
-  };
+  // CORRECTION v2: schedule PAR LANGUE
+  schedule: LanguageSchedule; // fallback global
+  schedules?: Record<string, LanguageSchedule>; // per-language schedules
   coachVoiceGender?: 'male' | 'female';
+}
+
+// --- Défis ---
+export interface Challenge {
+  id: string;
+  fromUserId: string;
+  fromUserName: string;
+  toUserId: string;
+  language: LearningLanguage;
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
+  createdAt: string;
+  topic?: string;
 }
 
 // --- Diagnostic choice per language ---

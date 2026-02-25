@@ -24,7 +24,7 @@ import {
 
 // Diagnostic choices per language
 interface LangDiagnosticSetup {
-  cecrChoice: DiagnosticChoice; // 'test' | 'manual' | 'skip'
+  cecrChoice: DiagnosticChoice;
   cecrManualLevel?: LevelCECRL;
   grcChoice?: DiagnosticChoice;
 }
@@ -39,10 +39,11 @@ export default function OnboardingPage() {
 
   // CORRECTION #1: objectifs et thèmes PAR LANGUE
   const [langConfigs, setLangConfigs] = useState<Record<string, { objectives: LearningObjective[]; themes: string[] }>>({});
-  const [currentLangIndex, setCurrentLangIndex] = useState(0); // which language we're configuring on Screen 2
+  const [currentLangIndex, setCurrentLangIndex] = useState(0);
 
-  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
-  const [selectedDuration, setSelectedDuration] = useState<SessionDuration>(20);
+  // CORRECTION v2: schedule PAR LANGUE
+  const [langSchedules, setLangSchedules] = useState<Record<string, { days: DayOfWeek[]; duration: SessionDuration }>>({});
+  const [currentScheduleLangIndex, setCurrentScheduleLangIndex] = useState(0);
 
   // CORRECTION #2: Diagnostic optionnel PAR LANGUE
   const [langDiagnostics, setLangDiagnostics] = useState<Record<string, LangDiagnosticSetup>>({});
@@ -63,12 +64,19 @@ export default function OnboardingPage() {
   const currentLang = learningLangs[currentLangIndex];
   const currentLangInfo = LEARNING_LANGUAGES.find(l => l.code === currentLang);
 
+  // Current language for schedule (Screen 3)
+  const scheduleLang = learningLangs[currentScheduleLangIndex];
+  const scheduleLangInfo = LEARNING_LANGUAGES.find(l => l.code === scheduleLang);
+
   // Current language for diagnostic setup (Screen 4)
   const diagLang = learningLangs[currentDiagLangIndex];
   const diagLangInfo = LEARNING_LANGUAGES.find(l => l.code === diagLang);
 
   // Get current lang config
   const getCurrentConfig = (lang: string) => langConfigs[lang] || { objectives: [], themes: [] };
+
+  // Get current lang schedule
+  const getCurrentSchedule = (lang: string) => langSchedules[lang] || { days: [], duration: 20 };
 
   // Toggle helpers for per-language config
   const toggleObjective = (obj: LearningObjective) => {
@@ -87,8 +95,16 @@ export default function OnboardingPage() {
     setLearningLangs(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]);
   };
 
-  const toggleDay = (day: DayOfWeek) => {
-    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  // Schedule toggles PER LANGUAGE
+  const toggleScheduleDay = (day: DayOfWeek) => {
+    const sched = getCurrentSchedule(scheduleLang);
+    const newDays = sched.days.includes(day) ? sched.days.filter(d => d !== day) : [...sched.days, day];
+    setLangSchedules(prev => ({ ...prev, [scheduleLang]: { ...sched, days: newDays } }));
+  };
+
+  const setScheduleDuration = (dur: SessionDuration) => {
+    const sched = getCurrentSchedule(scheduleLang);
+    setLangSchedules(prev => ({ ...prev, [scheduleLang]: { ...sched, duration: dur } }));
   };
 
   // hasGrcThemes for a language
@@ -110,8 +126,11 @@ export default function OnboardingPage() {
       if (cfg.objectives.length === 0) newErrors.push(t('onboarding.screen2.objectives', interfaceLang));
       if (cfg.themes.length === 0) newErrors.push(t('onboarding.screen2.selectAtLeast1Theme', interfaceLang));
     }
-    if (step === 3 && selectedDays.length === 0) {
-      newErrors.push(t('onboarding.screen3.selectAtLeast1Day', interfaceLang));
+    if (step === 3) {
+      const sched = getCurrentSchedule(scheduleLang);
+      if (sched.days.length === 0) {
+        newErrors.push(t('onboarding.screen3.selectAtLeast1Day', interfaceLang));
+      }
     }
     setErrors(newErrors);
     return newErrors.length === 0;
@@ -128,10 +147,19 @@ export default function OnboardingPage() {
       return;
     }
 
+    // Screen 3: cycle through languages for schedule
+    if (currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1) {
+      setCurrentScheduleLangIndex(currentScheduleLangIndex + 1);
+      setErrors([]);
+      return;
+    }
+
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
+      if (currentStep + 1 === 3) {
+        setCurrentScheduleLangIndex(0);
+      }
       if (currentStep + 1 === 4) {
-        // Init diagnostic setup for all langs
         setCurrentDiagLangIndex(0);
         setDiagStep('knowLevel');
       }
@@ -143,9 +171,14 @@ export default function OnboardingPage() {
       setCurrentLangIndex(currentLangIndex - 1);
       return;
     }
+    if (currentStep === 3 && currentScheduleLangIndex > 0) {
+      setCurrentScheduleLangIndex(currentScheduleLangIndex - 1);
+      return;
+    }
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
       if (currentStep - 1 === 2) setCurrentLangIndex(learningLangs.length - 1);
+      if (currentStep - 1 === 3) setCurrentScheduleLangIndex(learningLangs.length - 1);
     }
   };
 
@@ -163,16 +196,25 @@ export default function OnboardingPage() {
       };
     }
 
+    // Build per-language schedules
+    const schedules: Record<string, { days: DayOfWeek[]; duration: SessionDuration }> = {};
+    for (const lang of learningLangs) {
+      schedules[lang] = getCurrentSchedule(lang);
+    }
+
+    // Fallback global schedule = first language's schedule
+    const firstSched = schedules[learningLangs[0]] || { days: [], duration: 20 };
+
     const settings = {
       interfaceLang,
       learningLangs,
       languageConfigs,
-      schedule: { days: selectedDays, duration: selectedDuration },
+      schedule: firstSched,
+      schedules,
     };
 
     const updated = updateUserSettings(user.id, settings);
     if (updated) {
-      // Check which languages need diagnostic tests
       const langsToTest: string[] = [];
       for (const lang of learningLangs) {
         const diag = langDiagnostics[lang];
@@ -181,7 +223,6 @@ export default function OnboardingPage() {
       }
 
       if (langsToTest.length > 0) {
-        // Store diagnostic plan in sessionStorage
         const diagPlan = learningLangs.map(lang => ({
           lang,
           cecrl: langDiagnostics[lang]?.cecrChoice || 'skip',
@@ -192,7 +233,6 @@ export default function OnboardingPage() {
         sessionStorage.setItem('lingualearn_diag_plan', JSON.stringify(diagPlan));
         router.push('/onboarding/diagnostic');
       } else {
-        // No diagnostic needed - apply manual/skip levels
         for (const lg of learningLangs) {
           const diag = langDiagnostics[lg];
           updateUserProgress(user.id, lg, {
@@ -283,7 +323,6 @@ export default function OnboardingPage() {
     const cfg = getCurrentConfig(currentLang);
     return (
       <div className="space-y-6">
-        {/* Language indicator */}
         <div className="flex items-center gap-3 p-4 bg-[#002844]/5 rounded-xl border border-[#002844]/20">
           <span className="text-3xl">{currentLangInfo?.flag}</span>
           <div>
@@ -295,7 +334,6 @@ export default function OnboardingPage() {
           </span>
         </div>
 
-        {/* Objectives */}
         <div>
           <label className="block text-lg font-semibold mb-2 text-gray-700">{t('onboarding.screen2.objectives', interfaceLang)}</label>
           <p className="text-sm text-gray-600 mb-4">{t('onboarding.screen2.objectivesHint', interfaceLang)}</p>
@@ -311,7 +349,6 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Personal Themes */}
         <div>
           <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen2.personalThemes', interfaceLang)}</label>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -325,7 +362,6 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Professional Themes */}
         <div>
           <label className="block text-lg font-semibold mb-4 text-gray-700">
             <span className="mr-2">💼</span>{t('onboarding.screen2.proThemes', interfaceLang)}
@@ -346,37 +382,54 @@ export default function OnboardingPage() {
     );
   };
 
-  // ============ SCREEN 3 ============
-  const Screen3 = () => (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('onboarding.screen3.title', interfaceLang)}</h2>
-      <div>
-        <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen3.days', interfaceLang)}</label>
-        <div className="flex gap-2 flex-wrap">
-          {DAYS_OF_WEEK.map(day => (
-            <button key={day.id} onClick={() => toggleDay(day.id)}
-              className={`px-4 py-3 rounded-lg font-bold transition-all ${selectedDays.includes(day.id) ? 'text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-              style={selectedDays.includes(day.id) ? { backgroundColor: '#002844' } : {}}>
-              {interfaceLang === 'fr' ? day.shortFr : day.shortEn}
-            </button>
-          ))}
+  // ============ SCREEN 3: ORGANISATION PAR LANGUE ============
+  const Screen3 = () => {
+    const sched = getCurrentSchedule(scheduleLang);
+    const schLangName = interfaceLang === 'fr' ? scheduleLangInfo?.nameFr : scheduleLangInfo?.nameEn;
+    return (
+      <div className="space-y-8">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('onboarding.screen3.title', interfaceLang)}</h2>
+
+        {/* Language indicator */}
+        <div className="flex items-center gap-3 p-4 bg-[#002844]/5 rounded-xl border border-[#002844]/20">
+          <span className="text-3xl">{scheduleLangInfo?.flag}</span>
+          <div>
+            <p className="text-sm text-[#555555]">{t('onboarding.screen3.scheduleFor', interfaceLang)}</p>
+            <p className="text-xl font-bold text-[#002844]">{schLangName}</p>
+          </div>
+          <span className="ml-auto text-sm font-medium text-[#555555]">
+            {t('onboarding.screen2.langOf', interfaceLang)} {currentScheduleLangIndex + 1}/{learningLangs.length}
+          </span>
         </div>
-      </div>
-      <div>
-        <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen3.duration', interfaceLang)}</label>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {SESSION_DURATIONS.map(dur => (
-            <button key={dur.value} onClick={() => setSelectedDuration(dur.value)}
-              className={`px-4 py-3 rounded-lg font-semibold transition-all ${selectedDuration === dur.value ? 'text-white' : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-[#002844]'}`}
-              style={selectedDuration === dur.value ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
-              {interfaceLang === 'fr' ? dur.labelFr : dur.labelEn}
-            </button>
-          ))}
+
+        <div>
+          <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen3.days', interfaceLang)}</label>
+          <div className="flex gap-2 flex-wrap">
+            {DAYS_OF_WEEK.map(day => (
+              <button key={day.id} onClick={() => toggleScheduleDay(day.id)}
+                className={`px-4 py-3 rounded-lg font-bold transition-all ${sched.days.includes(day.id) ? 'text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                style={sched.days.includes(day.id) ? { backgroundColor: '#002844' } : {}}>
+                {interfaceLang === 'fr' ? day.shortFr : day.shortEn}
+              </button>
+            ))}
+          </div>
         </div>
+        <div>
+          <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen3.duration', interfaceLang)}</label>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {SESSION_DURATIONS.map(dur => (
+              <button key={dur.value} onClick={() => setScheduleDuration(dur.value)}
+                className={`px-4 py-3 rounded-lg font-semibold transition-all ${sched.duration === dur.value ? 'text-white' : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-[#002844]'}`}
+                style={sched.duration === dur.value ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
+                {interfaceLang === 'fr' ? dur.labelFr : dur.labelEn}
+              </button>
+            ))}
+          </div>
+        </div>
+        {errors.length > 0 && <div className="p-4 bg-red-100 border border-red-400 rounded-lg text-red-700">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
       </div>
-      {errors.length > 0 && <div className="p-4 bg-red-100 border border-red-400 rounded-lg text-red-700">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
-    </div>
-  );
+    );
+  };
 
   // ============ SCREEN 4: Diagnostic OPTIONNEL per language (#2) ============
   const Screen4 = () => {
@@ -390,7 +443,6 @@ export default function OnboardingPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-800">{t('onboarding.screen4.title', interfaceLang)}</h2>
 
-        {/* Language indicator */}
         <div className="flex items-center gap-3 p-4 bg-[#002844]/5 rounded-xl border border-[#002844]/20">
           <span className="text-3xl">{diagLangInfo?.flag}</span>
           <p className="text-xl font-bold text-[#002844]">{t('onboarding.screen4.cecrSection', interfaceLang)} {langName}</p>
@@ -399,7 +451,6 @@ export default function OnboardingPage() {
           </span>
         </div>
 
-        {/* Step A: Do you know your level? */}
         {diagStep === 'knowLevel' && (
           <div className="space-y-4">
             <p className="text-lg font-semibold text-[#002844]">
@@ -418,7 +469,6 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Manual level selection */}
         {diagStep === 'selectLevel' && (
           <div className="space-y-4">
             <p className="text-lg font-semibold text-[#002844]">{t('onboarding.screen4.selectLevel', interfaceLang)}</p>
@@ -444,7 +494,6 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step B: What to do */}
         {diagStep === 'whatToDo' && (
           <div className="space-y-4">
             <p className="text-lg font-semibold text-[#002844]">{t('onboarding.screen4.whatToDo', interfaceLang)}</p>
@@ -476,7 +525,6 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* GRC choice (if hasGrcThemes for this lang) */}
         {diagStep === 'grcChoice' && hasGrc && (
           <div className="space-y-4 mt-6">
             <div className="p-4 bg-[#D9B438]/10 rounded-xl border border-[#D9B438]/30">
@@ -503,14 +551,12 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Done indicator for this language */}
         {diagStep === 'done' && currentDiagLangIndex >= learningLangs.length - 1 && (
           <div className="text-center text-green-600 font-semibold py-4">
             ✅ {interfaceLang === 'fr' ? 'Configuration terminée pour toutes les langues' : 'Setup complete for all languages'}
           </div>
         )}
 
-        {/* Finish button */}
         {(allLangsDone || (diagStep === 'done' && currentDiagLangIndex >= learningLangs.length - 1)) && (
           <button onClick={handleFinishOnboarding}
             className="w-full py-4 px-6 rounded-lg font-bold text-lg transition-all hover:shadow-lg"
@@ -548,7 +594,9 @@ export default function OnboardingPage() {
               style={{ backgroundColor: '#D9B438', color: '#002844' }}>
               {currentStep === 2 && currentLangIndex < learningLangs.length - 1
                 ? t('onboarding.screen2.nextLang', interfaceLang)
-                : t('onboarding.next', interfaceLang)}
+                : currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1
+                  ? t('onboarding.screen2.nextLang', interfaceLang)
+                  : t('onboarding.next', interfaceLang)}
             </button>
           </div>
         )}
