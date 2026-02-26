@@ -9,6 +9,7 @@ import { User, UserSettings, UserProgress, LearningLanguage } from '@/types';
 const STORAGE_KEYS = {
   USERS: 'lingualearn_users',
   CURRENT_USER: 'lingualearn_current_user',
+  PROPOSED_WORDS: 'lingualearn_proposed_words',
 } as const;
 
 // --- Helpers ---
@@ -30,8 +31,18 @@ export function registerUser(
   role: 'user' | 'admin'
 ): { success: boolean; error?: string; user?: User } {
   const users = getUsers();
+  const existingUser = users.find(u => u.email === email);
 
-  if (users.find(u => u.email === email)) {
+  // AD-02: Allow dual role - upgrade existing user to admin if needed
+  if (existingUser) {
+    // If registering as admin and user exists, add admin role
+    if (role === 'admin' && existingUser.role === 'user') {
+      existingUser.role = 'admin';
+      saveUsers(users);
+      setCurrentUser(existingUser);
+      return { success: true, user: existingUser };
+    }
+    // Otherwise reject duplicate email
     return { success: false, error: 'emailExists' };
   }
 
@@ -163,4 +174,69 @@ export function completeOnboarding(userId: string): User | null {
   saveUsers(users);
   setCurrentUser(users[index]);
   return users[index];
+}
+
+// --- Admin Role Management (AD-02) ---
+export function upgradeToAdmin(email: string): User | null {
+  const users = getUsers();
+  const index = users.findIndex(u => u.email === email);
+  if (index === -1) return null;
+
+  users[index].role = 'admin';
+  saveUsers(users);
+  setCurrentUser(users[index]);
+  return users[index];
+}
+
+// --- Proposed Words (Mots à qualifier) (AD-06) ---
+export interface ProposedWord {
+  id: string;
+  word: string;
+  language: string;
+  definition?: string;
+  proposedBy: string; // user email
+  createdAt: string;
+  status: 'pending' | 'validated' | 'rejected';
+}
+
+export function addProposedWord(word: string, language: string, proposedBy: string, definition?: string): ProposedWord {
+  const proposed: ProposedWord = {
+    id: crypto.randomUUID(),
+    word,
+    language,
+    definition,
+    proposedBy,
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+  };
+
+  if (typeof window === 'undefined') return proposed;
+  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+  const words: ProposedWord[] = data ? JSON.parse(data) : [];
+  words.push(proposed);
+  localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+
+  return proposed;
+}
+
+export function getAllProposedWords(): ProposedWord[] {
+  if (typeof window === 'undefined') return [];
+  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+  return data ? JSON.parse(data) : [];
+}
+
+export function getPendingProposedWords(): ProposedWord[] {
+  return getAllProposedWords().filter(w => w.status === 'pending');
+}
+
+export function validateProposedWord(wordId: string): ProposedWord | null {
+  if (typeof window === 'undefined') return null;
+  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+  const words: ProposedWord[] = data ? JSON.parse(data) : [];
+  const index = words.findIndex(w => w.id === wordId);
+  if (index === -1) return null;
+
+  words[index].status = 'validated';
+  localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+  return words[index];
 }

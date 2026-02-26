@@ -10,12 +10,14 @@ import {
   getExercisesForRule,
   getIrregularVerbs,
   speakText,
+  BANK_VERB_EXERCISES,
 } from '@/lib/db/bankHelpers'
 import {
   GrammarRule,
   GrammarExercise,
   IrregularVerb,
 } from '@/lib/db/bankTypes'
+import { VerbExercise } from '@/lib/db/bankGrammar'
 import {
   ArrowLeft,
   Volume2,
@@ -50,6 +52,7 @@ export default function GrammairePage() {
 
   const [grammarRules, setGrammarRules] = useState<GrammarRule[]>([])
   const [exercises, setExercises] = useState<GrammarExercise[]>([])
+  const [verbExercises, setVerbExercises] = useState<VerbExercise[]>([])
   const [irregularVerbs, setIrregularVerbs] = useState<IrregularVerb[]>([])
   const [verbGroupFilter, setVerbGroupFilter] = useState<string>('all')
 
@@ -85,6 +88,8 @@ export default function GrammairePage() {
     if (activeLang === 'en') {
       const verbs = getIrregularVerbs()
       setIrregularVerbs(verbs)
+      // Load verb exercises
+      setVerbExercises(BANK_VERB_EXERCISES)
     }
 
     setLoading(false)
@@ -193,8 +198,13 @@ export default function GrammairePage() {
     speakText(example, activeLang)
   }
 
-  const handleSpeakVerb = (word: string) => {
-    speakText(word, 'en')
+  const handleSpeakVerb = (base: string, past?: string, pastParticiple?: string) => {
+    if (past && pastParticiple) {
+      const allForms = `${base}, ${past}, ${pastParticiple}`
+      speakText(allForms, 'en')
+    } else {
+      speakText(base, 'en')
+    }
   }
 
   const filteredVerbs = irregularVerbs.filter((verb) => {
@@ -340,14 +350,17 @@ export default function GrammairePage() {
                         >
                           {t('grammar.definition', interfaceLang)}
                         </h4>
-                        <p style={{ color: '#555555' }}>
-                          {activeLang === 'fr'
-                            ? rule.definition_fr
-                            : rule.definition_en}
+                        <p style={{ color: '#555555' }} className="mb-3">
+                          {rule.definition_en}
                         </p>
+                        {rule.definition_fr && (
+                          <p style={{ color: '#555555' }}>
+                            <span className="font-medium">FR:</span> {rule.definition_fr}
+                          </p>
+                        )}
                       </div>
 
-                      {rule.attention_points && (
+                      {rule.attention_points && rule.attention_points.length > 0 && (
                         <div>
                           <h4
                             className="font-semibold text-sm mb-2"
@@ -355,9 +368,23 @@ export default function GrammairePage() {
                           >
                             {t('grammar.attention', interfaceLang)}
                           </h4>
-                          <p style={{ color: '#555555' }}>
-                            {rule.attention_points}
-                          </p>
+                          <ul className="space-y-1">
+                            {Array.isArray(rule.attention_points) ? (
+                              rule.attention_points.map((point, idx) => (
+                                <li
+                                  key={idx}
+                                  style={{ color: '#555555' }}
+                                  className="text-sm"
+                                >
+                                  • {point}
+                                </li>
+                              ))
+                            ) : (
+                              <p style={{ color: '#555555' }}>
+                                {rule.attention_points}
+                              </p>
+                            )}
+                          </ul>
                         </div>
                       )}
 
@@ -375,14 +402,16 @@ export default function GrammairePage() {
                                 key={idx}
                                 className="flex items-center justify-between p-3 bg-white rounded border border-gray-200"
                               >
-                                <p
-                                  style={{ color: '#555555' }}
-                                  className="text-sm"
-                                >
-                                  {example}
-                                </p>
+                                <div className="flex-1">
+                                  <p style={{ color: '#002844' }} className="text-sm font-medium">
+                                    {example.en}
+                                  </p>
+                                  <p style={{ color: '#555555' }} className="text-xs mt-1">
+                                    {example.fr}
+                                  </p>
+                                </div>
                                 <button
-                                  onClick={() => handlePlayExample(example)}
+                                  onClick={() => handlePlayExample(example.en)}
                                   className="p-2 hover:bg-gray-100 rounded transition"
                                   aria-label="Écouter"
                                 >
@@ -419,7 +448,7 @@ export default function GrammairePage() {
         {/* Exercises Tab */}
         {activeTab === 'exercises' && (
           <div>
-            {!selectedRuleId || exercises.length === 0 ? (
+            {!selectedRuleId && (!activeLang || activeLang !== 'en' || verbExercises.length === 0) ? (
               <div className="text-center py-12 bg-white rounded-lg">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p style={{ color: '#555555' }}>
@@ -429,7 +458,10 @@ export default function GrammairePage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="space-y-8">
+                {/* Grammar Rule Exercises */}
+                {selectedRuleId && exercises.length > 0 && (
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 {/* Score */}
                 <div className="flex justify-between items-center mb-6">
                   <h2
@@ -535,48 +567,69 @@ export default function GrammairePage() {
 
                 {/* Feedback */}
                 {exerciseState.answered && (
-                  <div
-                    className={`p-4 rounded-lg mb-6 flex items-center gap-3 ${
-                      exerciseState.isCorrect
-                        ? 'bg-green-50'
-                        : 'bg-red-50'
-                    }`}
-                  >
-                    {exerciseState.isCorrect ? (
-                      <>
-                        <CheckCircle className="w-6 h-6 text-green-600" />
-                        <span
-                          className="font-semibold"
-                          style={{ color: '#002844' }}
-                        >
-                          {t('grammar.exercise.correct', interfaceLang) ||
-                            'Correct!'}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-6 h-6 text-red-600" />
-                        <div className="flex-1">
-                          <p
+                  <div className="space-y-4 mb-6">
+                    <div
+                      className={`p-4 rounded-lg flex items-center gap-3 ${
+                        exerciseState.isCorrect
+                          ? 'bg-green-50'
+                          : 'bg-red-50'
+                      }`}
+                    >
+                      {exerciseState.isCorrect ? (
+                        <>
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                          <span
                             className="font-semibold"
                             style={{ color: '#002844' }}
                           >
-                            {t('grammar.exercise.incorrect', interfaceLang) ||
-                              'Incorrect'}
-                          </p>
-                          <p style={{ color: '#555555' }} className="text-sm mt-1">
-                            {t('grammar.exercise.expected', interfaceLang) ||
-                              'Expected'}
-                            : {currentExercise?.answer}
-                          </p>
-                        </div>
-                      </>
+                            {t('grammar.exercise.correct', interfaceLang) ||
+                              'Correct!'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-6 h-6 text-red-600" />
+                          <div className="flex-1">
+                            <p
+                              className="font-semibold"
+                              style={{ color: '#002844' }}
+                            >
+                              {t('grammar.exercise.incorrect', interfaceLang) ||
+                                'Incorrect'}
+                            </p>
+                            <p style={{ color: '#555555' }} className="text-sm mt-1">
+                              {t('grammar.exercise.expected', interfaceLang) ||
+                                'Expected'}
+                              : {currentExercise?.answer}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {!exerciseState.isCorrect && selectedRuleId && (
+                      <div className="bg-yellow-50 border-l-4 rounded-lg p-4" style={{ borderColor: '#D9B438' }}>
+                        <p style={{ color: '#555555' }} className="text-sm">
+                          <span className="font-semibold">{interfaceLang === 'fr' ? 'Rappel : ' : 'Reminder: '}</span>
+                          {grammarRules.find(r => r.id === selectedRuleId)?.attention_points?.[0] ||
+                            (interfaceLang === 'fr' ? 'Revoir la règle' : 'Review the rule')}
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      setSelectedRuleId(null)
+                      setActiveTab('rules')
+                    }}
+                    className="px-4 py-3 rounded-lg font-semibold border-2 border-gray-300 text-gray-700 transition hover:border-yellow-400"
+                  >
+                    {interfaceLang === 'fr' ? 'Retour aux règles' : 'Back to rules'}
+                  </button>
                   {!exerciseState.answered ? (
                     <button
                       onClick={handleCheckAnswer}
@@ -600,6 +653,54 @@ export default function GrammairePage() {
                     </button>
                   )}
                 </div>
+                  </div>
+                )}
+
+                {/* Verb Exercises Section */}
+                {activeLang === 'en' && verbExercises.length > 0 && (
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 className="text-2xl font-bold mb-6" style={{ color: '#002844' }}>
+                      {interfaceLang === 'fr' ? 'Exercices de verbes irréguliers' : 'Irregular Verb Exercises'}
+                    </h2>
+                    <p className="text-sm mb-6" style={{ color: '#555555' }}>
+                      {interfaceLang === 'fr'
+                        ? 'Complétez les formes manquantes des verbes irréguliers'
+                        : 'Complete the missing forms of irregular verbs'}
+                    </p>
+                    <div className="space-y-6">
+                      {['AAA', 'ABB', 'ABC', 'ABA'].map((group) => {
+                        const groupExercises = verbExercises.filter(e => e.group === group)
+                        return groupExercises.length > 0 ? (
+                          <div key={group}>
+                            <h3 className="font-semibold text-lg mb-4" style={{ color: '#002844' }}>
+                              Groupe {group}
+                            </h3>
+                            <div className="space-y-4">
+                              {groupExercises.map((exercise) => (
+                                <div key={exercise.id} className="p-4 bg-blue-50 rounded-lg border border-gray-200">
+                                  <p style={{ color: '#555555' }} className="font-medium mb-2">
+                                    {exercise.question_type === 'fill_past'
+                                      ? (interfaceLang === 'fr' ? 'Forme prétérit :' : 'Past tense form:')
+                                      : exercise.question_type === 'fill_participle'
+                                        ? (interfaceLang === 'fr' ? 'Participe passé :' : 'Past participle:')
+                                        : (interfaceLang === 'fr' ? 'Remplissez les deux formes :' : 'Fill both forms:')}
+                                  </p>
+                                  <p style={{ color: '#002844' }} className="text-lg font-semibold">
+                                    {exercise.verb_base} / ___ / ___
+                                  </p>
+                                  <p style={{ color: '#555555' }} className="text-sm mt-2 italic">
+                                    {interfaceLang === 'fr' ? 'Indice : ' : 'Hint: '}
+                                    {exercise.hint_fr}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -634,28 +735,52 @@ export default function GrammairePage() {
               ))}
             </div>
 
+            {/* Explanation blocks */}
+            {verbGroupFilter !== 'all' && (
+              <div className="bg-blue-50 border-l-4 rounded-lg p-4" style={{ borderColor: '#D9B438' }}>
+                <p style={{ color: '#555555' }} className="text-sm">
+                  {verbGroupFilter === 'AAA' &&
+                    (interfaceLang === 'fr'
+                      ? 'Le mot ne change pas aux 3 formes (ex: cut/cut/cut)'
+                      : 'The word does not change in all 3 forms (e.g. cut/cut/cut)')}
+                  {verbGroupFilter === 'ABB' &&
+                    (interfaceLang === 'fr'
+                      ? 'Le prétérit et le participe passé sont identiques (ex: buy/bought/bought)'
+                      : 'The past tense and past participle are identical (e.g. buy/bought/bought)')}
+                  {verbGroupFilter === 'ABC' &&
+                    (interfaceLang === 'fr'
+                      ? 'Les 3 formes sont différentes (ex: go/went/gone)'
+                      : 'All 3 forms are different (e.g. go/went/gone)')}
+                  {verbGroupFilter === 'ABA' &&
+                    (interfaceLang === 'fr'
+                      ? 'Le participe passé est identique à la base (ex: come/came/come)'
+                      : 'The past participle is identical to the base (e.g. come/came/come)')}
+                </p>
+              </div>
+            )}
+
             {/* Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr style={{ backgroundColor: '#002844' }}>
                     <th className="px-6 py-4 text-left font-semibold text-white">
-                      {t('grammar.verb.base', interfaceLang)}
+                      Base
                     </th>
                     <th className="px-6 py-4 text-left font-semibold text-white">
-                      {t('grammar.verb.past', interfaceLang)}
+                      Prétérit
                     </th>
                     <th className="px-6 py-4 text-left font-semibold text-white">
-                      {t('grammar.verb.past_participle', interfaceLang)}
+                      Participe passé
                     </th>
                     <th className="px-6 py-4 text-left font-semibold text-white">
-                      {t('grammar.verb.french', interfaceLang)}
+                      Français
                     </th>
                     <th className="px-6 py-4 text-left font-semibold text-white">
                       {t('grammar.verb.group', interfaceLang)}
                     </th>
                     <th className="px-6 py-4 text-center font-semibold text-white">
-                      {interfaceLang === 'fr' ? 'Audio' : 'Audio'}
+                      Audio
                     </th>
                   </tr>
                 </thead>
@@ -679,7 +804,7 @@ export default function GrammairePage() {
                       >
                         <td className="px-6 py-4" style={{ color: '#002844' }}>
                           <button
-                            onClick={() => handleSpeakVerb(verb.base)}
+                            onClick={() => handleSpeakVerb(verb.base, verb.past, verb.past_participle)}
                             className="font-semibold hover:text-yellow-600 transition flex items-center gap-2"
                           >
                             {verb.base}
@@ -708,7 +833,7 @@ export default function GrammairePage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button
-                            onClick={() => handleSpeakVerb(verb.base)}
+                            onClick={() => handleSpeakVerb(verb.base, verb.past, verb.past_participle)}
                             className="p-2 hover:bg-blue-100 rounded transition inline-block"
                           >
                             <Volume2

@@ -17,6 +17,9 @@ import { BANK_READING } from './bankReading';
 import { BANK_WRITING } from './bankWriting';
 import { BANK_SPEAKING } from './bankSpeaking';
 
+// Re-export BANK_VERB_EXERCISES for convenience
+export { BANK_VERB_EXERCISES } from './bankGrammar';
+
 // ==========================================
 // LEVEL HELPERS
 // ==========================================

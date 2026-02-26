@@ -21,8 +21,10 @@ import {
   getReadingTexts,
   getVocabulary,
   speakText,
+  proposeWord,
 } from '@/lib/db/bankHelpers';
 import { ReadingText, VocabWord } from '@/lib/db/bankTypes';
+import { BANK_VOCABULARY } from '@/lib/db/bankVocabulary';
 
 export default function LecturePage() {
   const router = useRouter();
@@ -34,19 +36,23 @@ export default function LecturePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingTextId, setSpeakingTextId] = useState<string | null>(null);
+  const [speechRate, setSpeechRate] = useState<0.5 | 1 | 1.5>(1);
 
   // Dictionary tab state
-  const [dictMode, setDictMode] = useState<'enEn' | 'enFr' | 'frEn'>('enEn');
+  const [dictMode, setDictMode] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [dictSearchResults, setDictSearchResults] = useState<VocabWord[]>([]);
 
   // Double-click word lookup popup
   const [selectedWord, setSelectedWord] = useState<VocabWord | null>(null);
   const [wordNotFound, setWordNotFound] = useState(false);
+  const [unknownWord, setUnknownWord] = useState<string>('');
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
   });
+  const [addWordLoading, setAddWordLoading] = useState(false);
+  const [addWordSuccess, setAddWordSuccess] = useState(false);
 
   // Initialize user and load data
   useEffect(() => {
@@ -69,6 +75,10 @@ export default function LecturePage() {
     const vocab = getVocabulary(activeLang, userThemes, userLevel);
     setVocabulary(vocab);
 
+    // Initialize dictionary mode based on active language
+    const langCode = activeLang.toUpperCase();
+    setDictMode(`${langCode}>${langCode}`);
+
     setIsLoading(false);
   }, [router]);
 
@@ -87,6 +97,12 @@ export default function LecturePage() {
 
   const interfaceLang = user.settings.interfaceLang || 'fr';
   const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en';
+
+  // Generate dictionary modes dynamically based on active language
+  const getDictModes = (): string[] => {
+    const langCode = activeLang.toUpperCase();
+    return [`${langCode}>${langCode}`, `${langCode}>FR`, `FR>${langCode}`];
+  };
 
   // ==========================================
   // TEXT TAB HANDLERS
@@ -127,7 +143,7 @@ export default function LecturePage() {
       };
 
       utterance.lang = languageMap[activeLang] || activeLang;
-      utterance.rate = 1;
+      utterance.rate = speechRate;
       utterance.pitch = 1;
       utterance.volume = 1;
 
@@ -155,7 +171,7 @@ export default function LecturePage() {
 
     const selectedText = selection.toString().trim().toLowerCase();
 
-    // Search in vocabulary bank (case-insensitive)
+    // Search in user's filtered vocabulary first
     const found = vocabulary.find(
       (word) => word.word_target.toLowerCase() === selectedText
     );
@@ -163,9 +179,12 @@ export default function LecturePage() {
     if (found) {
       setSelectedWord(found);
       setWordNotFound(false);
+      setUnknownWord('');
     } else {
+      // Word not found in user's vocabulary
       setSelectedWord(null);
       setWordNotFound(true);
+      setUnknownWord(selectedText);
     }
 
     // Position popup near cursor
@@ -178,6 +197,33 @@ export default function LecturePage() {
   const closeWordPopup = () => {
     setSelectedWord(null);
     setWordNotFound(false);
+    setUnknownWord('');
+    setAddWordSuccess(false);
+  };
+
+  const handleAddWord = async () => {
+    if (!unknownWord || !user) return;
+
+    setAddWordLoading(true);
+    try {
+      proposeWord(user.id, {
+        word_fr: unknownWord,
+        word_target: unknownWord,
+        language: activeLang,
+        definition_en: '',
+        example_en: '',
+        theme: '',
+        is_grc: false,
+      });
+      setAddWordSuccess(true);
+      setTimeout(() => {
+        closeWordPopup();
+      }, 1500);
+    } catch (error) {
+      console.error('Error proposing word:', error);
+    } finally {
+      setAddWordLoading(false);
+    }
   };
 
   // ==========================================
@@ -193,16 +239,22 @@ export default function LecturePage() {
     const query = searchQuery.toLowerCase();
     let results: VocabWord[] = [];
 
-    if (dictMode === 'enEn') {
-      results = vocabulary.filter((word) =>
+    // Filter by language only (not by theme or level)
+    const allLanguageVocab = BANK_VOCABULARY.filter((word) => word.language === activeLang);
+
+    if (dictMode === `${activeLang.toUpperCase()}>${activeLang.toUpperCase()}`) {
+      // Search in target language words
+      results = allLanguageVocab.filter((word) =>
         word.word_target.toLowerCase().includes(query)
       );
-    } else if (dictMode === 'enFr') {
-      results = vocabulary.filter((word) =>
+    } else if (dictMode === `${activeLang.toUpperCase()}>FR`) {
+      // Search in target language words, show French translation
+      results = allLanguageVocab.filter((word) =>
         word.word_target.toLowerCase().includes(query)
       );
-    } else if (dictMode === 'frEn') {
-      results = vocabulary.filter((word) =>
+    } else if (dictMode === `FR>${activeLang.toUpperCase()}`) {
+      // Search in French words
+      results = allLanguageVocab.filter((word) =>
         word.word_fr.toLowerCase().includes(query)
       );
     }
@@ -304,6 +356,29 @@ export default function LecturePage() {
         {/* Expanded Content */}
         {isExpanded && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: '#D9B438' }}>
+            {/* TTS Speed Selector */}
+            <div className="mb-4 p-3 rounded bg-gray-50 border border-gray-200">
+              <p className="text-xs font-semibold mb-2" style={{ color: '#002844' }}>
+                {interfaceLang === 'fr' ? 'Vitesse de lecture:' : 'Reading speed:'}
+              </p>
+              <div className="flex gap-2">
+                {[0.5, 1, 1.5].map((rate) => (
+                  <button
+                    key={rate}
+                    onClick={() => setSpeechRate(rate as 0.5 | 1 | 1.5)}
+                    className="px-3 py-1 text-xs font-semibold rounded transition-colors"
+                    style={{
+                      backgroundColor: speechRate === rate ? '#D9B438' : '#ffffff',
+                      color: speechRate === rate ? '#002844' : '#555555',
+                      border: `1px solid ${speechRate === rate ? '#D9B438' : '#cccccc'}`,
+                    }}
+                  >
+                    {rate}x
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <p
               className="leading-relaxed cursor-text select-text"
               style={{ color: '#555555', fontSize: '0.95rem' }}
@@ -329,6 +404,10 @@ export default function LecturePage() {
   // ==========================================
 
   const DictResultCard = ({ word }: { word: VocabWord }) => {
+    const isLangToLang = dictMode === `${activeLang.toUpperCase()}>${activeLang.toUpperCase()}`;
+    const isLangToFr = dictMode === `${activeLang.toUpperCase()}>FR`;
+    const isFrToLang = dictMode === `FR>${activeLang.toUpperCase()}`;
+
     return (
       <div
         className="rounded-lg border-2 p-4 transition-all hover:shadow-md"
@@ -339,7 +418,7 @@ export default function LecturePage() {
       >
         <div className="flex justify-between items-start">
           <div className="flex-1">
-            {dictMode === 'enEn' && (
+            {isLangToLang && (
               <>
                 <h3 className="text-lg font-bold mb-2" style={{ color: '#002844' }}>
                   {word.word_target}
@@ -349,7 +428,7 @@ export default function LecturePage() {
                 </p>
               </>
             )}
-            {dictMode === 'enFr' && (
+            {isLangToFr && (
               <>
                 <h3 className="text-lg font-bold mb-2" style={{ color: '#002844' }}>
                   {word.word_target}
@@ -359,7 +438,7 @@ export default function LecturePage() {
                 </p>
               </>
             )}
-            {dictMode === 'frEn' && (
+            {isFrToLang && (
               <>
                 <h3 className="text-lg font-bold mb-2" style={{ color: '#002844' }}>
                   {word.word_fr}
@@ -422,10 +501,50 @@ export default function LecturePage() {
 
           {/* Word Not Found */}
           {wordNotFound && (
-            <div className="text-center">
+            <div className="space-y-4">
               <p style={{ color: '#555555', fontSize: '1rem' }}>
                 {t('reading.dict.noResult', interfaceLang)}
               </p>
+              {unknownWord && (
+                <div className="border-t pt-4" style={{ borderColor: '#D9B438' }}>
+                  <p className="text-sm font-semibold mb-3" style={{ color: '#002844' }}>
+                    {interfaceLang === 'fr' ? 'Mot inconnu:' : 'Unknown word:'}
+                  </p>
+                  <p className="text-lg font-bold mb-4" style={{ color: '#D9B438' }}>
+                    {unknownWord}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => speakText(unknownWord, activeLang)}
+                      className="w-full py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                      style={{
+                        backgroundColor: '#D9B438',
+                        color: '#002844',
+                      }}
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      {t('vocab.listen', interfaceLang)}
+                    </button>
+                    <button
+                      onClick={handleAddWord}
+                      disabled={addWordLoading || addWordSuccess}
+                      className="w-full py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
+                      style={{
+                        backgroundColor: addWordSuccess ? '#4ade80' : '#002844',
+                        color: '#ffffff',
+                      }}
+                    >
+                      {addWordSuccess
+                        ? interfaceLang === 'fr'
+                          ? '✓ Ajouté'
+                          : '✓ Added'
+                        : interfaceLang === 'fr'
+                        ? 'Ajouter ce mot'
+                        : 'Add this word'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -480,6 +599,8 @@ export default function LecturePage() {
       </>
     );
   };
+
+  const dictModes = getDictModes();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -572,7 +693,7 @@ export default function LecturePage() {
                 {t('reading.dictionary', interfaceLang)}
               </p>
               <div className="flex gap-4 flex-wrap">
-                {(['enEn', 'enFr', 'frEn'] as const).map((mode) => (
+                {dictModes.map((mode) => (
                   <label key={mode} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -580,7 +701,7 @@ export default function LecturePage() {
                       value={mode}
                       checked={dictMode === mode}
                       onChange={(e) => {
-                        setDictMode(e.target.value as typeof dictMode);
+                        setDictMode(e.target.value);
                         setSearchQuery('');
                         setDictSearchResults([]);
                       }}
@@ -588,7 +709,7 @@ export default function LecturePage() {
                       style={{ accentColor: '#D9B438' }}
                     />
                     <span style={{ color: '#555555', fontWeight: dictMode === mode ? '600' : '400' }}>
-                      {t(`reading.dict.${mode}`, interfaceLang)}
+                      {mode}
                     </span>
                   </label>
                 ))}

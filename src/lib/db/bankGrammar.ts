@@ -8,90 +8,90 @@ import { GrammarRule, GrammarExercise, IrregularVerb } from './bankTypes';
 export const BANK_GRAMMAR: GrammarRule[] = [
   // ===== ANGLAIS A1 =====
   { id:'gr_en_01', language:'en', rule_name:'Present Simple - To Be', level:'A1',
-    definition_fr:'Le verbe "to be" (être) se conjugue : I am, you are, he/she/it is, we/you/they are.',
     definition_en:'The verb "to be" conjugates as: I am, you are, he/she/it is, we/you/they are.',
+    definition_fr:'Le verbe "to be" (être) se conjugue : I am, you are, he/she/it is, we/you/they are.',
     attention_points:'Ne pas confondre "your" (ton) et "you\'re" (you are).',
-    examples:['I am a student.','She is happy.','They are from France.'] },
+    examples:[{en:'I am a student.',fr:'Je suis étudiant.'},{en:'She is happy.',fr:'Elle est heureuse.'},{en:'They are from France.',fr:'Ils sont de France.'}] },
   { id:'gr_en_02', language:'en', rule_name:'Articles: A / An / The', level:'A1',
-    definition_fr:'"A" devant une consonne, "an" devant une voyelle sonore, "the" pour quelque chose de spécifique.',
     definition_en:'"A" before a consonant sound, "an" before a vowel sound, "the" for specific things.',
+    definition_fr:'"A" devant une consonne, "an" devant une voyelle sonore, "the" pour quelque chose de spécifique.',
     attention_points:'"An hour" (h muet), "a university" (son /juː/).',
-    examples:['I have a cat.','She is an engineer.','The book is on the table.'] },
+    examples:[{en:'I have a cat.',fr:'J\'ai un chat.'},{en:'She is an engineer.',fr:'Elle est ingénieure.'},{en:'The book is on the table.',fr:'Le livre est sur la table.'}] },
   { id:'gr_en_03', language:'en', rule_name:'Present Simple - Regular Verbs', level:'A1',
-    definition_fr:'Au présent simple, on ajoute -s à la 3e personne du singulier. Forme négative : do not / does not + base verbale.',
     definition_en:'In present simple, add -s for third person singular. Negative: do not / does not + base verb.',
+    definition_fr:'Au présent simple, on ajoute -s à la 3e personne du singulier. Forme négative : do not / does not + base verbale.',
     attention_points:'He/she/it → ajoute -s ou -es (watches, goes). Avec "does", le verbe reste à la base.',
-    examples:['She works every day.','He does not like coffee.','Do you speak English?'] },
+    examples:[{en:'She works every day.',fr:'Elle travaille tous les jours.'},{en:'He does not like coffee.',fr:'Il n\'aime pas le café.'},{en:'Do you speak English?',fr:'Parlez-vous anglais?'}] },
 
   // ===== ANGLAIS A2 =====
   { id:'gr_en_04', language:'en', rule_name:'Past Simple - Regular & Irregular', level:'A2',
-    definition_fr:'Le passé simple se forme avec -ed pour les verbes réguliers. Les verbes irréguliers ont une forme spécifique.',
     definition_en:'Past simple is formed by adding -ed to regular verbs. Irregular verbs have unique past forms.',
+    definition_fr:'Le passé simple se forme avec -ed pour les verbes réguliers. Les verbes irréguliers ont une forme spécifique.',
     attention_points:'Forme négative : did not + base verbale. Question : Did + sujet + base verbale ?',
-    examples:['I worked yesterday.','She went to London.','Did you see the movie?'] },
+    examples:[{en:'I worked yesterday.',fr:'J\'ai travaillé hier.'},{en:'She went to London.',fr:'Elle est allée à Londres.'},{en:'Did you see the movie?',fr:'As-tu vu le film?'}] },
   { id:'gr_en_05', language:'en', rule_name:'Comparatives & Superlatives', level:'A2',
-    definition_fr:'Comparatif : adjectif court + -er / more + adjectif long. Superlatif : the + adjectif + -est / the most + adjectif.',
     definition_en:'Comparative: short adj + -er / more + long adj. Superlative: the + adj + -est / the most + adj.',
+    definition_fr:'Comparatif : adjectif court + -er / more + adjectif long. Superlatif : the + adjectif + -est / the most + adjectif.',
     attention_points:'Good → better → the best. Bad → worse → the worst.',
-    examples:['She is taller than me.','This is the most interesting book.','He is better at math.'] },
+    examples:[{en:'She is taller than me.',fr:'Elle est plus grande que moi.'},{en:'This is the most interesting book.',fr:'C\'est le livre le plus intéressant.'},{en:'He is better at math.',fr:'Il est meilleur en mathématiques.'}] },
 
   // ===== ANGLAIS B1 =====
   { id:'gr_en_06', language:'en', rule_name:'Present Perfect', level:'B1',
-    definition_fr:'Le present perfect (have/has + participe passé) exprime une action passée avec un lien au présent.',
     definition_en:'Present perfect (have/has + past participle) links a past action to the present.',
+    definition_fr:'Le present perfect (have/has + participe passé) exprime une action passée avec un lien au présent.',
     attention_points:'Since = point de départ, For = durée. Ne pas utiliser avec une date précise du passé.',
-    examples:['I have lived here since 2010.','She has never been to Japan.','Have you finished your homework?'] },
+    examples:[{en:'I have lived here since 2010.',fr:'J\'habite ici depuis 2010.'},{en:'She has never been to Japan.',fr:'Elle n\'a jamais été au Japon.'},{en:'Have you finished your homework?',fr:'As-tu fini tes devoirs?'}] },
   { id:'gr_en_07', language:'en', rule_name:'Conditionals - First & Second', level:'B1',
-    definition_fr:'1er conditionnel : If + présent, will + base (probable). 2e conditionnel : If + past simple, would + base (hypothétique).',
     definition_en:'First conditional: If + present, will + base (likely). Second conditional: If + past, would + base (hypothetical).',
+    definition_fr:'1er conditionnel : If + présent, will + base (probable). 2e conditionnel : If + past simple, would + base (hypothétique).',
     attention_points:'If I were (pas "was") est préféré dans le 2e conditionnel formel.',
-    examples:['If it rains, I will stay home.','If I were rich, I would travel the world.'] },
+    examples:[{en:'If it rains, I will stay home.',fr:'S\'il pleut, je resterai à la maison.'},{en:'If I were rich, I would travel the world.',fr:'Si j\'étais riche, je voyagerais dans le monde.'}] },
   { id:'gr_en_08', language:'en', rule_name:'Passive Voice', level:'B1',
-    definition_fr:'Voix passive : sujet + be (conjugué) + participe passé. L\'agent est introduit par "by".',
     definition_en:'Passive voice: subject + be (conjugated) + past participle. Agent introduced by "by".',
+    definition_fr:'Voix passive : sujet + be (conjugué) + participe passé. L\'agent est introduit par "by".',
     attention_points:'Utiliser la passive quand l\'action est plus importante que l\'agent.',
-    examples:['The report was written by the manager.','English is spoken worldwide.','The building was built in 1990.'] },
+    examples:[{en:'The report was written by the manager.',fr:'Le rapport a été écrit par le directeur.'},{en:'English is spoken worldwide.',fr:'L\'anglais est parlé dans le monde.'},{en:'The building was built in 1990.',fr:'Le bâtiment a été construit en 1990.'}] },
 
   // ===== ANGLAIS B2 =====
   { id:'gr_en_09', language:'en', rule_name:'Reported Speech', level:'B2',
-    definition_fr:'Discours rapporté : on recule le temps d\'un cran. Present → Past, Past → Past Perfect, Will → Would.',
     definition_en:'Reported speech: shift tense back. Present → Past, Past → Past Perfect, Will → Would.',
+    definition_fr:'Discours rapporté : on recule le temps d\'un cran. Present → Past, Past → Past Perfect, Will → Would.',
     attention_points:'Les pronoms et les marqueurs de temps changent aussi (today→that day, here→there).',
-    examples:['He said he was tired.','She told me she had finished.','They said they would come.'] },
+    examples:[{en:'He said he was tired.',fr:'Il a dit qu\'il était fatigué.'},{en:'She told me she had finished.',fr:'Elle m\'a dit qu\'elle avait fini.'},{en:'They said they would come.',fr:'Ils ont dit qu\'ils viendraient.'}] },
   { id:'gr_en_10', language:'en', rule_name:'Relative Clauses', level:'B2',
-    definition_fr:'Les propositions relatives commencent par who (personnes), which (choses), that, where, when. Defining vs non-defining.',
     definition_en:'Relative clauses use who (people), which (things), that, where, when. Defining vs non-defining.',
+    definition_fr:'Les propositions relatives commencent par who (personnes), which (choses), that, where, when. Defining vs non-defining.',
     attention_points:'Non-defining clauses use commas and cannot use "that".',
-    examples:['The woman who called you is my sister.','Paris, which is in France, is beautiful.','The house where I grew up was sold.'] },
+    examples:[{en:'The woman who called you is my sister.',fr:'La femme qui t\'a appelé est ma soeur.'},{en:'Paris, which is in France, is beautiful.',fr:'Paris, qui est en France, est magnifique.'},{en:'The house where I grew up was sold.',fr:'La maison où j\'ai grandi a été vendue.'}] },
 
   // ===== ESPAGNOL A1 =====
   { id:'gr_es_01', language:'es', rule_name:'Ser vs Estar', level:'A1',
-    definition_fr:'"Ser" pour les caractéristiques permanentes, "estar" pour les états temporaires ou la localisation.',
     definition_en:'"Ser" for permanent characteristics, "estar" for temporary states or location.',
+    definition_fr:'"Ser" pour les caractéristiques permanentes, "estar" pour les états temporaires ou la localisation.',
     attention_points:'Ser : nationalité, profession, caractère. Estar : émotions, lieu, états temporaires.',
-    examples:['Yo soy francés.','Ella está cansada.','Madrid está en España.'] },
+    examples:[{en:'I am French.',fr:'Yo soy francés.'},{en:'She is tired.',fr:'Ella está cansada.'},{en:'Madrid is in Spain.',fr:'Madrid está en España.'}] },
   { id:'gr_es_02', language:'es', rule_name:'Artículos: El / La / Un / Una', level:'A1',
-    definition_fr:'Articles définis : el (masc), la (fém), los, las. Articles indéfinis : un, una, unos, unas.',
     definition_en:'Definite articles: el (m), la (f), los, las. Indefinite: un, una, unos, unas.',
+    definition_fr:'Articles définis : el (masc), la (fém), los, las. Articles indéfinis : un, una, unos, unas.',
     attention_points:'Attention aux exceptions : el agua (fém mais "el" devant a- tonique).',
-    examples:['El libro es interesante.','Tengo una casa grande.','Los gatos son bonitos.'] },
+    examples:[{en:'The book is interesting.',fr:'El libro es interesante.'},{en:'I have a big house.',fr:'Tengo una casa grande.'},{en:'Cats are beautiful.',fr:'Los gatos son bonitos.'}] },
   { id:'gr_es_03', language:'es', rule_name:'Presente de indicativo - Verbos regulares', level:'A1',
-    definition_fr:'Conjugaison des verbes réguliers en -ar, -er, -ir au présent de l\'indicatif.',
     definition_en:'Regular verb conjugation in -ar, -er, -ir in the present indicative.',
+    definition_fr:'Conjugaison des verbes réguliers en -ar, -er, -ir au présent de l\'indicatif.',
     attention_points:'-ar: o, as, a, amos, áis, an. -er: o, es, e, emos, éis, en. -ir: o, es, e, imos, ís, en.',
-    examples:['Yo hablo español.','Él come una manzana.','Nosotros vivimos en París.'] },
+    examples:[{en:'I speak Spanish.',fr:'Yo hablo español.'},{en:'He eats an apple.',fr:'Él come una manzana.'},{en:'We live in Paris.',fr:'Nosotros vivimos en París.'}] },
 
   // ===== ESPAGNOL A2 =====
   { id:'gr_es_04', language:'es', rule_name:'Pretérito indefinido', level:'A2',
-    definition_fr:'Le passé simple espagnol pour les actions terminées dans le passé avec un marqueur temporel.',
     definition_en:'The Spanish simple past for completed actions in the past with a time marker.',
+    definition_fr:'Le passé simple espagnol pour les actions terminées dans le passé avec un marqueur temporel.',
     attention_points:'Verbes irréguliers fréquents : ir/ser (fui), tener (tuve), hacer (hice).',
-    examples:['Ayer fui al cine.','Ella comió paella.','Nosotros llegamos tarde.'] },
+    examples:[{en:'Yesterday I went to the cinema.',fr:'Ayer fui al cine.'},{en:'She ate paella.',fr:'Ella comió paella.'},{en:'We arrived late.',fr:'Nosotros llegamos tarde.'}] },
   { id:'gr_es_05', language:'es', rule_name:'Gustar y verbos similares', level:'A2',
-    definition_fr:'"Gustar" fonctionne à l\'envers : ce qui plaît est le sujet. Me gusta + singulier, me gustan + pluriel.',
     definition_en:'"Gustar" works inversely: what is liked is the subject. Me gusta + singular, me gustan + plural.',
+    definition_fr:'"Gustar" fonctionne à l\'envers : ce qui plaît est le sujet. Me gusta + singulier, me gustan + pluriel.',
     attention_points:'Pronoms : me, te, le, nos, os, les. "A mí me gusta" pour insister.',
-    examples:['Me gusta el chocolate.','Nos gustan los animales.','A ella le encanta bailar.'] },
+    examples:[{en:'I like chocolate.',fr:'Me gusta el chocolate.'},{en:'We like animals.',fr:'Nos gustan los animales.'},{en:'She loves to dance.',fr:'A ella le encanta bailar.'}] },
 ];
 
 export const BANK_GRAMMAR_EXERCISES: GrammarExercise[] = [
@@ -240,4 +240,43 @@ export const BANK_IRREGULAR_VERBS: IrregularVerb[] = [
   { base:'wake', past:'woke', past_participle:'woken', french:'se réveiller', group:'ABC' },
   { base:'wear', past:'wore', past_participle:'worn', french:'porter', group:'ABC' },
   { base:'write', past:'wrote', past_participle:'written', french:'écrire', group:'ABC' },
+  // ABA group (past tense changes, but past participle = base form)
+  { base:'come', past:'came', past_participle:'come', french:'venir', group:'ABA' },
+  { base:'run', past:'ran', past_participle:'run', french:'courir', group:'ABA' },
+  { base:'become', past:'became', past_participle:'become', french:'devenir', group:'ABA' },
+  { base:'overcome', past:'overcame', past_participle:'overcome', french:'surmonter', group:'ABA' },
+  { base:'income', past:'incame', past_participle:'income', french:'revenu', group:'ABA' },
+  { base:'rerun', past:'reran', past_participle:'rerun', french:'rediffuser', group:'ABA' },
+  { base:'forecome', past:'forecame', past_participle:'forecome', french:'précéder', group:'ABA' },
+  { base:'misbecome', past:'misbecame', past_participle:'misbecome', french:'ne pas bien aller', group:'ABA' },
+];
+
+export interface VerbExercise {
+  id: string;
+  verb_base: string;
+  group: 'AAA' | 'ABB' | 'ABC' | 'ABA' | 'mixed';
+  question_type: 'fill_past' | 'fill_participle' | 'fill_both';
+  hint_fr: string;
+}
+
+export const BANK_VERB_EXERCISES: VerbExercise[] = [
+  // === AAA Group Exercises ===
+  { id:'verb_ex_AAA_1', verb_base:'cut', group:'AAA', question_type:'fill_both', hint_fr:'Base: cut, Passé: cut, Participe: cut' },
+  { id:'verb_ex_AAA_2', verb_base:'put', group:'AAA', question_type:'fill_past', hint_fr:'I ___ the book on the table (mettre)' },
+  { id:'verb_ex_AAA_3', verb_base:'let', group:'AAA', question_type:'fill_participle', hint_fr:'She has ___ me go (laisser)' },
+
+  // === ABB Group Exercises ===
+  { id:'verb_ex_ABB_1', verb_base:'buy', group:'ABB', question_type:'fill_both', hint_fr:'Base: buy, Passé: bought, Participe: bought' },
+  { id:'verb_ex_ABB_2', verb_base:'find', group:'ABB', question_type:'fill_past', hint_fr:'I ___ my keys yesterday (trouver)' },
+  { id:'verb_ex_ABB_3', verb_base:'make', group:'ABB', question_type:'fill_participle', hint_fr:'She has ___ a cake (faire/fabriquer)' },
+
+  // === ABC Group Exercises ===
+  { id:'verb_ex_ABC_1', verb_base:'be', group:'ABC', question_type:'fill_both', hint_fr:'Base: be, Passé: was/were, Participe: been' },
+  { id:'verb_ex_ABC_2', verb_base:'go', group:'ABC', question_type:'fill_past', hint_fr:'They ___ to Paris last week (aller)' },
+  { id:'verb_ex_ABC_3', verb_base:'speak', group:'ABC', question_type:'fill_participle', hint_fr:'He has ___ to the manager (parler)' },
+
+  // === ABA Group Exercises ===
+  { id:'verb_ex_ABA_1', verb_base:'come', group:'ABA', question_type:'fill_both', hint_fr:'Base: come, Passé: came, Participe: come' },
+  { id:'verb_ex_ABA_2', verb_base:'run', group:'ABA', question_type:'fill_past', hint_fr:'She ___ quickly to the bus stop (courir)' },
+  { id:'verb_ex_ABA_3', verb_base:'become', group:'ABA', question_type:'fill_participle', hint_fr:'He has ___ a doctor (devenir)' },
 ];

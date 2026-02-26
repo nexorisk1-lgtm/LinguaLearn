@@ -26,7 +26,7 @@ export interface GrammarRule {
   definition_fr: string;
   definition_en: string;
   attention_points?: string;
-  examples: string[];
+  examples: { en: string; fr: string }[];
   level: string;
 }
 
