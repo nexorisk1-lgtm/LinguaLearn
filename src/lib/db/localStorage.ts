@@ -87,6 +87,47 @@ export function loginUser(email: string, password: string): { success: boolean; 
     return { success: false, error: 'credentials' };
   }
 
+  // AR-02 FIX: DEFENSIVE check - sync with any more recent CURRENT_USER data
+  const currentUserData = getCurrentUser();
+  if (currentUserData && currentUserData.id === user.id) {
+    // If CURRENT_USER exists for this user, use it as it may have more recent state
+    // But preserve core identity from USERS array
+    const syncedUser: User = {
+      ...user,
+      ...currentUserData,
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    };
+
+    // AR-02 FIX: Data integrity - if user has learning languages but onboarding not marked complete, force it to true
+    if (syncedUser.settings.learningLangs && syncedUser.settings.learningLangs.length > 0 && !syncedUser.onboardingCompleted) {
+      syncedUser.onboardingCompleted = true;
+    }
+
+    setCurrentUser(syncedUser);
+
+    // AR-02 FIX: Sync back to USERS array to ensure persistence
+    const userIndex = users.findIndex(u => u.id === user.id);
+    if (userIndex !== -1) {
+      users[userIndex] = syncedUser;
+      saveUsers(users);
+    }
+
+    return { success: true, user: syncedUser };
+  }
+
+  // AR-02 FIX: Data integrity - if user has learning languages but onboarding not marked complete, force it to true
+  if (user.settings.learningLangs && user.settings.learningLangs.length > 0 && !user.onboardingCompleted) {
+    user.onboardingCompleted = true;
+    const userIndex = users.findIndex(u => u.id === user.id);
+    if (userIndex !== -1) {
+      users[userIndex] = user;
+      saveUsers(users);
+    }
+  }
+
   setCurrentUser(user);
   return { success: true, user };
 }
@@ -237,6 +278,18 @@ export function validateProposedWord(wordId: string): ProposedWord | null {
   if (index === -1) return null;
 
   words[index].status = 'validated';
+  localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+  return words[index];
+}
+
+export function rejectProposedWord(wordId: string): ProposedWord | null {
+  if (typeof window === 'undefined') return null;
+  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+  const words: ProposedWord[] = data ? JSON.parse(data) : [];
+  const index = words.findIndex(w => w.id === wordId);
+  if (index === -1) return null;
+
+  words[index].status = 'rejected';
   localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
   return words[index];
 }

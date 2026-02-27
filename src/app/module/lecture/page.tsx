@@ -687,6 +687,34 @@ export default function LecturePage() {
         {/* Dictionary Tab */}
         {activeTab === 'dictionary' && (
           <div>
+            {/* Link to standalone dictionary */}
+            <div className="mb-8 p-6 rounded-lg border-2" style={{ borderColor: '#D9B438', backgroundColor: '#f9f9f9' }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold mb-2" style={{ color: '#002844' }}>
+                    {interfaceLang === 'fr' ? 'Dictionnaire complet' : 'Full dictionary'}
+                  </p>
+                  <p className="text-xs" style={{ color: '#555555' }}>
+                    {interfaceLang === 'fr'
+                      ? 'Accédez au dictionnaire complet avec plus de fonctionnalités'
+                      : 'Access the full dictionary with more features'}
+                  </p>
+                </div>
+                <Link href="/module/dictionnaire">
+                  <button
+                    className="px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0"
+                    style={{
+                      backgroundColor: '#002844',
+                      color: '#ffffff',
+                    }}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    {interfaceLang === 'fr' ? 'Accéder' : 'Go'}
+                  </button>
+                </Link>
+              </div>
+            </div>
+
             {/* Mode Selection */}
             <div className="mb-8 p-6 rounded-lg border-2" style={{ borderColor: '#D9B438', backgroundColor: '#ffffff' }}>
               <p className="text-sm font-semibold mb-3" style={{ color: '#002844' }}>

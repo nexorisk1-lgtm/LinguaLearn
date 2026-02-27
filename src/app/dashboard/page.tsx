@@ -21,7 +21,8 @@ export default function DashboardPage() {
   useEffect(() => {
     const currentUser = getCurrentUser()
     if (!currentUser) { router.push('/auth'); return }
-    if (!currentUser.onboardingCompleted) { router.push('/onboarding'); return }
+    // AD-01: Admin users should not be redirected to onboarding
+    if (!currentUser.onboardingCompleted && currentUser.role !== 'admin') { router.push('/onboarding'); return }
     if (!currentUser.activeLang && currentUser.settings.learningLangs.length > 0) {
       currentUser.activeLang = currentUser.settings.learningLangs[0]
     }
@@ -65,8 +66,9 @@ export default function DashboardPage() {
     { label: lang === 'fr' ? 'Vocabulaire' : 'Vocabulary', href: '/module/vocabulaire' },
     { label: lang === 'fr' ? 'Grammaire' : 'Grammar', href: '/module/grammaire' },
     { label: lang === 'fr' ? 'Lecture' : 'Reading', href: '/module/lecture' },
+    { label: lang === 'fr' ? 'Dictionnaire' : 'Dictionary', href: '/module/dictionnaire' },
     { label: lang === 'fr' ? 'Entraînement' : 'Training', href: '/module/entrainement' },
-    { label: lang === 'fr' ? 'Coach IA' : 'AI Coach', href: '/module/coach' },
+    { label: lang === 'fr' ? 'Coach' : 'Coach', href: '/module/coach' },
     { label: lang === 'fr' ? 'Profil' : 'Profile', href: '/module/profil' },
   ]
 
@@ -88,7 +90,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* RIGHT: Language selector + Admin + Logout */}
+            {/* RIGHT: Language selector + Logout */}
             <div className="hidden items-center gap-2 lg:flex">
               {/* CORRECTION #3: Sélecteur de langue dans la navbar */}
               <div className="relative">
@@ -114,15 +116,16 @@ export default function DashboardPage() {
                         </button>
                       )
                     })}
+                    <div className="border-t border-gray-200"></div>
+                    <a href="/onboarding" onClick={() => setLangSelectorOpen(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-all text-[#D9B438] font-semibold">
+                      <span>➕</span>
+                      <span>{lang === 'fr' ? 'Ajouter une langue' : 'Add a language'}</span>
+                    </a>
                   </div>
                 )}
               </div>
 
-              {user.role === 'admin' && (
-                <a href="/module/admin" className="flex items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-[#D9B438]">
-                  <Shield className="h-4 w-4" /> Admin
-                </a>
-              )}
               <button onClick={handleLogout} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/10">
                 <LogOut className="h-4 w-4" /> {t('auth.logout', lang)}
               </button>
@@ -174,6 +177,32 @@ export default function DashboardPage() {
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
+        {/* Diagnostic suggestion - AR-05bis */}
+        {progress && !progress.diagnosticCompleted && (
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-[#D9B438]/20 to-[#002844]/10 border-2 border-[#D9B438] p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-[#002844] mb-2">
+                  {lang === 'fr' ? 'Lancer votre diagnostic CECRL' : 'Take your CECRL diagnostic'}
+                </h3>
+                <p className="text-sm text-[#555555]">
+                  {lang === 'fr'
+                    ? 'Évaluez votre niveau de langue avec notre test CECRL pour obtenir des contenus adaptés.'
+                    : 'Assess your language level with our CECRL test to get personalized content.'}
+                </p>
+              </div>
+              <a
+                href="/onboarding/diagnostic"
+                className="ml-4 inline-flex items-center gap-2 rounded-lg px-6 py-3 font-semibold text-white hover:opacity-90 transition-opacity whitespace-nowrap flex-shrink-0"
+                style={{ backgroundColor: '#002844' }}
+              >
+                <GraduationCap className="h-5 w-5" />
+                {lang === 'fr' ? 'Démarrer' : 'Start'}
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* LIGNE 1: Greeting + Streak compact */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {user.firstName} 👋</h2>

@@ -10,7 +10,10 @@ export interface VocabWord {
   word_target: string;
   word_fr: string;
   definition_en: string;
-  example_en: string;
+  definition_fr?: string; // French definition (bilingual requirement L-05)
+  definition_lang?: string; // Definition in target language (e.g., Spanish definition for ES words)
+  example_en?: string;
+  example_fr?: string;
   theme: string;
   level: string; // A1, A2, B1, B2, C1, C2
   type?: string; // noun, verb, adj, adv...

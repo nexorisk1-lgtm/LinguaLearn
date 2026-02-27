@@ -13,6 +13,9 @@ export default function Home() {
     if (!currentUser) {
       // Not logged in - redirect to auth
       router.push('/auth');
+    } else if (currentUser.role === 'admin') {
+      // AD-01: Admin users go directly to admin page, not onboarding
+      router.push('/module/admin');
     } else if (currentUser.onboardingCompleted) {
       // Logged in and onboarding completed - redirect to dashboard
       router.push('/dashboard');

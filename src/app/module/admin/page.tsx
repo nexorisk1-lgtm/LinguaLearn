@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, getPendingProposedWords } from '@/lib/db/localStorage'
+import { getCurrentUser, getPendingProposedWords, validateProposedWord, rejectProposedWord } from '@/lib/db/localStorage'
 import { InterfaceLanguage, User } from '@/types'
 import { t } from '@/lib/i18n'
 import {
@@ -80,7 +80,7 @@ export default function AdminImportsPage() {
   const [, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'imports' | 'dashboard'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'imports' | 'dashboard' | 'proposedWords'>('dashboard')
   const [pendingWordsCount, setPendingWordsCount] = useState(0)
   const [tabState, setTabState] = useState<TabState>({
     selectedType: null,
@@ -448,7 +448,7 @@ export default function AdminImportsPage() {
                 : 'words pending validation'}
             </p>
             <button
-              onClick={() => setActiveTab('imports')}
+              onClick={() => setActiveTab('proposedWords')}
               className="inline-flex items-center gap-2 rounded-lg bg-[#002844] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             >
               {lang === 'fr' ? 'Gérer' : 'Manage'}
@@ -497,6 +497,16 @@ export default function AdminImportsPage() {
             {lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}
           </button>
           <button
+            onClick={() => setActiveTab('proposedWords')}
+            className={`px-4 py-3 font-semibold transition-all border-b-2 ${
+              activeTab === 'proposedWords'
+                ? 'border-[#002844] text-[#002844]'
+                : 'border-transparent text-[#555555] hover:text-[#002844]'
+            }`}
+          >
+            {lang === 'fr' ? 'Mots à qualifier' : 'Proposed Words'}
+          </button>
+          <button
             onClick={() => setActiveTab('imports')}
             className={`px-4 py-3 font-semibold transition-all border-b-2 ${
               activeTab === 'imports'
@@ -510,6 +520,121 @@ export default function AdminImportsPage() {
 
         {/* Dashboard tab */}
         {activeTab === 'dashboard' && renderDashboard()}
+
+        {/* Proposed Words tab */}
+        {activeTab === 'proposedWords' && (
+          <div>
+            {/* Header */}
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-[#002844] flex items-center gap-2 mb-2">
+                <Lock className="h-8 w-8 text-[#D9B438]" />
+                {lang === 'fr' ? 'Mots à qualifier' : 'Proposed Words'}
+              </h2>
+              <p className="text-[#555555]">
+                {lang === 'fr'
+                  ? 'Validez ou refusez les mots proposés par les utilisateurs.'
+                  : 'Validate or reject words proposed by users.'}
+              </p>
+            </div>
+
+            {/* Proposed words list */}
+            {pendingWordsCount === 0 ? (
+              <div className="rounded-2xl bg-white p-12 shadow-lg text-center">
+                <CheckCircle className="h-12 w-12 text-[#D9B438] mx-auto mb-3" />
+                <p className="text-[#555555]">
+                  {lang === 'fr'
+                    ? 'Aucun mot en attente de validation.'
+                    : 'No words pending validation.'}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-white shadow-lg">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ backgroundColor: '#002844' }}>
+                        <th className="px-6 py-4 text-left font-semibold text-white">
+                          {lang === 'fr' ? 'Mot (langue cible)' : 'Word (target language)'}
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-white">
+                          {lang === 'fr' ? 'Traduction FR' : 'French Translation'}
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-white">
+                          {lang === 'fr' ? 'Langue' : 'Language'}
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-white">
+                          {lang === 'fr' ? 'Proposé par' : 'Proposed by'}
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-white">
+                          {lang === 'fr' ? 'Date' : 'Date'}
+                        </th>
+                        <th className="px-6 py-4 text-center font-semibold text-white">
+                          {lang === 'fr' ? 'Actions' : 'Actions'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPendingProposedWords().map((word) => (
+                        <tr key={word.id} className="border-b border-gray-200 hover:bg-blue-50">
+                          <td className="px-6 py-4 font-semibold" style={{ color: '#002844' }}>
+                            {word.word}
+                          </td>
+                          <td className="px-6 py-4" style={{ color: '#555555' }}>
+                            {/* Note: The DB schema may not have word_fr, using word as fallback */}
+                            {word.definition || '-'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className="px-3 py-1 rounded-full text-sm font-medium"
+                              style={{
+                                backgroundColor: '#D9B438',
+                                color: '#002844',
+                              }}
+                            >
+                              {word.language.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm" style={{ color: '#555555' }}>
+                            {word.proposedBy}
+                          </td>
+                          <td className="px-6 py-4 text-sm" style={{ color: '#555555' }}>
+                            {new Date(word.createdAt).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US')}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => {
+                                  validateProposedWord(word.id)
+                                  setPendingWordsCount(getPendingProposedWords().length)
+                                }}
+                                className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                                style={{ backgroundColor: '#2e7d32' }}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                {lang === 'fr' ? 'Valider' : 'Validate'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  rejectProposedWord(word.id)
+                                  setPendingWordsCount(getPendingProposedWords().length)
+                                }}
+                                className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                                style={{ backgroundColor: '#d32f2f' }}
+                              >
+                                <XCircle className="h-4 w-4" />
+                                {lang === 'fr' ? 'Refuser' : 'Reject'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Imports tab */}
         {activeTab === 'imports' && (

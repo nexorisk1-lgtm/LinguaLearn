@@ -185,6 +185,11 @@ export default function AuthPage() {
                   className="w-full px-4 py-3 border-2 border-gray-light rounded-lg focus:border-blue focus:outline-none transition-colors"
                   disabled={loading}
                 />
+                <p className="text-xs text-gray mt-2">
+                  {interfaceLang === 'fr'
+                    ? 'Mot de passe oublié ? Contactez votre administrateur pour réinitialiser votre mot de passe.'
+                    : 'Forgot your password? Contact your administrator to reset your password.'}
+                </p>
               </div>
 
               <button

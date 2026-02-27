@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser } from '@/lib/db/localStorage'
+import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage'
 import { InterfaceLanguage, User } from '@/types'
 import { t } from '@/lib/i18n'
 import {
@@ -162,12 +162,13 @@ export default function GrammairePage() {
         (currentExercise.answer as string)?.toLowerCase()
     }
 
+    const newCorrectCount = isCorrect ? exerciseState.correctCount + 1 : exerciseState.correctCount
     setExerciseState((prev) => ({
       ...prev,
       answered: true,
       isCorrect,
       userAnswer,
-      correctCount: isCorrect ? prev.correctCount + 1 : prev.correctCount,
+      correctCount: newCorrectCount,
     }))
   }
 
@@ -182,6 +183,16 @@ export default function GrammairePage() {
         totalCount: exerciseState.totalCount,
       })
     } else {
+      // All exercises completed, update progress
+      if (user && exercises.length > 0) {
+        const grammaireProgress = Math.round((exerciseState.correctCount / exercises.length) * 100)
+        updateUserProgress(user.id, activeLang, {
+          objectiveProgress: {
+            ...user.progress?.[activeLang]?.objectiveProgress,
+            grammaire: grammaireProgress,
+          },
+        })
+      }
       // Reset to first exercise
       setExerciseState({
         currentIndex: 0,
@@ -611,7 +622,7 @@ export default function GrammairePage() {
                       <div className="bg-yellow-50 border-l-4 rounded-lg p-4" style={{ borderColor: '#D9B438' }}>
                         <p style={{ color: '#555555' }} className="text-sm">
                           <span className="font-semibold">{interfaceLang === 'fr' ? 'Rappel : ' : 'Reminder: '}</span>
-                          {grammarRules.find(r => r.id === selectedRuleId)?.attention_points?.[0] ||
+                          {grammarRules.find(r => r.id === selectedRuleId)?.[interfaceLang === 'fr' ? 'definition_fr' : 'definition_en'] ||
                             (interfaceLang === 'fr' ? 'Revoir la règle' : 'Review the rule')}
                         </p>
                       </div>
@@ -656,51 +667,6 @@ export default function GrammairePage() {
                   </div>
                 )}
 
-                {/* Verb Exercises Section */}
-                {activeLang === 'en' && verbExercises.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-2xl font-bold mb-6" style={{ color: '#002844' }}>
-                      {interfaceLang === 'fr' ? 'Exercices de verbes irréguliers' : 'Irregular Verb Exercises'}
-                    </h2>
-                    <p className="text-sm mb-6" style={{ color: '#555555' }}>
-                      {interfaceLang === 'fr'
-                        ? 'Complétez les formes manquantes des verbes irréguliers'
-                        : 'Complete the missing forms of irregular verbs'}
-                    </p>
-                    <div className="space-y-6">
-                      {['AAA', 'ABB', 'ABC', 'ABA'].map((group) => {
-                        const groupExercises = verbExercises.filter(e => e.group === group)
-                        return groupExercises.length > 0 ? (
-                          <div key={group}>
-                            <h3 className="font-semibold text-lg mb-4" style={{ color: '#002844' }}>
-                              Groupe {group}
-                            </h3>
-                            <div className="space-y-4">
-                              {groupExercises.map((exercise) => (
-                                <div key={exercise.id} className="p-4 bg-blue-50 rounded-lg border border-gray-200">
-                                  <p style={{ color: '#555555' }} className="font-medium mb-2">
-                                    {exercise.question_type === 'fill_past'
-                                      ? (interfaceLang === 'fr' ? 'Forme prétérit :' : 'Past tense form:')
-                                      : exercise.question_type === 'fill_participle'
-                                        ? (interfaceLang === 'fr' ? 'Participe passé :' : 'Past participle:')
-                                        : (interfaceLang === 'fr' ? 'Remplissez les deux formes :' : 'Fill both forms:')}
-                                  </p>
-                                  <p style={{ color: '#002844' }} className="text-lg font-semibold">
-                                    {exercise.verb_base} / ___ / ___
-                                  </p>
-                                  <p style={{ color: '#555555' }} className="text-sm mt-2 italic">
-                                    {interfaceLang === 'fr' ? 'Indice : ' : 'Hint: '}
-                                    {exercise.hint_fr}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -708,9 +674,81 @@ export default function GrammairePage() {
 
         {/* Irregular Verbs Tab */}
         {activeTab === 'irregularVerbs' && activeLang === 'en' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {/* Introduction Block */}
+            <div className="bg-blue-50 border-l-4 rounded-lg p-6" style={{ borderColor: '#D9B438' }}>
+              <h3 className="font-bold text-lg mb-3" style={{ color: '#002844' }}>
+                {interfaceLang === 'fr' ? 'Comment fonctionnent les verbes irréguliers ?' : 'How do irregular verbs work?'}
+              </h3>
+              <p style={{ color: '#555555' }} className="text-sm mb-3">
+                {interfaceLang === 'fr'
+                  ? 'Les verbes irréguliers ne suivent pas les règles de conjugaison standard en anglais. Ils ont 3 formes principales:'
+                  : 'Irregular verbs do not follow standard English conjugation rules. They have 3 main forms:'}
+              </p>
+              <ul className="space-y-2 text-sm" style={{ color: '#555555' }}>
+                <li className="flex gap-3">
+                  <strong style={{ color: '#002844' }}>Base:</strong>
+                  <span>{interfaceLang === 'fr' ? 'La forme infinitive (ex: go, eat, be)' : 'The infinitive form (e.g. go, eat, be)'}</span>
+                </li>
+                <li className="flex gap-3">
+                  <strong style={{ color: '#002844' }}>Prétérit:</strong>
+                  <span>{interfaceLang === 'fr' ? 'Le passé simple (ex: went, ate, was)' : 'The past tense (e.g. went, ate, was)'}</span>
+                </li>
+                <li className="flex gap-3">
+                  <strong style={{ color: '#002844' }}>Participe passé:</strong>
+                  <span>{interfaceLang === 'fr' ? 'Utilisé avec have/be (ex: gone, eaten, been)' : 'Used with have/be (e.g. gone, eaten, been)'}</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Verb Exercises Section */}
+            {verbExercises.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-2xl font-bold mb-6" style={{ color: '#002844' }}>
+                  {interfaceLang === 'fr' ? 'Exercices' : 'Exercises'}
+                </h2>
+                <p className="text-sm mb-6" style={{ color: '#555555' }}>
+                  {interfaceLang === 'fr'
+                    ? 'Complétez les formes manquantes des verbes irréguliers'
+                    : 'Complete the missing forms of irregular verbs'}
+                </p>
+                <div className="space-y-6">
+                  {['AAA', 'ABB', 'ABC', 'ABA'].map((group) => {
+                    const groupExercises = verbExercises.filter(e => e.group === group)
+                    return groupExercises.length > 0 ? (
+                      <div key={group}>
+                        <h3 className="font-semibold text-lg mb-4" style={{ color: '#002844' }}>
+                          Groupe {group}
+                        </h3>
+                        <div className="space-y-4">
+                          {groupExercises.map((exercise) => (
+                            <div key={exercise.id} className="p-4 bg-blue-50 rounded-lg border border-gray-200">
+                              <p style={{ color: '#555555' }} className="font-medium mb-2">
+                                {exercise.question_type === 'fill_past'
+                                  ? (interfaceLang === 'fr' ? 'Forme prétérit :' : 'Past tense form:')
+                                  : exercise.question_type === 'fill_participle'
+                                    ? (interfaceLang === 'fr' ? 'Participe passé :' : 'Past participle:')
+                                    : (interfaceLang === 'fr' ? 'Remplissez les deux formes :' : 'Fill both forms:')}
+                              </p>
+                              <p style={{ color: '#002844' }} className="text-lg font-semibold">
+                                {exercise.verb_base} / ___ / ___
+                              </p>
+                              <p style={{ color: '#555555' }} className="text-sm mt-2 italic">
+                                {interfaceLang === 'fr' ? 'Indice : ' : 'Hint: '}
+                                {exercise.hint_fr}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Filter */}
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-3 flex-wrap items-center">
               {['all', 'AAA', 'ABB', 'ABC', 'ABA'].map((group) => (
                 <button
                   key={group}
@@ -735,26 +773,56 @@ export default function GrammairePage() {
               ))}
             </div>
 
+            {/* Exercise button for selected group */}
+            {verbGroupFilter !== 'all' && (
+              <button
+                onClick={() => {
+                  const groupExercises = verbExercises.filter(e => e.group === verbGroupFilter)
+                  if (groupExercises.length > 0) {
+                    setActiveTab('exercises')
+                  }
+                }}
+                className="px-6 py-3 rounded-lg font-semibold text-white flex items-center gap-2 hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: '#002844' }}
+              >
+                <Play className="w-4 h-4" />
+                {interfaceLang === 'fr' ? 'Faire un exercice' : 'Do an exercise'}
+              </button>
+            )}
+
             {/* Explanation blocks */}
             {verbGroupFilter !== 'all' && (
-              <div className="bg-blue-50 border-l-4 rounded-lg p-4" style={{ borderColor: '#D9B438' }}>
-                <p style={{ color: '#555555' }} className="text-sm">
+              <div className="bg-blue-50 border-l-4 rounded-lg p-6" style={{ borderColor: '#D9B438' }}>
+                <h4 className="font-bold mb-3" style={{ color: '#002844' }}>
+                  {verbGroupFilter === 'AAA' && 'Groupe AAA'}
+                  {verbGroupFilter === 'ABB' && 'Groupe ABB'}
+                  {verbGroupFilter === 'ABC' && 'Groupe ABC'}
+                  {verbGroupFilter === 'ABA' && 'Groupe ABA'}
+                </h4>
+                <p style={{ color: '#555555' }} className="text-sm mb-3">
                   {verbGroupFilter === 'AAA' &&
                     (interfaceLang === 'fr'
-                      ? 'Le mot ne change pas aux 3 formes (ex: cut/cut/cut)'
-                      : 'The word does not change in all 3 forms (e.g. cut/cut/cut)')}
+                      ? 'Les trois formes sont identiques. Le verbe ne change jamais. Ce groupe est rare en anglais et concerne surtout des verbes courts et simples.'
+                      : 'All three forms are identical. The verb never changes. This group is rare in English and mainly concerns short and simple verbs.')}
                   {verbGroupFilter === 'ABB' &&
                     (interfaceLang === 'fr'
-                      ? 'Le prétérit et le participe passé sont identiques (ex: buy/bought/bought)'
-                      : 'The past tense and past participle are identical (e.g. buy/bought/bought)')}
+                      ? 'La base change pour le prétérit et le participe passé devient identique au prétérit. C\'est le groupe le plus grand en anglais.'
+                      : 'The base changes for the past tense and the past participle becomes identical to the past tense. This is the largest group in English.')}
                   {verbGroupFilter === 'ABC' &&
                     (interfaceLang === 'fr'
-                      ? 'Les 3 formes sont différentes (ex: go/went/gone)'
-                      : 'All 3 forms are different (e.g. go/went/gone)')}
+                      ? 'Les trois formes sont complètement différentes. Ces verbes sont parmi les plus courants et essentiels à apprendre (go, do, see).'
+                      : 'All three forms are completely different. These verbs are among the most common and essential to learn (go, do, see).')}
                   {verbGroupFilter === 'ABA' &&
                     (interfaceLang === 'fr'
-                      ? 'Le participe passé est identique à la base (ex: come/came/come)'
-                      : 'The past participle is identical to the base (e.g. come/came/come)')}
+                      ? 'La base et le participe passé sont identiques, seul le prétérit change. Ce groupe est moins courant mais important à maîtriser.'
+                      : 'The base and past participle are identical, only the past tense changes. This group is less common but important to master.')}
+                </p>
+                <p style={{ color: '#555555' }} className="text-xs italic">
+                  {interfaceLang === 'fr' ? 'Exemples: ' : 'Examples: '}
+                  {verbGroupFilter === 'AAA' && 'cut/cut/cut, hit/hit/hit, put/put/put'}
+                  {verbGroupFilter === 'ABB' && 'buy/bought/bought, bring/brought/brought, think/thought/thought'}
+                  {verbGroupFilter === 'ABC' && 'go/went/gone, do/did/done, see/saw/seen, eat/ate/eaten'}
+                  {verbGroupFilter === 'ABA' && 'come/came/come, become/became/become, run/ran/run'}
                 </p>
               </div>
             )}

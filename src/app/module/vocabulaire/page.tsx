@@ -16,7 +16,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-import { getCurrentUser } from '@/lib/db/localStorage';
+import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage';
 import { User, ALL_THEMES } from '@/types';
 import { t, getThemeName } from '@/lib/i18n';
 import {
@@ -60,6 +60,7 @@ export default function VocabulairePage() {
   const [writingFeedback, setWritingFeedback] = useState<WritingFeedback>(null);
   const [writingExpectedAnswer, setWritingExpectedAnswer] = useState('');
   const [writingSubmitted, setWritingSubmitted] = useState(false);
+  const [writingCorrectCount, setWritingCorrectCount] = useState(0);
 
   // Speaking exercise state
   const [speakingExercises, setSpeakingExercises] = useState<SpeakingExercise[]>(
@@ -70,7 +71,9 @@ export default function VocabulairePage() {
     useState<SpeakingRecognitionState>('idle');
   const [speakingRecognizedText, setSpeakingRecognizedText] = useState('');
   const [speakingIsMatch, setSpeakingIsMatch] = useState<boolean | null>(null);
+  const [speakingCorrectCount, setSpeakingCorrectCount] = useState(0);
   const recognitionRef = useRef<any>(null);
+  const [vocabulaireProgressUpdated, setVocabulaireProgressUpdated] = useState(false);
 
   // Form state for propose word
   const [formData, setFormData] = useState({
@@ -118,6 +121,24 @@ export default function VocabulairePage() {
 
     setIsLoading(false);
   }, [router]);
+
+  // Update vocabulaire progress when vocabulary is loaded and discovery tab is viewed
+  useEffect(() => {
+    if (user && vocabulary.length > 0 && activeTab === 'discovery' && !vocabulaireProgressUpdated) {
+      const currentActiveLang = user.activeLang || user.settings.learningLangs[0] || 'en';
+      // Award some progress for viewing vocabulary
+      updateUserProgress(user.id, currentActiveLang, {
+        objectiveProgress: {
+          ...user.progress?.[currentActiveLang]?.objectiveProgress,
+          vocabulaire: Math.min(
+            (user.progress?.[currentActiveLang]?.objectiveProgress?.vocabulaire || 0) + 10,
+            100
+          ),
+        },
+      });
+      setVocabulaireProgressUpdated(true);
+    }
+  }, [activeTab, vocabulary, user, vocabulaireProgressUpdated]);
 
   if (isLoading || !user) {
     return (
@@ -192,6 +213,7 @@ export default function VocabulairePage() {
 
       if (writingAnswer.toLowerCase().trim() === expected.toLowerCase().trim()) {
         setWritingFeedback('correct');
+        setWritingCorrectCount(writingCorrectCount + 1);
       } else if (isCloseEnough(writingAnswer, expected)) {
         setWritingFeedback('almost');
       } else {
@@ -207,6 +229,17 @@ export default function VocabulairePage() {
       setWritingFeedback(null);
       setWritingExpectedAnswer('');
       setWritingSubmitted(false);
+    } else {
+      // All writing exercises completed, update progress
+      if (user && writingExercises.length > 0) {
+        const ecritProgress = Math.round((writingCorrectCount / writingExercises.length) * 100);
+        updateUserProgress(user.id, activeLang, {
+          objectiveProgress: {
+            ...user.progress?.[activeLang]?.objectiveProgress,
+            ecrit: ecritProgress,
+          },
+        });
+      }
     }
   };
 
@@ -255,6 +288,9 @@ export default function VocabulairePage() {
         const inputLower = transcript.toLowerCase().trim();
         const match = targetLower === inputLower || isCloseEnough(transcript, exercise.target_text);
         setSpeakingIsMatch(match);
+        if (match) {
+          setSpeakingCorrectCount(speakingCorrectCount + 1);
+        }
       }
 
       setSpeakingRecognition('recognized');
@@ -304,6 +340,17 @@ export default function VocabulairePage() {
       setSpeakingRecognition('idle');
       setSpeakingRecognizedText('');
       setSpeakingIsMatch(null);
+    } else {
+      // All speaking exercises completed, update progress
+      if (user && speakingExercises.length > 0) {
+        const oralProgress = Math.round((speakingCorrectCount / speakingExercises.length) * 100);
+        updateUserProgress(user.id, activeLang, {
+          objectiveProgress: {
+            ...user.progress?.[activeLang]?.objectiveProgress,
+            oral: oralProgress,
+          },
+        });
+      }
     }
   };
 
@@ -788,9 +835,19 @@ export default function VocabulairePage() {
                                 >
                                   À retravailler
                                 </p>
-                                <p style={{ color: '#555555' }} className="text-sm">
+                                <p style={{ color: '#555555' }} className="text-sm mb-3">
                                   Attendu: <strong>{writingExpectedAnswer}</strong>
                                 </p>
+                                <div className="p-3 rounded bg-white/50 border border-red-200">
+                                  <p style={{ color: '#555555' }} className="text-xs font-semibold mb-1">
+                                    {interfaceLang === 'fr' ? 'Conseil:' : 'Tip:'}
+                                  </p>
+                                  <p style={{ color: '#555555' }} className="text-xs">
+                                    {interfaceLang === 'fr'
+                                      ? 'Vérifiez l\'orthographe, les accents et la grammaire. Les verbes et noms doivent correspondre exactement à la cible.'
+                                      : 'Check spelling, accents, and grammar. Verbs and nouns must match the target exactly.'}
+                                  </p>
+                                </div>
                               </div>
                             ) : null}
                           </div>
@@ -964,16 +1021,27 @@ export default function VocabulairePage() {
                                   className="w-5 h-5 flex-shrink-0 mt-0.5"
                                   style={{ color: '#d32f2f' }}
                                 />
-                                <div>
+                                <div className="flex-1">
                                   <p
                                     style={{ color: '#b71c1c' }}
                                     className="text-sm font-semibold mb-1"
                                   >
-                                    Pas tout à fait
+                                    À retravailler
                                   </p>
-                                  <p style={{ color: '#555555' }} className="text-sm">
+                                  <p style={{ color: '#555555' }} className="text-sm mb-3">
                                     Cible: <strong>{exercise.target_text}</strong>
                                   </p>
+                                  <button
+                                    onClick={() => speakText(exercise.target_text, activeLang)}
+                                    className="px-3 py-2 rounded-lg font-medium flex items-center gap-2 hover:opacity-80 transition-opacity text-sm"
+                                    style={{
+                                      backgroundColor: '#D9B438',
+                                      color: '#002844',
+                                    }}
+                                  >
+                                    <Volume2 className="w-4 h-4" />
+                                    Écouter la bonne prononciation
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -1029,7 +1097,7 @@ export default function VocabulairePage() {
                             )}
                           </button>
 
-                          {(speakingRecognizedText || speakingRecognition === 'error') && (
+                          {(speakingRecognizedText || speakingRecognition === 'error' || speakingIsMatch === false) && (
                             <button
                               onClick={handleSpeakingTryAgain}
                               className="flex-1 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
