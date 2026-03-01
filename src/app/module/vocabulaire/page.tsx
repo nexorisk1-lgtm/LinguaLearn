@@ -12,7 +12,6 @@ import {
   Mic,
   MicOff,
   CheckCircle,
-  XCircle,
   AlertCircle,
 } from 'lucide-react';
 
@@ -73,6 +72,10 @@ export default function VocabulairePage() {
   const [speakingIsMatch, setSpeakingIsMatch] = useState<boolean | null>(null);
   const [speakingCorrectCount, setSpeakingCorrectCount] = useState(0);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const userAudioUrlRef = useRef<string>('');
+  const prevSpeakingIndexRef = useRef<number>(-1);
   const [vocabulaireProgressUpdated, setVocabulaireProgressUpdated] = useState(false);
 
   // Form state for propose word
@@ -139,6 +142,18 @@ export default function VocabulairePage() {
       setVocabulaireProgressUpdated(true);
     }
   }, [activeTab, vocabulary, user, vocabulaireProgressUpdated]);
+
+  // O-01: Auto-play for pronunciation exercises
+  useEffect(() => {
+    if (activeTab === 'pronounce' && speakingExercises[speakingIndex] && prevSpeakingIndexRef.current !== speakingIndex) {
+      prevSpeakingIndexRef.current = speakingIndex;
+      const currentLang = user?.activeLang || user?.settings?.learningLangs[0] || 'en';
+      const timer = setTimeout(() => {
+        speakText(speakingExercises[speakingIndex].target_text, currentLang);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [speakingIndex, activeTab, speakingExercises, user]);
 
   if (isLoading || !user) {
     return (
@@ -311,15 +326,39 @@ export default function VocabulairePage() {
     };
   };
 
-  const handleSpeakingRecord = () => {
+  const handleSpeakingRecord = async () => {
     if (speakingRecognition === 'listening') {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        setSpeakingRecognition('idle');
+      if (recognitionRef.current) recognitionRef.current.stop();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
       }
+      setSpeakingRecognition('idle');
       return;
     }
 
+    // Start MediaRecorder for playback
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recordedChunksRef.current = [];
+      
+      recorder.ondataavailable = (e: BlobEvent) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+        if (userAudioUrlRef.current) URL.revokeObjectURL(userAudioUrlRef.current);
+        userAudioUrlRef.current = URL.createObjectURL(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+    } catch {
+      console.log('MediaRecorder not available, playback disabled');
+    }
+
+    // Start SpeechRecognition
     initSpeechRecognition();
     if (recognitionRef.current) {
       setSpeakingRecognizedText('');
@@ -351,6 +390,12 @@ export default function VocabulairePage() {
           },
         });
       }
+    }
+  }
+  const playUserRecording = () => {
+    if (userAudioUrlRef.current) {
+      const audio = new Audio(userAudioUrlRef.current);
+      audio.play();
     }
   };
 
@@ -991,56 +1036,26 @@ export default function VocabulairePage() {
                         {speakingIsMatch !== null && (
                           <div className="mb-6">
                             {speakingIsMatch ? (
-                              <div
-                                className="p-4 rounded-lg flex gap-3 items-start"
-                                style={{
-                                  backgroundColor: '#c8e6c9',
-                                  borderLeft: '4px solid #2e7d32',
-                                }}
-                              >
-                                <CheckCircle
-                                  className="w-5 h-5 flex-shrink-0 mt-0.5"
-                                  style={{ color: '#2e7d32' }}
-                                />
-                                <p
-                                  style={{ color: '#1b5e20' }}
-                                  className="text-sm font-semibold"
-                                >
-                                  Excellent !
-                                </p>
+                              <div className="p-5 rounded-lg text-center" style={{ backgroundColor: '#c8e6c9' }}>
+                                <CheckCircle className="w-10 h-10 mx-auto mb-2" style={{ color: '#2e7d32' }} />
+                                <p style={{ color: '#1b5e20' }} className="text-lg font-bold">Bien joué !</p>
                               </div>
                             ) : (
-                              <div
-                                className="p-4 rounded-lg flex gap-3 items-start"
-                                style={{
-                                  backgroundColor: '#ffebee',
-                                  borderLeft: '4px solid #d32f2f',
-                                }}
-                              >
-                                <XCircle
-                                  className="w-5 h-5 flex-shrink-0 mt-0.5"
-                                  style={{ color: '#d32f2f' }}
-                                />
-                                <div className="flex-1">
-                                  <p
-                                    style={{ color: '#b71c1c' }}
-                                    className="text-sm font-semibold mb-1"
-                                  >
-                                    À retravailler
-                                  </p>
-                                  <p style={{ color: '#555555' }} className="text-sm mb-3">
-                                    Cible: <strong>{exercise.target_text}</strong>
-                                  </p>
-                                  <button
-                                    onClick={() => speakText(exercise.target_text, activeLang)}
-                                    className="px-3 py-2 rounded-lg font-medium flex items-center gap-2 hover:opacity-80 transition-opacity text-sm"
-                                    style={{
-                                      backgroundColor: '#D9B438',
-                                      color: '#002844',
-                                    }}
-                                  >
+                              <div className="p-4 rounded-lg" style={{ backgroundColor: '#ffebee', borderLeft: '4px solid #d32f2f' }}>
+                                <p style={{ color: '#b71c1c' }} className="text-sm font-semibold mb-1">Pas tout à fait, réécoute et réessaie</p>
+                                <p style={{ color: '#555555' }} className="text-sm mb-3">Cible: <strong>{exercise.target_text}</strong></p>
+                                <div className="flex gap-2 flex-wrap">
+                                  <button onClick={() => speakText(exercise.target_text, activeLang)}
+                                    className="px-3 py-2 rounded-lg font-medium flex items-center gap-2 hover:opacity-80 text-sm"
+                                    style={{ backgroundColor: '#D9B438', color: '#002844' }}>
                                     <Volume2 className="w-4 h-4" />
                                     Écouter la bonne prononciation
+                                  </button>
+                                  <button onClick={playUserRecording}
+                                    className="px-3 py-2 rounded-lg font-medium flex items-center gap-2 hover:opacity-80 text-sm"
+                                    style={{ backgroundColor: '#002844', color: '#ffffff' }}>
+                                    <Mic className="w-4 h-4" />
+                                    Réécouter votre prononciation
                                   </button>
                                 </div>
                               </div>

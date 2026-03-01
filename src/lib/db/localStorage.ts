@@ -87,43 +87,12 @@ export function loginUser(email: string, password: string): { success: boolean; 
     return { success: false, error: 'credentials' };
   }
 
-  // AR-02 FIX: DEFENSIVE check - sync with any more recent CURRENT_USER data
-  const currentUserData = getCurrentUser();
-  if (currentUserData && currentUserData.id === user.id) {
-    // If CURRENT_USER exists for this user, use it as it may have more recent state
-    // But preserve core identity from USERS array
-    const syncedUser: User = {
-      ...user,
-      ...currentUserData,
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-    };
-
-    // AR-02 FIX: Data integrity - if user has learning languages but onboarding not marked complete, force it to true
-    if (syncedUser.settings.learningLangs && syncedUser.settings.learningLangs.length > 0 && !syncedUser.onboardingCompleted) {
-      syncedUser.onboardingCompleted = true;
-    }
-
-    setCurrentUser(syncedUser);
-
-    // AR-02 FIX: Sync back to USERS array to ensure persistence
-    const userIndex = users.findIndex(u => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = syncedUser;
-      saveUsers(users);
-    }
-
-    return { success: true, user: syncedUser };
-  }
-
-  // AR-02 FIX: Data integrity - if user has learning languages but onboarding not marked complete, force it to true
+  // AR-02: Data integrity — if user has learning languages, onboarding is done
   if (user.settings.learningLangs && user.settings.learningLangs.length > 0 && !user.onboardingCompleted) {
     user.onboardingCompleted = true;
-    const userIndex = users.findIndex(u => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = user;
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      users[idx] = user;
       saveUsers(users);
     }
   }
@@ -133,6 +102,16 @@ export function loginUser(email: string, password: string): { success: boolean; 
 }
 
 export function logoutUser(): void {
+  // AR-02: Sync current user data back to USERS array before logout
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    const users = getUsers();
+    const index = users.findIndex(u => u.id === currentUser.id);
+    if (index !== -1) {
+      users[index] = currentUser;
+      saveUsers(users);
+    }
+  }
   localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
 }
 
@@ -144,6 +123,13 @@ export function getCurrentUser(): User | null {
 
 export function setCurrentUser(user: User): void {
   localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+  // AR-02: Always sync to USERS array for persistence across logout/login
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === user.id);
+  if (index !== -1) {
+    users[index] = user;
+    saveUsers(users);
+  }
 }
 
 // --- User Settings ---
