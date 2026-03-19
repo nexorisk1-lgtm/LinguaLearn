@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Volume2, Search, BookOpen, Plus, Loader2 } from 'lucide-react'
+import { Volume2, Search, BookOpen, Plus, Loader2, ArrowLeft } from 'lucide-react'
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { User } from '@/types'
 import { speakText, addToPersonalVocab } from '@/lib/db/bankHelpers'
@@ -104,10 +104,10 @@ export default function DictionnairePage() {
     try {
       const apiLang = activeLang === 'en' ? 'en' : activeLang === 'es' ? 'es' : 'en'
       const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/${apiLang}/${encodeURIComponent(query)}`)
-      
+
       if (!response.ok) {
         if (response.status === 404) {
-          setError(interfaceLang === 'fr' 
+          setError(interfaceLang === 'fr'
             ? `Le mot "${query}" n'a pas été trouvé. Vérifiez l'orthographe.`
             : `The word "${query}" was not found. Check spelling.`)
         } else {
@@ -118,7 +118,19 @@ export default function DictionnairePage() {
       }
 
       const data: DictEntry[] = await response.json()
-      setResults(data)
+
+      // Enrich with French translations for XX>FR modes
+      if (dictMode.endsWith('>FR')) {
+        const enriched = data.map(entry => {
+          const bankWord = BANK_VOCABULARY.find(w =>
+            w.language === activeLang && w.word_target.toLowerCase() === entry.word.toLowerCase()
+          )
+          return { ...entry, frTranslation: bankWord?.word_fr || null } as DictEntry & { frTranslation: string | null }
+        })
+        setResults(enriched)
+      } else {
+        setResults(data)
+      }
     } catch {
       setError(interfaceLang === 'fr' ? 'Erreur réseau. Vérifiez votre connexion.' : 'Network error. Check your connection.')
     }
@@ -147,14 +159,19 @@ export default function DictionnairePage() {
 
   return (
     <div className="pb-20 px-4 pt-4">
-      {/* Title */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#002844' }}>
-          {interfaceLang === 'fr' ? 'Dictionnaire' : 'Dictionary'}
-        </h1>
-        <p className="text-sm mt-1" style={{ color: '#555555' }}>
-          {interfaceLang === 'fr' ? 'Recherchez n\'importe quel mot' : 'Search any word'}
-        </p>
+      {/* Back button header */}
+      <div className="flex items-center gap-3 mb-6">
+        <a href="/dashboard" className="p-2 rounded-lg" style={{ backgroundColor: '#D9B438' }}>
+          <ArrowLeft className="h-5 w-5" style={{ color: '#002844' }} />
+        </a>
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: '#002844' }}>
+            {interfaceLang === 'fr' ? 'Dictionnaire' : 'Dictionary'}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: '#555555' }}>
+            {interfaceLang === 'fr' ? 'Recherchez n\'importe quel mot' : 'Search any word'}
+          </p>
+        </div>
       </div>
 
       {/* Mode Selection - pills */}
@@ -227,6 +244,14 @@ export default function DictionnairePage() {
                   {(entry.phonetic || entry.phonetics?.find(p => p.text)?.text) && (
                     <p className="text-sm italic mt-1" style={{ color: '#D9B438' }}>
                       {entry.phonetic || entry.phonetics.find(p => p.text)?.text}
+                    </p>
+                  )}
+                  {/* French translation for XX>FR mode */}
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(entry as any).frTranslation && dictMode.endsWith('>FR') && (
+                    <p className="text-base font-semibold mt-2" style={{ color: '#D9B438' }}>
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      FR: {(entry as any).frTranslation}
                     </p>
                   )}
                 </div>

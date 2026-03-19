@@ -138,7 +138,21 @@ export function updateUserSettings(userId: string, settings: Partial<UserSetting
   const index = users.findIndex(u => u.id === userId);
   if (index === -1) return null;
 
-  users[index].settings = { ...users[index].settings, ...settings };
+  // Deep merge for nested objects to prevent data loss
+  const existing = users[index].settings;
+  const merged = { ...existing, ...settings };
+
+  // Deep merge languageConfigs to preserve per-language settings
+  if (settings.languageConfigs && existing.languageConfigs) {
+    merged.languageConfigs = { ...existing.languageConfigs, ...settings.languageConfigs };
+  }
+
+  // Deep merge schedules to preserve per-language schedules
+  if (settings.schedules && existing.schedules) {
+    merged.schedules = { ...existing.schedules, ...settings.schedules };
+  }
+
+  users[index].settings = merged;
 
   saveUsers(users);
   setCurrentUser(users[index]);

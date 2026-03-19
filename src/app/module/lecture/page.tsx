@@ -165,7 +165,7 @@ export default function LecturePage() {
   // DOUBLE-CLICK WORD LOOKUP
   // ==========================================
 
-  const handleTextDoubleClick = (e: React.MouseEvent<HTMLParagraphElement>) => {
+  const handleTextDoubleClick = async (e: React.MouseEvent<HTMLParagraphElement>) => {
     const selection = window.getSelection();
     if (!selection || selection.toString().trim().length === 0) return;
 
@@ -181,10 +181,49 @@ export default function LecturePage() {
       setWordNotFound(false);
       setUnknownWord('');
     } else {
-      // Word not found in user's vocabulary
-      setSelectedWord(null);
-      setWordNotFound(true);
-      setUnknownWord(selectedText);
+      // Word not found in user's vocabulary, try Free Dictionary API
+      try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/${activeLang}/${selectedText}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const entry = data[0];
+            const definition = entry.meanings?.[0]?.definitions?.[0]?.definition || entry.meanings?.[0]?.definitions?.[0]?.shortdef || 'No definition available';
+            const example = entry.meanings?.[0]?.definitions?.[0]?.example || '';
+
+            // Create a temporary word object from API response
+            const apiWord: VocabWord = {
+              id: `api_${selectedText}`,
+              word_target: selectedText,
+              word_fr: selectedText,
+              language: activeLang,
+              level: 'A1',
+              theme: 'general',
+              definition_en: definition,
+              example_en: example,
+              is_grc: false,
+            };
+
+            setSelectedWord(apiWord);
+            setWordNotFound(false);
+            setUnknownWord('');
+          } else {
+            setSelectedWord(null);
+            setWordNotFound(true);
+            setUnknownWord(selectedText);
+          }
+        } else {
+          setSelectedWord(null);
+          setWordNotFound(true);
+          setUnknownWord(selectedText);
+        }
+      } catch (error) {
+        console.error('Dictionary API error:', error);
+        // Fall back to showing word not found
+        setSelectedWord(null);
+        setWordNotFound(true);
+        setUnknownWord(selectedText);
+      }
     }
 
     // Position popup near cursor

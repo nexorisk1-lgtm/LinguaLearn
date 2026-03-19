@@ -76,6 +76,7 @@ export default function VocabulairePage() {
   const recordedChunksRef = useRef<Blob[]>([]);
   const userAudioUrlRef = useRef<string>('');
   const prevSpeakingIndexRef = useRef<number>(-1);
+  const hasReceivedResultRef = useRef<boolean>(false);
   const [vocabulaireProgressUpdated, setVocabulaireProgressUpdated] = useState(false);
 
   // Form state for propose word
@@ -294,14 +295,23 @@ export default function VocabulairePage() {
     };
 
     recognition.onresult = (event: any) => {
+      hasReceivedResultRef.current = true;
       const transcript = event.results[0][0].transcript;
       setSpeakingRecognizedText(transcript);
 
       const exercise = speakingExercises[speakingIndex];
       if (exercise) {
-        const targetLower = exercise.target_text.toLowerCase().trim();
-        const inputLower = transcript.toLowerCase().trim();
-        const match = targetLower === inputLower || isCloseEnough(transcript, exercise.target_text);
+        // Normalize strings by removing punctuation and extra spaces
+        const normalize = (s: string) => s.toLowerCase().trim().replace(/[.,!?;:'"]/g, '').replace(/\s+/g, ' ');
+        const targetNorm = normalize(exercise.target_text);
+        const inputNorm = normalize(transcript);
+
+        // Check exact match, partial matches, or close enough
+        const match = targetNorm === inputNorm
+          || inputNorm.includes(targetNorm)
+          || targetNorm.includes(inputNorm)
+          || isCloseEnough(transcript, exercise.target_text);
+
         setSpeakingIsMatch(match);
         if (match) {
           setSpeakingCorrectCount(speakingCorrectCount + 1);
@@ -320,7 +330,8 @@ export default function VocabulairePage() {
     };
 
     recognition.onend = () => {
-      if (speakingRecognition === 'listening') {
+      // Only set error if no result was received
+      if (!hasReceivedResultRef.current) {
         setSpeakingRecognition('error');
       }
     };
@@ -361,6 +372,7 @@ export default function VocabulairePage() {
     // Start SpeechRecognition
     initSpeechRecognition();
     if (recognitionRef.current) {
+      hasReceivedResultRef.current = false;
       setSpeakingRecognizedText('');
       setSpeakingIsMatch(null);
       recognitionRef.current.start();
@@ -548,19 +560,29 @@ export default function VocabulairePage() {
           >
             <div>
               <p className="text-xs font-semibold" style={{ color: '#D9B438' }}>
-                {t('vocab.definition', interfaceLang)}
+                {interfaceLang === 'fr' ? 'Définition' : 'Definition'}
               </p>
               <p style={{ color: '#555555', fontSize: '0.875rem' }}>
                 {word.definition_en}
               </p>
+              {word.definition_fr && (
+                <p style={{ color: '#002844', fontSize: '0.875rem', fontWeight: 600 }}>
+                  FR: {word.definition_fr}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs font-semibold" style={{ color: '#D9B438' }}>
-                {t('vocab.example', interfaceLang)}
+                {interfaceLang === 'fr' ? 'Exemple' : 'Example'}
               </p>
               <p style={{ color: '#555555', fontSize: '0.875rem' }}>
                 {word.example_en}
               </p>
+              {word.example_fr && (
+                <p style={{ color: '#002844', fontSize: '0.875rem', fontStyle: 'italic' }}>
+                  FR: {word.example_fr}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1206,7 +1228,7 @@ export default function VocabulairePage() {
                   className="block text-sm font-semibold mb-2"
                   style={{ color: '#002844' }}
                 >
-                  {t('vocab.proposeForm.translation', interfaceLang)} *
+                  {interfaceLang === 'fr' ? 'Mot en français' : 'Word in French'} *
                 </label>
                 <input
                   type="text"

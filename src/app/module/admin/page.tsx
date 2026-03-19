@@ -577,11 +577,12 @@ export default function AdminImportsPage() {
                       {getPendingProposedWords().map((word) => (
                         <tr key={word.id} className="border-b border-gray-200 hover:bg-blue-50">
                           <td className="px-6 py-4 font-semibold" style={{ color: '#002844' }}>
-                            {word.word}
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {(word as any).word_target || word.word || '-'}
                           </td>
                           <td className="px-6 py-4" style={{ color: '#555555' }}>
-                            {/* Note: The DB schema may not have word_fr, using word as fallback */}
-                            {word.definition || '-'}
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {(word as any).word_fr || word.definition || '-'}
                           </td>
                           <td className="px-6 py-4">
                             <span
@@ -595,7 +596,8 @@ export default function AdminImportsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm" style={{ color: '#555555' }}>
-                            {word.proposedBy}
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {word.proposedBy || (word as any).userId || '-'}
                           </td>
                           <td className="px-6 py-4 text-sm" style={{ color: '#555555' }}>
                             {new Date(word.createdAt).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US')}

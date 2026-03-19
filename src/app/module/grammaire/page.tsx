@@ -459,7 +459,7 @@ export default function GrammairePage() {
         {/* Exercises Tab */}
         {activeTab === 'exercises' && (
           <div>
-            {!selectedRuleId && (!activeLang || activeLang !== 'en' || verbExercises.length === 0) ? (
+            {!selectedRuleId && exercises.length === 0 && (activeLang !== 'en' || verbExercises.length === 0) ? (
               <div className="text-center py-12 bg-white rounded-lg">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p style={{ color: '#555555' }}>

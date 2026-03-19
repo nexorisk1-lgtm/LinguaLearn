@@ -53,4 +53,28 @@ export const BANK_READING: ReadingText[] = [
   // ===== ANGLAIS - TRAVEL - A1 (Additional) =====
   { id:'rd_en_08', language:'en', level:'A1', theme:'travel', title:'Packing for a Trip',
     body_text:`When you go on a trip, you need to pack your suitcase carefully. First, think about the weather. If it is hot, pack light clothes. If it is cold, pack warm clothes. Second, pack comfortable shoes for walking. You will do a lot of walking when you travel. Third, pack important documents like your passport and airline ticket. Put them in a safe place. Fourth, pack toiletries like a toothbrush and toothpaste. You can also pack medicine if you need it. Fifth, pack a camera to take photos. Do not forget your phone charger. Pack your suitcase about two days before you leave. Do not pack too many things. Try to pack light. A heavy suitcase is not fun to carry.` },
+
+  // ===== ANGLAIS - TRAVEL - A1 (Additional 2) =====
+  { id:'rd_en_09', language:'en', level:'A1', theme:'travel', title:'My First Trip',
+    body_text:`Last summer, I went to London for the first time. I took the train from Paris. The journey was three hours long. I stayed in a small hotel near the city center. I visited Big Ben and the Tower of London. The weather was cloudy but warm. I ate fish and chips for lunch. It was delicious! I want to go back next year.` },
+
+  // ===== ANGLAIS - DAILY_LIFE - A1 =====
+  { id:'rd_en_10', language:'en', level:'A1', theme:'daily_life', title:'A Day at School',
+    body_text:`I wake up at seven every morning. I eat breakfast with my family. Then I walk to school. My favorite class is English. The teacher is very kind. After school, I play football with my friends. In the evening, I do my homework and read a book. I go to bed at nine.` },
+
+  // ===== ANGLAIS - BUSINESS - A2 =====
+  { id:'rd_en_11', language:'en', level:'A2', theme:'business', title:'The Job Interview',
+    body_text:`Yesterday I had a job interview at a marketing company. I woke up early and wore my best suit. The office was on the tenth floor of a modern building. The interviewer asked about my experience and skills. I talked about my previous job and my university degree. She seemed impressed by my presentation skills. I felt nervous but confident. They will call me next week with the result.` },
+
+  // ===== ANGLAIS - DAILY_LIFE - A1 (Additional) =====
+  { id:'rd_en_12', language:'en', level:'A1', theme:'daily_life', title:'Shopping for Groceries',
+    body_text:`Every Saturday, I go to the supermarket. I make a list before I leave home. I buy bread, milk, eggs, and fruit. Sometimes I buy cheese and chicken too. The supermarket is near my house. I walk there in ten minutes. I pay with my card. The total is usually about thirty euros.` },
+
+  // ===== ESPAGNOL - TRAVEL - A1 (Additional) =====
+  { id:'rd_es_05', language:'es', level:'A1', theme:'travel', title:'Mi Viaje a Barcelona',
+    body_text:`El verano pasado fui a Barcelona con mi familia. Viajamos en avión desde París. Barcelona es una ciudad muy bonita. Visitamos la Sagrada Familia y el Parque Güell. La playa era fantástica. Comimos paella y tapas. El tiempo era soleado y caluroso. Quiero volver el próximo año.` },
+
+  // ===== ESPAGNOL - DAILY_LIFE - A1 =====
+  { id:'rd_es_06', language:'es', level:'A1', theme:'daily_life', title:'Un Día Normal',
+    body_text:`Me despierto a las siete de la mañana. Desayuno café con tostadas. Voy al trabajo en metro. Trabajo en una oficina pequeña. A mediodía como con mis compañeros. Por la tarde hago ejercicio en el gimnasio. Por la noche ceno con mi familia y vemos una película. Me acuesto a las once.` },
 ];

@@ -54,6 +54,26 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/auth');
+    if (!loading && user) {
+      // NAV-LANG FIX: Initialize with existing languages
+      if (user.settings.learningLangs && user.settings.learningLangs.length > 0) {
+        setLearningLangs(user.settings.learningLangs);
+      }
+      // Also init existing configs
+      if (user.settings.languageConfigs) {
+        const configs: Record<string, { objectives: LearningObjective[]; themes: string[] }> = {};
+        for (const [lang, cfg] of Object.entries(user.settings.languageConfigs)) {
+          configs[lang] = { objectives: (cfg.objectives || []) as LearningObjective[], themes: cfg.themes || [] };
+        }
+        setLangConfigs(configs);
+      }
+      if (user.settings.schedules) {
+        setLangSchedules(user.settings.schedules as Record<string, { days: DayOfWeek[]; duration: SessionDuration }>);
+      }
+      if (user.settings.interfaceLang) {
+        setInterfaceLang(user.settings.interfaceLang);
+      }
+    }
   }, [user, loading, router]);
 
   if (loading || !user) {
