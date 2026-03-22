@@ -289,27 +289,27 @@ export default function DashboardPage() {
           </div>
         </a>
 
-        {/* BLOC-05: 5 OBJECTIVE BLOCKS — grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* BLOC-05: 5 OBJECTIVE BLOCKS — 2 cols mobile, 5 cols desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
           {moduleBlocks.map((block, idx) => {
             const Icon = block.icon
             const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
-            // Last block (5th) spans full width
+            // Last block spans full width on mobile only (5th in 2-col = orphan)
             const isLast = idx === moduleBlocks.length - 1 && moduleBlocks.length % 2 !== 0
             return (
               <a key={block.id} href={block.href}
-                className={`rounded-2xl p-4 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2' : ''}`}
+                className={`rounded-2xl p-3 md:p-3 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2 md:col-span-1' : ''}`}
                 style={{ backgroundColor: block.bgLight }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 rounded-xl" style={{ backgroundColor: block.color }}>
-                    <Icon className="h-5 w-5 text-white" />
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg" style={{ backgroundColor: block.color }}>
+                    <Icon className="h-4 w-4 text-white" />
                   </div>
                 </div>
-                <p className="font-bold text-sm mb-2" style={{ color: block.color }}>{block.label}</p>
+                <p className="font-bold text-xs mb-1.5" style={{ color: block.color }}>{block.label}</p>
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-xs text-[#555555]">{lang === 'fr' ? 'Progression' : 'Progress'}</span>
-                    <span className="text-xs font-bold" style={{ color: block.color }}>{pct}%</span>
+                    <span className="text-[10px] text-[#555555] hidden md:inline">{lang === 'fr' ? 'Prog.' : 'Prog.'}</span>
+                    <span className="text-[10px] font-bold" style={{ color: block.color }}>{pct}%</span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-white/60">
                     <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
