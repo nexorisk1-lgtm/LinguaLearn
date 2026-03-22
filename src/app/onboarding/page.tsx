@@ -21,7 +21,7 @@ import {
   LevelCECRL,
   GoalType,
 } from '@/types';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+// lucide-react icons used in subcomponents
 
 // Diagnostic setup per language
 interface LangDiagnosticSetup {
@@ -41,8 +41,9 @@ export default function OnboardingPage() {
   // Step 2: Goal + themes PER LANGUAGE
   const [langGoals, setLangGoals] = useState<Record<string, GoalType>>({});
   const [langThemes, setLangThemes] = useState<Record<string, string[]>>({});
+  const [langObjectives, setLangObjectives] = useState<Record<string, LearningObjective[]>>({});
   const [currentLangIndex, setCurrentLangIndex] = useState(0);
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [expandedThemeCategories, setExpandedThemeCategories] = useState<Record<string, boolean>>({});
 
   // Step 3: Schedule PER LANGUAGE
   const [langSchedules, setLangSchedules] = useState<Record<string, { days: DayOfWeek[]; duration: SessionDuration; wordsPerDay: number }>>({});
@@ -64,6 +65,12 @@ export default function OnboardingPage() {
       // Init from existing data
       if (user.settings.learningLangs?.length > 0) {
         setLearningLangs(user.settings.learningLangs);
+        // Initialize objectives with all 5 by default for each language
+        const objInit: Record<string, LearningObjective[]> = {};
+        for (const lang of user.settings.learningLangs) {
+          objInit[lang] = ['grammaire', 'vocabulaire', 'lecture', 'ecrit', 'oral'];
+        }
+        setLangObjectives(objInit);
       }
       if (user.settings.languageConfigs) {
         const goals: Record<string, GoalType> = {};
@@ -139,17 +146,13 @@ export default function OnboardingPage() {
     // Expand all categories by default
     const expanded: Record<string, boolean> = {};
     THEME_CATEGORIES.forEach(cat => { expanded[cat.id] = true; });
-    setExpandedCategories(expanded);
+    setExpandedThemeCategories(expanded);
   };
 
   const toggleTheme = (themeId: string) => {
     const themes = getThemes(currentLang);
     const newThemes = themes.includes(themeId) ? themes.filter(t => t !== themeId) : [...themes, themeId];
     setLangThemes(prev => ({ ...prev, [currentLang]: newThemes }));
-  };
-
-  const toggleCategory = (catId: string) => {
-    setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
   };
 
   const selectAllInCategory = (catThemes: string[]) => {
@@ -161,6 +164,16 @@ export default function OnboardingPage() {
       const newThemes = Array.from(new Set([...themes, ...catThemes]));
       setLangThemes(prev => ({ ...prev, [currentLang]: newThemes }));
     }
+  };
+
+  const getObjectives = (lang: string): LearningObjective[] => langObjectives[lang] || [];
+
+  const toggleObjective = (objective: LearningObjective) => {
+    const objs = getObjectives(currentLang);
+    const newObjs = objs.includes(objective)
+      ? objs.filter(o => o !== objective)
+      : [...objs, objective];
+    setLangObjectives(prev => ({ ...prev, [currentLang]: newObjs }));
   };
 
   const toggleScheduleDay = (day: DayOfWeek) => {
@@ -193,6 +206,9 @@ export default function OnboardingPage() {
       }
       if (getThemes(currentLang).length === 0) {
         newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un thème.' : 'Select at least one theme.');
+      }
+      if (getObjectives(currentLang).length === 0) {
+        newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un objectif.' : 'Select at least one objective.');
       }
     }
     if (step === 3) {
@@ -238,13 +254,13 @@ export default function OnboardingPage() {
   // Finish
   const handleFinishOnboarding = () => {
     const languageConfigs: Record<string, LanguageConfig> = {};
-    const allObjectives: LearningObjective[] = ['grammaire', 'vocabulaire', 'lecture', 'ecrit', 'oral'];
 
     for (const lang of learningLangs) {
       const themes = getThemes(lang);
+      const objectives = getObjectives(lang);
       const proIds = PROFESSIONAL_THEMES.map(p => p.id);
       languageConfigs[lang] = {
-        objectives: allObjectives,
+        objectives: objectives.length > 0 ? objectives : ['grammaire', 'vocabulaire', 'lecture', 'ecrit', 'oral'],
         themes,
         hasGrcThemes: themes.some(t => proIds.includes(t)),
       };
@@ -406,45 +422,53 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Personal themes — grouped accordion */}
+        {/* Personal themes — category buttons with collapsible details */}
         {showPersonal && (
           <div>
             <label className="block text-sm font-semibold mb-3 text-[#002844]">
               {interfaceLang === 'fr' ? 'Thèmes personnels' : 'Personal themes'}
             </label>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {THEME_CATEGORIES.map(cat => {
-                const isExpanded = expandedCategories[cat.id] !== false; // expanded by default
                 const catThemeIds = cat.themes;
                 const selectedCount = catThemeIds.filter(t => themes.includes(t)).length;
                 const allSelected = selectedCount === catThemeIds.length;
+                const isExpanded = expandedThemeCategories[cat.id] === true;
 
                 return (
-                  <div key={cat.id} className="rounded-xl border border-gray-200 overflow-hidden">
-                    {/* Category header */}
-                    <button onClick={() => toggleCategory(cat.id)}
-                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 transition-all">
-                      <span className="text-lg">{cat.icon}</span>
-                      <span className="text-sm font-semibold text-[#002844] flex-1 text-left">
-                        {interfaceLang === 'fr' ? cat.nameFr : cat.nameEn}
-                      </span>
-                      {selectedCount > 0 && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#D9B438]/20 text-[#002844]">
+                  <div key={cat.id}>
+                    {/* Category button */}
+                    <button onClick={() => selectAllInCategory(catThemeIds)}
+                      className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                        allSelected
+                          ? 'bg-[#D9B438]/10 border-[#D9B438] text-[#002844]'
+                          : 'bg-white border-gray-200 text-[#002844] hover:border-[#002844]/30'
+                      }`}>
+                      <span className="text-2xl">{cat.icon}</span>
+                      <div className="text-left flex-1">
+                        <p className="font-bold">{interfaceLang === 'fr' ? cat.nameFr : cat.nameEn}</p>
+                      </div>
+                      {selectedCount > 0 && selectedCount < catThemeIds.length && (
+                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-[#D9B438]/20 text-[#002844]">
                           {selectedCount}/{catThemeIds.length}
                         </span>
                       )}
-                      {isExpanded ? <ChevronDown className="h-4 w-4 text-[#555555]" /> : <ChevronRight className="h-4 w-4 text-[#555555]" />}
+                      {allSelected && <span className="text-[#D9B438] text-xl">✓</span>}
                     </button>
 
-                    {/* Category themes */}
-                    {isExpanded && (
-                      <div className="p-3 space-y-2">
-                        <button onClick={() => selectAllInCategory(catThemeIds)}
-                          className="text-xs font-semibold text-[#D9B438] hover:underline mb-1">
-                          {allSelected
-                            ? (interfaceLang === 'fr' ? 'Tout désélectionner' : 'Deselect all')
-                            : (interfaceLang === 'fr' ? 'Tout sélectionner' : 'Select all')}
-                        </button>
+                    {/* Expandable detail section - only show if selected */}
+                    {selectedCount > 0 && (
+                      <button onClick={() => setExpandedThemeCategories(prev => ({ ...prev, [cat.id]: !isExpanded }))}
+                        className="text-xs font-semibold text-[#D9B438] hover:underline mt-1 ml-1">
+                        {isExpanded
+                          ? (interfaceLang === 'fr' ? '▼ Personnaliser' : '▼ Customize')
+                          : (interfaceLang === 'fr' ? '▶ Personnaliser' : '▶ Customize')}
+                      </button>
+                    )}
+
+                    {/* Individual themes - only show if expanded */}
+                    {isExpanded && selectedCount > 0 && (
+                      <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-2 ml-2">
                         <div className="flex flex-wrap gap-2">
                           {catThemeIds.map(themeId => {
                             const theme = PERSONAL_THEMES.find(t => t.id === themeId);
@@ -453,7 +477,7 @@ export default function OnboardingPage() {
                             return (
                               <button key={themeId} onClick={() => toggleTheme(themeId)}
                                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                                  selected ? 'text-white' : 'bg-gray-100 text-[#002844] hover:bg-gray-200'
+                                  selected ? 'text-white' : 'bg-white border border-gray-300 text-[#002844] hover:bg-gray-200'
                                 }`}
                                 style={selected ? { backgroundColor: '#002844' } : {}}>
                                 {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
@@ -493,6 +517,37 @@ export default function OnboardingPage() {
             </div>
           </div>
         )}
+
+        {/* Competency selection - 5 objectives */}
+        <div>
+          <label className="block text-sm font-semibold mb-3 text-[#002844]">
+            {interfaceLang === 'fr' ? 'Que souhaites-tu travailler en priorité ?' : 'What do you want to focus on?'}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'vocabulaire' as LearningObjective, icon: '📚', labelFr: 'Vocabulaire', labelEn: 'Vocabulary' },
+              { id: 'grammaire' as LearningObjective, icon: '📝', labelFr: 'Grammaire', labelEn: 'Grammar' },
+              { id: 'oral' as LearningObjective, icon: '🎤', labelFr: 'Oral', labelEn: 'Speaking' },
+              { id: 'ecrit' as LearningObjective, icon: '✍️', labelFr: 'Écrit', labelEn: 'Writing' },
+              { id: 'lecture' as LearningObjective, icon: '📖', labelFr: 'Lecture', labelEn: 'Reading' },
+            ].map(obj => {
+              const objectives = getObjectives(currentLang);
+              const selected = objectives.includes(obj.id);
+              return (
+                <button key={obj.id} onClick={() => toggleObjective(obj.id)}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-lg border-2 font-semibold text-sm transition-all ${
+                    selected
+                      ? 'border-[#D9B438] bg-[#D9B438]/10 text-[#002844]'
+                      : 'border-gray-200 text-[#002844] hover:border-[#002844]/30'
+                  }`}>
+                  <span className="text-lg">{obj.icon}</span>
+                  <span className="flex-1 text-left">{interfaceLang === 'fr' ? obj.labelFr : obj.labelEn}</span>
+                  {selected && <span className="text-[#D9B438]">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
       </div>
@@ -650,10 +705,10 @@ export default function OnboardingPage() {
             <p className="text-sm font-semibold text-[#002844]">
               {interfaceLang === 'fr' ? `Quel est ton niveau CECRL en ${langName} ?` : `What is your CECRL level in ${langName}?`}
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              {(['A1', 'A2', 'B1', 'B2'] as LevelCECRL[]).map(level => (
+            <div className="grid grid-cols-3 gap-3">
+              {(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as LevelCECRL[]).map(level => (
                 <button key={level} onClick={() => setManualLevel(level)}
-                  className={`p-4 rounded-xl border-2 text-center font-bold text-xl transition-all ${
+                  className={`p-3 rounded-xl border-2 text-center font-bold text-lg transition-all ${
                     diag.manualLevel === level ? 'border-[#D9B438] bg-[#D9B438]/10 text-[#002844]' : 'border-gray-200 text-[#002844] hover:border-[#002844]'
                   }`}>
                   {level}
@@ -662,6 +717,8 @@ export default function OnboardingPage() {
                     {level === 'A2' && (interfaceLang === 'fr' ? 'Élémentaire' : 'Elementary')}
                     {level === 'B1' && (interfaceLang === 'fr' ? 'Intermédiaire' : 'Intermediate')}
                     {level === 'B2' && (interfaceLang === 'fr' ? 'Avancé' : 'Upper intermediate')}
+                    {level === 'C1' && (interfaceLang === 'fr' ? 'Autonome' : 'Proficient')}
+                    {level === 'C2' && (interfaceLang === 'fr' ? 'Maîtrise' : 'Mastery')}
                   </p>
                 </button>
               ))}

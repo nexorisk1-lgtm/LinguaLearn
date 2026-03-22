@@ -475,7 +475,7 @@ export default function DiagnosticPage() {
       <div className="flex-1 px-4 py-5">
         <div className="mx-auto max-w-lg">
           <div className="rounded-2xl bg-white p-5 shadow-lg">
-            <h2 className="mb-5 text-lg font-semibold text-[#002844]">{currentQ.question}</h2>
+            <h2 className="mb-5 text-lg font-semibold text-[#002844]">{lang === 'fr' && currentQ.questionFr ? currentQ.questionFr : currentQ.question}</h2>
 
             {/* TTS for listening */}
             {isListening && (

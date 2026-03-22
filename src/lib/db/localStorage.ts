@@ -51,6 +51,7 @@ export function registerUser(
     firstName,
     email,
     role,
+    status: role === 'admin' ? 'active' : 'pending',
     settings: {
       interfaceLang: 'fr',
       learningLangs: [],
@@ -85,6 +86,11 @@ export function loginUser(email: string, password: string): { success: boolean; 
   const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
   if (passwords[email] !== password) {
     return { success: false, error: 'credentials' };
+  }
+
+  // Check if user is pending approval
+  if (user.status === 'pending') {
+    return { success: false, error: 'pending' };
   }
 
   // AR-02: Data integrity — if user has learning languages, onboarding is done
@@ -292,4 +298,75 @@ export function rejectProposedWord(wordId: string): ProposedWord | null {
   words[index].status = 'rejected';
   localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
   return words[index];
+}
+
+// --- Admin: Get all users ---
+export function getAllUsers(): User[] {
+  return getUsers();
+}
+
+// --- Admin: Get user passwords (DEV only) ---
+export function getUserPasswords(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  return JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+}
+
+// --- Admin: Approve user ---
+export function approveUser(userId: string): User | null {
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === userId);
+  if (index === -1) return null;
+  users[index].status = 'active';
+  saveUsers(users);
+  return users[index];
+}
+
+// --- Admin: Delete user ---
+export function deleteUser(userId: string): boolean {
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === userId);
+  if (index === -1) return false;
+  const email = users[index].email;
+  users.splice(index, 1);
+  saveUsers(users);
+  // Also remove password
+  const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+  delete passwords[email];
+  localStorage.setItem('lingualearn_passwords', JSON.stringify(passwords));
+  return true;
+}
+
+// --- Admin: Create user account ---
+export function adminCreateUser(
+  firstName: string,
+  email: string,
+  password: string,
+  role: 'user' | 'admin'
+): { success: boolean; error?: string; user?: User } {
+  const users = getUsers();
+  if (users.find(u => u.email === email)) {
+    return { success: false, error: 'emailExists' };
+  }
+  const newUser: User = {
+    id: crypto.randomUUID(),
+    firstName,
+    email,
+    role,
+    status: 'active', // Admin-created accounts are immediately active
+    settings: {
+      interfaceLang: 'fr',
+      learningLangs: [],
+      languageConfigs: {},
+      schedule: { days: [], duration: 20 },
+    },
+    progress: {},
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  };
+  const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+  passwords[email] = password;
+  localStorage.setItem('lingualearn_passwords', JSON.stringify(passwords));
+  users.push(newUser);
+  saveUsers(users);
+  return { success: true, user: newUser };
 }

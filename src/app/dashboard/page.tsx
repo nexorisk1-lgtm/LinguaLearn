@@ -104,7 +104,7 @@ export default function DashboardPage() {
         {/* Greeting + Streak */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {user.firstName} 👋</h2>
+            <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {user.firstName && !user.firstName.includes('@') ? user.firstName : user.firstName?.split('@')[0] || (lang === 'fr' ? 'apprenant' : 'learner')} 👋</h2>
             <p className="text-xs text-[#555555] mt-0.5">
               {lang === 'fr' ? `Jour 1 — Continue comme ça !` : `Day 1 — Keep it up!`}
             </p>

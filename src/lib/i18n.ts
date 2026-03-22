@@ -26,6 +26,7 @@ const translations = {
     'auth.error.firstName': 'Prénom requis',
     'auth.error.credentials': 'Identifiants incorrects',
     'auth.error.emailExists': 'Cet email est déjà utilisé',
+    'auth.error.pending': 'Votre compte est en attente de validation par un administrateur.',
 
     // Onboarding
     'onboarding.step': 'Étape',
@@ -292,6 +293,7 @@ const translations = {
     'auth.error.firstName': 'First name required',
     'auth.error.credentials': 'Invalid credentials',
     'auth.error.emailExists': 'This email is already in use',
+    'auth.error.pending': 'Your account is pending admin approval.',
 
     // Onboarding
     'onboarding.step': 'Step',

@@ -181,6 +181,7 @@ export interface User {
   firstName: string;
   email: string;
   role: UserRole;
+  status?: 'active' | 'pending';
   settings: UserSettings;
   progress: Record<string, UserProgress>;
   onboardingCompleted: boolean;
