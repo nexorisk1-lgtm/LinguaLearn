@@ -114,14 +114,27 @@ export default function DashboardPage() {
     { id: 'ecrit', label: lang === 'fr' ? 'Écrit' : 'Writing', icon: Pencil, color: '#E65100', bgLight: '#FFF3E0', href: '/module/ecrit', objective: 'ecrit' },
   ]
 
-  // CTA — session du jour: pick 2 priority modules based on lowest progression
-  const sessionModules = [...moduleBlocks]
-    .sort((a, b) => {
-      const pctA = progress?.objectiveProgress?.[a.objective as keyof typeof progress.objectiveProgress] || 0
-      const pctB = progress?.objectiveProgress?.[b.objective as keyof typeof progress.objectiveProgress] || 0
-      return pctA - pctB
-    })
-    .slice(0, 2)
+  // CTA — session du jour: prioritize user's selected objectives, then fill with lowest progression
+  const sessionModules = (() => {
+    // First: modules matching user's objectives, sorted by lowest progression
+    const objectiveModules = moduleBlocks
+      .filter(b => (objectives as string[]).includes(b.objective))
+      .sort((a, b) => {
+        const pctA = progress?.objectiveProgress?.[a.objective as keyof typeof progress.objectiveProgress] || 0
+        const pctB = progress?.objectiveProgress?.[b.objective as keyof typeof progress.objectiveProgress] || 0
+        return pctA - pctB
+      })
+    // If less than 2, fill with other modules by lowest progression
+    if (objectiveModules.length >= 2) return objectiveModules.slice(0, 2)
+    const remaining = moduleBlocks
+      .filter(b => !(objectives as string[]).includes(b.objective))
+      .sort((a, b) => {
+        const pctA = progress?.objectiveProgress?.[a.objective as keyof typeof progress.objectiveProgress] || 0
+        const pctB = progress?.objectiveProgress?.[b.objective as keyof typeof progress.objectiveProgress] || 0
+        return pctA - pctB
+      })
+    return [...objectiveModules, ...remaining].slice(0, 2)
+  })()
   const sessionDuration = user.settings.schedules?.[activeLang]?.duration || user.settings.schedule?.duration || 10
 
   // Bottom nav items
@@ -307,178 +320,195 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* BLOC-06: À réviser aujourd'hui */}
-        {(() => {
-          const wordsToReview = progress?.wordsToReview || 0
-          const grammarToReview = progress?.grammarToReview || 0
-          const totalReview = wordsToReview + grammarToReview
-          return (
-            <div className="rounded-2xl bg-white shadow-sm mb-4 overflow-hidden">
-              <div className="p-4">
+        {/* Responsive 2-column layout for lower dashboard */}
+        <div className="md:grid md:grid-cols-5 md:gap-4">
+          {/* Left column (60%) */}
+          <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
+            {/* BLOC-06: À réviser aujourd'hui */}
+            {(() => {
+              const wordsToReview = progress?.wordsToReview || 0
+              const grammarToReview = progress?.grammarToReview || 0
+              const totalReview = wordsToReview + grammarToReview
+              return (
+                <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <RefreshCw className="h-4 w-4 text-[#7B1FA2]" />
+                      <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'À réviser aujourd\'hui' : 'To review today'}</span>
+                    </div>
+                    {totalReview > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <a href="/module/vocabulaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#F3E5F5] hover:bg-[#E1BEE7] transition-colors">
+                          <BookOpen className="h-4 w-4 text-[#7B1FA2]" />
+                          <div>
+                            <p className="text-lg font-bold text-[#7B1FA2]">{wordsToReview}</p>
+                            <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'mots' : 'words'}</p>
+                          </div>
+                        </a>
+                        <a href="/module/grammaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#FFF8E1] hover:bg-[#FFECB3] transition-colors">
+                          <PenTool className="h-4 w-4 text-[#F9A825]" />
+                          <div>
+                            <p className="text-lg font-bold text-[#F9A825]">{grammarToReview}</p>
+                            <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'règles' : 'rules'}</p>
+                          </div>
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Rien à réviser pour le moment. Complète des exercices pour alimenter ta révision !' : 'Nothing to review yet. Complete exercises to build your review list!'}</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* BLOC-07: Calendrier révision + rappel du jour */}
+            {(() => {
+              const sched = user.settings.schedules?.[activeLang] || user.settings.schedule
+              const today = new Date()
+              const todayStr = today.toISOString().split('T')[0]
+              const sessionDoneToday = progress?.lastActivityDate === todayStr
+              const dayNames = lang === 'fr'
+                ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+                : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+              const dayIds = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+              const todayDayId = dayIds[today.getDay()]
+              const isScheduledToday = sched?.days?.includes(todayDayId as DayOfWeek) || false
+              return (
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-[#002844]" />
+                      <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Mon planning' : 'My schedule'}</span>
+                    </div>
+                    <a href="/module/profil" className="text-[10px] font-semibold text-[#D9B438]">{lang === 'fr' ? 'Modifier' : 'Edit'}</a>
+                  </div>
+                  <div className="flex gap-1 mb-3">
+                    {dayNames.map((name, i) => {
+                      const isActive = sched?.days?.includes(dayIds[i] as DayOfWeek) || false
+                      const isToday = i === today.getDay()
+                      return (
+                        <div key={i} className={`flex-1 rounded-lg py-1.5 text-center text-[10px] font-bold transition-all ${
+                          isToday && isActive && sessionDoneToday ? 'bg-[#1A7A4A] text-white ring-2 ring-[#1A7A4A]/30' :
+                          isToday && isActive ? 'bg-[#D9B438] text-[#002844] ring-2 ring-[#D9B438]/30' :
+                          isToday ? 'bg-[#002844]/10 text-[#002844] ring-2 ring-[#002844]/20' :
+                          isActive ? 'bg-[#002844] text-white' :
+                          'bg-[#F0F0F0] text-[#999]'
+                        }`}>
+                          {isToday && isActive && sessionDoneToday ? '✓' : name}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {isScheduledToday && sessionDoneToday ? (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1A7A4A]/10">
+                      <span className="text-xs font-semibold text-[#1A7A4A]">
+                        {lang === 'fr' ? 'Session du jour terminée !' : "Today's session complete!"} ✓
+                      </span>
+                    </div>
+                  ) : isScheduledToday ? (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-[#D9B438]/10">
+                      <Clock className="h-3.5 w-3.5 text-[#D9B438]" />
+                      <span className="text-xs font-semibold text-[#002844]">
+                        {lang === 'fr' ? `Session prévue aujourd'hui · ${sched?.duration || 20} min` : `Session scheduled today · ${sched?.duration || 20} min`}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#555555]">{lang === 'fr' ? "Pas de session prévue aujourd'hui" : 'No session scheduled today'}</p>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Accordéon — Tâches supplémentaires */}
+            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+              <button onClick={() => setTasksOpen(!tasksOpen)}
+                className="w-full flex items-center justify-between p-4">
+                <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Tâches supplémentaires' : 'Extra tasks'}</span>
+                <ChevronDown className={`h-4 w-4 text-[#555555] transition-transform ${tasksOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {tasksOpen && (
+                <div className="px-4 pb-4 space-y-2">
+                  <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
+                    <Dumbbell className="h-4 w-4 text-[#E65100]" />
+                    <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Entraînement (quiz, flashcards, jeux)' : 'Training (quiz, flashcards, games)'}</span>
+                  </a>
+                  <a href="/module/vocabulaire?tab=write" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
+                    <PenTool className="h-4 w-4 text-[#002844]" />
+                    <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Exercice de traduction' : 'Translation exercise'}</span>
+                  </a>
+                  <a href="/onboarding/diagnostic" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
+                    <GraduationCap className="h-4 w-4 text-[#002844]" />
+                    <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Évaluation diagnostique' : 'Diagnostic assessment'}</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Progression par objectifs */}
+            {objectives.length > 0 && (
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
-                  <RefreshCw className="h-4 w-4 text-[#7B1FA2]" />
-                  <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'À réviser aujourd\'hui' : 'To review today'}</span>
+                  <BarChart3 className="h-4 w-4 text-[#002844]" />
+                  <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Progression par sujet' : 'Progress by subject'}</span>
                 </div>
-                {totalReview > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <a href="/module/vocabulaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#F3E5F5] hover:bg-[#E1BEE7] transition-colors">
-                      <BookOpen className="h-4 w-4 text-[#7B1FA2]" />
-                      <div>
-                        <p className="text-lg font-bold text-[#7B1FA2]">{wordsToReview}</p>
-                        <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'mots' : 'words'}</p>
+                <div className="space-y-3">
+                  {objectives.map(obj => {
+                    const objInfo = LEARNING_OBJECTIVES.find(o => o.id === obj)
+                    const pct = progress?.objectiveProgress?.[obj] || 0
+                    return (
+                      <div key={obj} className="flex items-center gap-3">
+                        <span className="text-lg w-6 text-center">{objInfo?.icon}</span>
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-0.5">
+                            <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? objInfo?.nameFr : objInfo?.nameEn}</span>
+                            <span className="text-xs text-[#555555]">{pct}%</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-gray-200">
+                            <div className="h-full rounded-full bg-[#D9B438] transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
                       </div>
-                    </a>
-                    <a href="/module/grammaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#FFF8E1] hover:bg-[#FFECB3] transition-colors">
-                      <PenTool className="h-4 w-4 text-[#F9A825]" />
-                      <div>
-                        <p className="text-lg font-bold text-[#F9A825]">{grammarToReview}</p>
-                        <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'règles' : 'rules'}</p>
-                      </div>
-                    </a>
-                  </div>
-                ) : (
-                  <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Rien à réviser pour le moment. Complète des exercices pour alimenter ta révision !' : 'Nothing to review yet. Complete exercises to build your review list!'}</p>
-                )}
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* BLOC-07: Calendrier révision + rappel du jour */}
-        {(() => {
-          const schedule = user.settings.schedules?.[activeLang] || user.settings.schedule
-          const today = new Date()
-          const dayNames = lang === 'fr'
-            ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
-            : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-          const dayIds = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-          const todayDayId = dayIds[today.getDay()]
-          const isScheduledToday = schedule?.days?.includes(todayDayId as DayOfWeek) || false
-          return (
-            <div className="rounded-2xl bg-white p-4 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-[#002844]" />
-                  <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Mon planning' : 'My schedule'}</span>
+                    )
+                  })}
                 </div>
-                <a href="/module/profil" className="text-[10px] font-semibold text-[#D9B438]">{lang === 'fr' ? 'Modifier' : 'Edit'}</a>
               </div>
-              <div className="flex gap-1 mb-3">
-                {dayNames.map((name, i) => {
-                  const isActive = schedule?.days?.includes(dayIds[i] as DayOfWeek) || false
-                  const isToday = i === today.getDay()
-                  return (
-                    <div key={i} className={`flex-1 rounded-lg py-1.5 text-center text-[10px] font-bold transition-all ${
-                      isToday && isActive ? 'bg-[#D9B438] text-[#002844] ring-2 ring-[#D9B438]/30' :
-                      isToday ? 'bg-[#002844]/10 text-[#002844] ring-2 ring-[#002844]/20' :
-                      isActive ? 'bg-[#002844] text-white' :
-                      'bg-[#F0F0F0] text-[#999]'
-                    }`}>
-                      {name}
-                    </div>
-                  )
-                })}
-              </div>
-              {isScheduledToday ? (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#D9B438]/10">
-                  <Clock className="h-3.5 w-3.5 text-[#D9B438]" />
-                  <span className="text-xs font-semibold text-[#002844]">
-                    {lang === 'fr' ? `Session prévue aujourd'hui · ${schedule?.duration || 20} min` : `Session scheduled today · ${schedule?.duration || 20} min`}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Pas de session prévue aujourd\'hui' : 'No session scheduled today'}</p>
-              )}
-            </div>
-          )
-        })()}
-
-        {/* Accordéon — Tâches supplémentaires */}
-        <div className="rounded-2xl bg-white shadow-sm mb-4 overflow-hidden">
-          <button onClick={() => setTasksOpen(!tasksOpen)}
-            className="w-full flex items-center justify-between p-4">
-            <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Tâches supplémentaires' : 'Extra tasks'}</span>
-            <ChevronDown className={`h-4 w-4 text-[#555555] transition-transform ${tasksOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {tasksOpen && (
-            <div className="px-4 pb-4 space-y-2">
-              <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                <Dumbbell className="h-4 w-4 text-[#E65100]" />
-                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Entraînement (quiz, flashcards, jeux)' : 'Training (quiz, flashcards, games)'}</span>
-              </a>
-              <a href="/module/vocabulaire?tab=write" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                <PenTool className="h-4 w-4 text-[#002844]" />
-                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Exercice de traduction' : 'Translation exercise'}</span>
-              </a>
-              <a href="/onboarding/diagnostic" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                <GraduationCap className="h-4 w-4 text-[#002844]" />
-                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Évaluation diagnostique' : 'Diagnostic assessment'}</span>
-              </a>
-            </div>
-          )}
-        </div>
-
-        {/* Progression par objectifs */}
-        {objectives.length > 0 && (
-          <div className="rounded-2xl bg-white p-4 shadow-sm mb-4">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="h-4 w-4 text-[#002844]" />
-              <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Progression par sujet' : 'Progress by subject'}</span>
-            </div>
-            <div className="space-y-3">
-              {objectives.map(obj => {
-                const objInfo = LEARNING_OBJECTIVES.find(o => o.id === obj)
-                const pct = progress?.objectiveProgress?.[obj] || 0
-                return (
-                  <div key={obj} className="flex items-center gap-3">
-                    <span className="text-lg w-6 text-center">{objInfo?.icon}</span>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-0.5">
-                        <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? objInfo?.nameFr : objInfo?.nameEn}</span>
-                        <span className="text-xs text-[#555555]">{pct}%</span>
-                      </div>
-                      <div className="h-1.5 w-full rounded-full bg-gray-200">
-                        <div className="h-full rounded-full bg-[#D9B438] transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            )}
           </div>
-        )}
 
-        {/* BLOC-08: Weekly ranking */}
-        {(() => {
-          const streak = progress?.streak || 0
-          const dailyWords = progress?.dailyWordsCompleted || 0
-          const dailyExercises = progress?.dailyExercisesCompleted || 0
-          const score = (streak * 10) + (dailyWords * 2) + (dailyExercises * 3)
-          return (
-            <div className="rounded-2xl bg-white p-4 shadow-sm mb-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Trophy className="h-4 w-4 text-[#D9B438]" />
-                <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Classement hebdo' : 'Weekly ranking'}</span>
-              </div>
-              {score > 0 ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#D9B438]/20 flex items-center justify-center">
-                    <span className="text-lg font-bold text-[#D9B438]">1</span>
+          {/* Right column (40%) */}
+          <div className="md:col-span-2">
+            {(() => {
+              const stk = progress?.streak || 0
+              const dw = progress?.dailyWordsCompleted || 0
+              const de = progress?.dailyExercisesCompleted || 0
+              const score = (stk * 10) + (dw * 2) + (de * 3)
+              return (
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Trophy className="h-4 w-4 text-[#D9B438]" />
+                    <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Classement hebdo' : 'Weekly ranking'}</span>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-[#002844]">{user.firstName}</p>
-                    <p className="text-xs text-[#555555]">{score} pts · {streak} {lang === 'fr' ? 'jours' : 'days'}</p>
-                  </div>
-                  <Trophy className="h-5 w-5 text-[#D9B438]" />
+                  {score > 0 ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#D9B438]/20 flex items-center justify-center">
+                        <span className="text-lg font-bold text-[#D9B438]">1</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-[#002844]">{user.firstName}</p>
+                        <p className="text-xs text-[#555555]">{score} pts · {stk} {lang === 'fr' ? 'jours' : 'days'}</p>
+                      </div>
+                      <Trophy className="h-5 w-5 text-[#D9B438]" />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#555555]">
+                      {lang === 'fr' ? 'Complète des exercices pour apparaître au classement !' : 'Complete exercises to appear in the ranking!'}
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <p className="text-xs text-[#555555]">
-                  {lang === 'fr' ? 'Complète des exercices pour apparaître au classement !' : 'Complete exercises to appear in the ranking!'}
-                </p>
-              )}
-            </div>
-          )
-        })()}
+              )
+            })()}
+          </div>
+        </div>
       </main>
 
       {/* ===== BOTTOM NAVIGATION BAR ===== */}

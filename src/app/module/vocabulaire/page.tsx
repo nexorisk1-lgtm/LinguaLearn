@@ -735,9 +735,24 @@ export default function VocabulairePage() {
               </>
             ) : (
               <div className="text-center py-12">
-                <p style={{ color: '#555555', fontSize: '1.125rem' }}>
-                  {t('vocab.noWords', interfaceLang)}
-                </p>
+                <div className="max-w-md mx-auto">
+                  <p style={{ color: '#002844', fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+                    {interfaceLang === 'fr'
+                      ? 'Aucun contenu disponible pour vos thèmes et votre niveau actuellement'
+                      : 'No content available for your themes and level currently'}
+                  </p>
+                  <p style={{ color: '#555555', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+                    {interfaceLang === 'fr'
+                      ? "L'administrateur va enrichir le contenu bientôt. En attendant, explorez les autres modules !"
+                      : 'The administrator will add content soon. In the meantime, explore other modules!'}
+                  </p>
+                  <a
+                    href="/dashboard"
+                    className="mt-4 inline-block px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold hover:bg-[#003a5c] transition-colors"
+                  >
+                    {interfaceLang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -759,9 +774,24 @@ export default function VocabulairePage() {
               </>
             ) : (
               <div className="text-center py-12">
-                <p style={{ color: '#555555', fontSize: '1.125rem' }}>
-                  {t('vocab.noWords', interfaceLang)}
-                </p>
+                <div className="max-w-md mx-auto">
+                  <p style={{ color: '#002844', fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+                    {interfaceLang === 'fr'
+                      ? 'Aucun contenu disponible pour vos thèmes et votre niveau actuellement'
+                      : 'No content available for your themes and level currently'}
+                  </p>
+                  <p style={{ color: '#555555', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+                    {interfaceLang === 'fr'
+                      ? "L'administrateur va enrichir le contenu bientôt. En attendant, explorez les autres modules !"
+                      : 'The administrator will add content soon. In the meantime, explore other modules!'}
+                  </p>
+                  <a
+                    href="/dashboard"
+                    className="mt-4 inline-block px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold hover:bg-[#003a5c] transition-colors"
+                  >
+                    {interfaceLang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -966,9 +996,24 @@ export default function VocabulairePage() {
               </>
             ) : (
               <div className="text-center py-12">
-                <p style={{ color: '#555555', fontSize: '1.125rem' }}>
-                  Aucun exercice d&apos;écriture disponible
-                </p>
+                <div className="max-w-md mx-auto">
+                  <p style={{ color: '#002844', fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+                    {interfaceLang === 'fr'
+                      ? 'Aucun contenu disponible pour vos thèmes et votre niveau actuellement'
+                      : 'No content available for your themes and level currently'}
+                  </p>
+                  <p style={{ color: '#555555', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+                    {interfaceLang === 'fr'
+                      ? "L'administrateur va enrichir le contenu bientôt. En attendant, explorez les autres modules !"
+                      : 'The administrator will add content soon. In the meantime, explore other modules!'}
+                  </p>
+                  <a
+                    href="/dashboard"
+                    className="mt-4 inline-block px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold hover:bg-[#003a5c] transition-colors"
+                  >
+                    {interfaceLang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -1180,9 +1225,24 @@ export default function VocabulairePage() {
               </>
             ) : (
               <div className="text-center py-12">
-                <p style={{ color: '#555555', fontSize: '1.125rem' }}>
-                  Aucun exercice de prononciation disponible
-                </p>
+                <div className="max-w-md mx-auto">
+                  <p style={{ color: '#002844', fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+                    {interfaceLang === 'fr'
+                      ? 'Aucun contenu disponible pour vos thèmes et votre niveau actuellement'
+                      : 'No content available for your themes and level currently'}
+                  </p>
+                  <p style={{ color: '#555555', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+                    {interfaceLang === 'fr'
+                      ? "L'administrateur va enrichir le contenu bientôt. En attendant, explorez les autres modules !"
+                      : 'The administrator will add content soon. In the meantime, explore other modules!'}
+                  </p>
+                  <a
+                    href="/dashboard"
+                    className="mt-4 inline-block px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold hover:bg-[#003a5c] transition-colors"
+                  >
+                    {interfaceLang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
+                  </a>
+                </div>
               </div>
             )}
           </div>
