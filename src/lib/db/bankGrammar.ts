@@ -92,6 +92,33 @@ export const BANK_GRAMMAR: GrammarRule[] = [
     definition_fr:'"Gustar" fonctionne à l\'envers : ce qui plaît est le sujet. Me gusta + singulier, me gustan + pluriel.',
     attention_points:'Pronoms : me, te, le, nos, os, les. "A mí me gusta" pour insister.',
     examples:[{en:'I like chocolate.',fr:'Me gusta el chocolate.'},{en:'We like animals.',fr:'Nos gustan los animales.'},{en:'She loves to dance.',fr:'A ella le encanta bailar.'}] },
+
+  // ===== ANGLAIS A1 - FAMILY THEME =====
+  { id:'gr_en_11', language:'en', rule_name:'Possessive Adjectives (Family)', level:'A1',
+    definition_en:'Possessive adjectives (my, your, his, her, our, their) show ownership. They agree with the noun, not the person.',
+    definition_fr:'Les adjectifs possessifs (my, your, his, her, our, their) indiquent la possession. Ils s\'accordent avec le nom, pas avec la personne.',
+    attention_points:'His sister = sa soeur (soeur du garçon). Her brother = son frère (frère de la fille). Always use the same form regardless of singular/plural noun.',
+    examples:[{en:'My mother is kind.',fr:'Ma mère est gentille.'},{en:'His family is large.',fr:'Sa famille est grande.'},{en:'Their children are happy.',fr:'Leurs enfants sont heureux.'}] },
+  { id:'gr_en_12', language:'en', rule_name:'Plural Nouns (Regular -s, -es)', level:'A1',
+    definition_en:'Add -s to most nouns for plural. Add -es to nouns ending in s, x, z, ch, sh.',
+    definition_fr:'Ajouter -s à la plupart des noms au pluriel. Ajouter -es aux noms finissant par s, x, z, ch, sh.',
+    attention_points:'sister → sisters, brother → brothers, box → boxes, church → churches, baby → babies (y → ies).',
+    examples:[{en:'I have two sisters.',fr:'J\'ai deux soeurs.'},{en:'The families are happy.',fr:'Les familles sont heureuses.'},{en:'She has one daughter.',fr:'Elle a une fille.'}] },
+  { id:'gr_en_13', language:'en', rule_name:'Subject Pronouns (I, you, he, she, it, we, they)', level:'A1',
+    definition_en:'Subject pronouns perform the action in a sentence. They come before the verb.',
+    definition_fr:'Les pronoms sujets effectuent l\'action. Ils viennent avant le verbe.',
+    attention_points:'I, you, he, she, it (singular), we, you, they (plural). "You" is the same in singular and plural.',
+    examples:[{en:'I am the oldest child.',fr:'Je suis le plus âgé.'},{en:'We are a family.',fr:'Nous sommes une famille.'},{en:'They love their parents.',fr:'Ils aiment leurs parents.'}] },
+  { id:'gr_en_14', language:'en', rule_name:'"Have got" for Possession', level:'A1',
+    definition_en:'"Have got" shows possession or family relationships. Use: I have got / I\'ve got. For negatives: I haven\'t got.',
+    definition_fr:'"Have got" montre la possession. Utiliser : I have got / I\'ve got. Négatif : I haven\'t got.',
+    attention_points:'British English prefers "have got". American English prefers "have". Question: Have you got? Negative: I haven\'t got.',
+    examples:[{en:'I have got two brothers.',fr:'J\'ai deux frères.'},{en:'She hasn\'t got a sister.',fr:'Elle n\'a pas de soeur.'},{en:'Have you got any cousins?',fr:'Avez-vous des cousins?'}] },
+  { id:'gr_en_15', language:'en', rule_name:'Basic Articles (A, An, The) with Family', level:'A1',
+    definition_en:'"A" before consonant sound, "an" before vowel sound, "the" for specific. Use "a" before "mother", "an" before "uncle".',
+    definition_fr:'"A" devant consonne, "an" devant voyelle, "the" pour spécifique. Utilisez "a" avant "mother", "an" avant "uncle".',
+    attention_points:'"A mother" (non spécifique), "the mother" (spécifique). "An uncle", "an aunt", "an only child".',
+    examples:[{en:'I have a mother and a father.',fr:'J\'ai une mère et un père.'},{en:'She is the youngest sister.',fr:'Elle est la plus jeune soeur.'},{en:'He is an only child.',fr:'C\'est un enfant unique.'}] },
 ];
 
 export const BANK_GRAMMAR_EXERCISES: GrammarExercise[] = [
@@ -144,6 +171,31 @@ export const BANK_GRAMMAR_EXERCISES: GrammarExercise[] = [
   { id:'ex_10_1', grammar_rule_id:'gr_en_10', type:'multiple_choice', question:'The woman ___ called you is my sister.', options:['who','which','where','when'], answer:'who' },
   { id:'ex_10_2', grammar_rule_id:'gr_en_10', type:'fill_blank', question:'The house ___ I grew up was sold.', answer:'where' },
   { id:'ex_10_3', grammar_rule_id:'gr_en_10', type:'multiple_choice', question:'Paris, ___ is in France, is beautiful.', options:['who','that','which','where'], answer:'which' },
+
+  // === gr_en_11 : Possessive Adjectives (Family) ===
+  { id:'ex_11_1', grammar_rule_id:'gr_en_11', type:'fill_blank', question:'___ mother is a doctor.', answer:'My' },
+  { id:'ex_11_2', grammar_rule_id:'gr_en_11', type:'multiple_choice', question:'___ sister is very kind.', options:['his','her','their','our'], answer:'his' },
+  { id:'ex_11_3', grammar_rule_id:'gr_en_11', type:'fill_blank', question:'We love ___ family very much.', answer:'our' },
+
+  // === gr_en_12 : Plural Nouns ===
+  { id:'ex_12_1', grammar_rule_id:'gr_en_12', type:'fill_blank', question:'I have three ___. (sister)', answer:'sisters' },
+  { id:'ex_12_2', grammar_rule_id:'gr_en_12', type:'multiple_choice', question:'The ___ are eating dinner.', options:['child','childs','children','childes'], answer:'children' },
+  { id:'ex_12_3', grammar_rule_id:'gr_en_12', type:'fill_blank', question:'My two ___ are brothers.', answer:'sons' },
+
+  // === gr_en_13 : Subject Pronouns ===
+  { id:'ex_13_1', grammar_rule_id:'gr_en_13', type:'fill_blank', question:'___ am a student.', answer:'I' },
+  { id:'ex_13_2', grammar_rule_id:'gr_en_13', type:'multiple_choice', question:'___ are very happy together.', options:['We','They','I','She'], answer:'We' },
+  { id:'ex_13_3', grammar_rule_id:'gr_en_13', type:'fill_blank', question:'___ love their parents.', answer:'They' },
+
+  // === gr_en_14 : Have got ===
+  { id:'ex_14_1', grammar_rule_id:'gr_en_14', type:'fill_blank', question:'I have ___ two brothers.', answer:'got' },
+  { id:'ex_14_2', grammar_rule_id:'gr_en_14', type:'multiple_choice', question:'She hasn\'t ___ any sisters.', options:['have','got','get','had'], answer:'got' },
+  { id:'ex_14_3', grammar_rule_id:'gr_en_14', type:'reorder', question:'Reorder: got / cousins / have / you / Have / ?', answer:'Have you got any cousins?' },
+
+  // === gr_en_15 : Articles with Family ===
+  { id:'ex_15_1', grammar_rule_id:'gr_en_15', type:'fill_blank', question:'I have ___ mother and ___ father.', answer:'a...a' },
+  { id:'ex_15_2', grammar_rule_id:'gr_en_15', type:'multiple_choice', question:'___ only child has many cousins.', options:['A','An','The','—'], answer:'An' },
+  { id:'ex_15_3', grammar_rule_id:'gr_en_15', type:'fill_blank', question:'___ youngest sister is five years old.', answer:'The' },
 
   // === gr_es_01 : Ser vs Estar ===
   { id:'ex_es_01_1', grammar_rule_id:'gr_es_01', type:'multiple_choice', question:'Yo ___ francés.', options:['soy','estoy','es','está'], answer:'soy' },

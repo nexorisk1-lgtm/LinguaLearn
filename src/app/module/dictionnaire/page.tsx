@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Volume2, Search, BookOpen, Plus, Loader2, ArrowLeft } from 'lucide-react'
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { User } from '@/types'
-import { speakText, addToPersonalVocab } from '@/lib/db/bankHelpers'
-import { BANK_VOCABULARY } from '@/lib/db/bankVocabulary'
+import { speakText } from '@/lib/db/bankHelpers'
 
 // Types for Free Dictionary API response
 interface DictPhonetic {
@@ -33,14 +32,26 @@ interface DictEntry {
   sourceUrls?: string[]
 }
 
+// MyMemory API response type
+interface MyMemoryResponse {
+  responseData: {
+    translatedText: string
+  }
+  matches: Array<{
+    segment: string
+    translation: string
+    quality?: string
+  }>
+}
+
 export default function DictionnairePage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [dictMode, setDictMode] = useState<string>('')
+  const [dictMode, setDictMode] = useState<string>('EN>EN')
   const [searchQuery, setSearchQuery] = useState('')
   const [searching, setSearching] = useState(false)
-  const [results, setResults] = useState<DictEntry[] | null>(null)
+  const [results, setResults] = useState<DictEntry[] | MyMemoryResponse | null>(null)
   const [error, setError] = useState<string>('')
   const [addedWords, setAddedWords] = useState<Set<string>>(new Set())
 
@@ -51,17 +62,14 @@ export default function DictionnairePage() {
       return
     }
     setUser(currentUser)
-    const activeLang = currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en'
-    setDictMode(`${activeLang.toUpperCase()}>${activeLang.toUpperCase()}`)
+    setDictMode('EN>EN')
     setIsLoading(false)
   }, [router])
 
-  const activeLang = user?.activeLang || user?.settings?.learningLangs[0] || 'en'
   const interfaceLang = user?.settings?.interfaceLang || 'fr'
 
   const getDictModes = () => {
-    const lc = activeLang.toUpperCase()
-    return [`${lc}>${lc}`, `${lc}>FR`, `FR>${lc}`]
+    return ['EN>EN', 'FR>EN']
   }
 
   const handleSearch = useCallback(async () => {
@@ -71,81 +79,57 @@ export default function DictionnairePage() {
     setResults(null)
 
     const query = searchQuery.trim().toLowerCase()
-    const isFrMode = dictMode.startsWith('FR>')
 
-    if (isFrMode) {
-      // French lookup: search internal bank for translation
-      const bankResults = BANK_VOCABULARY.filter(w => 
-        w.language === activeLang && w.word_fr.toLowerCase().includes(query)
-      )
-      if (bankResults.length > 0) {
-        // Convert bank results to DictEntry format
-        const entries: DictEntry[] = bankResults.map(w => ({
-          word: w.word_target,
-          phonetic: w.phonetic || '',
-          phonetics: w.phonetic ? [{ text: w.phonetic }] : [],
-          meanings: [{
-            partOfSpeech: w.type || 'word',
-            definitions: [{
-              definition: w.definition_en || w.word_fr,
-              example: w.example_en || ''
-            }]
-          }]
-        }))
-        setResults(entries)
-      } else {
-        setError(interfaceLang === 'fr' ? 'Aucun résultat trouvé dans la banque interne.' : 'No results found in internal bank.')
-      }
-      setSearching(false)
-      return
-    }
-
-    // External API lookup for EN and ES
     try {
-      const apiLang = activeLang === 'en' ? 'en' : activeLang === 'es' ? 'es' : 'en'
-      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/${apiLang}/${encodeURIComponent(query)}`)
+      if (dictMode === 'EN>EN') {
+        // English to English: use dictionaryapi.dev
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query)}`)
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError(interfaceLang === 'fr'
-            ? `Le mot "${query}" n'a pas été trouvé. Vérifiez l'orthographe.`
-            : `The word "${query}" was not found. Check spelling.`)
-        } else {
-          setError(interfaceLang === 'fr' ? 'Erreur de connexion au dictionnaire.' : 'Dictionary connection error.')
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError(interfaceLang === 'fr'
+              ? `Le mot "${query}" n'a pas été trouvé. Vérifiez l'orthographe.`
+              : `The word "${query}" was not found. Check spelling.`)
+          } else {
+            setError(interfaceLang === 'fr' ? 'Erreur de connexion au dictionnaire.' : 'Dictionary connection error.')
+          }
+          setSearching(false)
+          return
         }
-        setSearching(false)
-        return
-      }
 
-      const data: DictEntry[] = await response.json()
+        const data: DictEntry[] = await response.json()
+        setResults(data)
+      } else if (dictMode === 'FR>EN') {
+        // French to English: use MyMemory API
+        const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(query)}&langpair=fr|en`)
 
-      // Enrich with French translations for XX>FR modes
-      if (dictMode.endsWith('>FR')) {
-        const enriched = data.map(entry => {
-          const bankWord = BANK_VOCABULARY.find(w =>
-            w.language === activeLang && w.word_target.toLowerCase() === entry.word.toLowerCase()
-          )
-          return { ...entry, frTranslation: bankWord?.word_fr || null } as DictEntry & { frTranslation: string | null }
-        })
-        setResults(enriched)
-      } else {
+        if (!response.ok) {
+          setError(interfaceLang === 'fr' ? 'Erreur de connexion au dictionnaire.' : 'Dictionary connection error.')
+          setSearching(false)
+          return
+        }
+
+        const data: MyMemoryResponse = await response.json()
+
+        if (!data.responseData?.translatedText) {
+          setError(interfaceLang === 'fr'
+            ? `Aucun résultat trouvé pour ce mot`
+            : `No results found for this word`)
+          setSearching(false)
+          return
+        }
+
         setResults(data)
       }
     } catch {
       setError(interfaceLang === 'fr' ? 'Erreur réseau. Vérifiez votre connexion.' : 'Network error. Check your connection.')
     }
     setSearching(false)
-  }, [searchQuery, dictMode, activeLang, interfaceLang])
+  }, [searchQuery, dictMode, interfaceLang])
 
   const handleAddToVocab = (word: string) => {
     if (!user) return
-    // Check if word exists in bank
-    const bankWord = BANK_VOCABULARY.find(w => 
-      w.language === activeLang && w.word_target.toLowerCase() === word.toLowerCase()
-    )
-    if (bankWord) {
-      addToPersonalVocab(user.id, bankWord.id)
-    }
+    // Simply mark word as added (no bank lookup needed)
     setAddedWords(prev => new Set(prev).add(word.toLowerCase()))
   }
 
@@ -227,102 +211,154 @@ export default function DictionnairePage() {
       )}
 
       {/* Results */}
-      {results && results.length > 0 && (
+      {results && (
         <div className="space-y-4">
-          {results.map((entry, idx) => (
-            <div 
-              key={idx} 
-              className="rounded-2xl border-2 p-5 bg-white" 
-              style={{ borderColor: '#D9B438' }}>
-              
-              {/* Word + Phonetic + Audio */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold" style={{ color: '#002844' }}>
-                    {entry.word}
-                  </h2>
-                  {(entry.phonetic || entry.phonetics?.find(p => p.text)?.text) && (
-                    <p className="text-sm italic mt-1" style={{ color: '#D9B438' }}>
-                      {entry.phonetic || entry.phonetics.find(p => p.text)?.text}
-                    </p>
-                  )}
-                  {/* French translation for XX>FR mode */}
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(entry as any).frTranslation && dictMode.endsWith('>FR') && (
-                    <p className="text-base font-semibold mt-2" style={{ color: '#D9B438' }}>
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      FR: {(entry as any).frTranslation}
-                    </p>
-                  )}
+          {dictMode === 'EN>EN' && Array.isArray(results) && results.length > 0 && (
+            results.map((entry: DictEntry, idx: number) => (
+              <div
+                key={idx}
+                className="rounded-2xl border-2 p-5 bg-white"
+                style={{ borderColor: '#D9B438' }}>
+
+                {/* Word + Phonetic + Audio */}
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold" style={{ color: '#002844' }}>
+                      {entry.word}
+                    </h2>
+                    {(entry.phonetic || entry.phonetics?.find(p => p.text)?.text) && (
+                      <p className="text-sm italic mt-1" style={{ color: '#D9B438' }}>
+                        {entry.phonetic || entry.phonetics.find(p => p.text)?.text}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const audioUrl = entry.phonetics?.find(p => p.audio)?.audio
+                      if (audioUrl) {
+                        new Audio(audioUrl).play()
+                      } else {
+                        speakText(entry.word, 'en')
+                      }
+                    }}
+                    className="p-3 rounded-xl flex-shrink-0 transition-all hover:opacity-80"
+                    style={{ backgroundColor: '#D9B438' }}>
+                    <Volume2 className="h-5 w-5" style={{ color: '#002844' }} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => {
-                    const audioUrl = entry.phonetics?.find(p => p.audio)?.audio
-                    if (audioUrl) {
-                      new Audio(audioUrl).play()
-                    } else {
-                      speakText(entry.word, activeLang)
-                    }
-                  }}
-                  className="p-3 rounded-xl flex-shrink-0 transition-all hover:opacity-80" 
-                  style={{ backgroundColor: '#D9B438' }}>
-                  <Volume2 className="h-5 w-5" style={{ color: '#002844' }} />
+
+                {/* Meanings */}
+                {entry.meanings && entry.meanings.length > 0 && (
+                  <div className="mb-4 space-y-4">
+                    {entry.meanings.map((meaning, mIdx) => (
+                      <div key={mIdx}>
+                        <span
+                          className="text-xs font-bold px-3 py-1 rounded-full inline-block mb-3"
+                          style={{ backgroundColor: '#F0F0F0', color: '#555555' }}>
+                          {meaning.partOfSpeech}
+                        </span>
+                        <div className="space-y-3">
+                          {meaning.definitions && meaning.definitions.length > 0 && (
+                            <>
+                              <div>
+                                <p className="text-xs font-semibold mb-2" style={{ color: '#555555' }}>
+                                  {interfaceLang === 'fr' ? 'Définitions' : 'Definitions'}:
+                                </p>
+                                <div className="space-y-2 ml-2">
+                                  {meaning.definitions.slice(0, 3).map((def, dIdx) => (
+                                    <div key={dIdx}>
+                                      <p className="text-sm" style={{ color: '#002844' }}>
+                                        <span className="font-semibold mr-2">{dIdx + 1}.</span>
+                                        {def.definition}
+                                      </p>
+                                      {def.example && (
+                                        <p className="text-xs italic ml-6 mt-1" style={{ color: '#555555' }}>
+                                          &quot;{def.example}&quot;
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add to vocabulary button */}
+                <button
+                  onClick={() => handleAddToVocab(entry.word)}
+                  disabled={addedWords.has(entry.word.toLowerCase())}
+                  className="w-full mt-4 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                  style={{
+                    backgroundColor: addedWords.has(entry.word.toLowerCase()) ? '#c8e6c9' : '#002844',
+                    color: addedWords.has(entry.word.toLowerCase()) ? '#2e7d32' : '#FFFFFF'
+                  }}>
+                  {addedWords.has(entry.word.toLowerCase()) ? (
+                    <>
+                      <span>✓</span>
+                      {interfaceLang === 'fr' ? 'Ajouté à mon vocabulaire' : 'Added to my vocabulary'}
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      {interfaceLang === 'fr' ? 'Ajouter à mon vocabulaire' : 'Add to my vocabulary'}
+                    </>
+                  )}
                 </button>
               </div>
+            ))
+          )}
 
-              {/* Meanings */}
-              {entry.meanings && entry.meanings.length > 0 && (
-                <div className="mb-4 space-y-4">
-                  {entry.meanings.map((meaning, mIdx) => (
-                    <div key={mIdx}>
-                      <span 
-                        className="text-xs font-bold px-3 py-1 rounded-full inline-block mb-3"
-                        style={{ backgroundColor: '#F0F0F0', color: '#555555' }}>
-                        {meaning.partOfSpeech}
-                      </span>
-                      <div className="space-y-3">
-                        {meaning.definitions && meaning.definitions.length > 0 && (
-                          <>
-                            <div>
-                              <p className="text-xs font-semibold mb-2" style={{ color: '#555555' }}>
-                                {interfaceLang === 'fr' ? 'Définitions' : 'Definitions'}:
-                              </p>
-                              <div className="space-y-2 ml-2">
-                                {meaning.definitions.slice(0, 3).map((def, dIdx) => (
-                                  <div key={dIdx}>
-                                    <p className="text-sm" style={{ color: '#002844' }}>
-                                      <span className="font-semibold mr-2">{dIdx + 1}.</span>
-                                      {dictMode.includes('>FR') 
-                                        ? (BANK_VOCABULARY.find(w => w.word_target.toLowerCase() === entry.word.toLowerCase() && w.language === activeLang)?.word_fr || def.definition)
-                                        : def.definition}
-                                    </p>
-                                    {def.example && (
-                                      <p className="text-xs italic ml-6 mt-1" style={{ color: '#555555' }}>
-                                        &quot;{def.example}&quot;
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </>
-                        )}
+          {dictMode === 'FR>EN' && !Array.isArray(results) && (
+            <div className="rounded-2xl border-2 p-5 bg-white" style={{ borderColor: '#D9B438' }}>
+              <h2 className="text-2xl font-bold mb-4" style={{ color: '#002844' }}>
+                {searchQuery}
+              </h2>
+              <div className="mb-4">
+                <span
+                  className="text-xs font-bold px-3 py-1 rounded-full inline-block mb-3"
+                  style={{ backgroundColor: '#F0F0F0', color: '#555555' }}>
+                  {interfaceLang === 'fr' ? 'Traduction' : 'Translation'}
+                </span>
+                <p className="text-base mt-2" style={{ color: '#002844' }}>
+                  {(results as MyMemoryResponse).responseData?.translatedText}
+                </p>
+              </div>
+
+              {(results as MyMemoryResponse).matches && (results as MyMemoryResponse).matches.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold mb-2" style={{ color: '#555555' }}>
+                    {interfaceLang === 'fr' ? 'Exemples' : 'Examples'}:
+                  </p>
+                  <div className="space-y-2 ml-2">
+                    {(results as MyMemoryResponse).matches.slice(0, 3).map((match, idx) => (
+                      <div key={idx}>
+                        <p className="text-sm" style={{ color: '#002844' }}>
+                          <span className="font-semibold mr-2">{idx + 1}.</span>
+                          {match.segment}
+                        </p>
+                        <p className="text-xs italic ml-6 mt-1" style={{ color: '#555555' }}>
+                          → {match.translation}
+                        </p>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Add to vocabulary button */}
-              <button 
-                onClick={() => handleAddToVocab(entry.word)}
-                disabled={addedWords.has(entry.word.toLowerCase())}
+              <button
+                onClick={() => handleAddToVocab(searchQuery)}
+                disabled={addedWords.has(searchQuery.toLowerCase())}
                 className="w-full mt-4 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
-                style={{ 
-                  backgroundColor: addedWords.has(entry.word.toLowerCase()) ? '#c8e6c9' : '#002844', 
-                  color: addedWords.has(entry.word.toLowerCase()) ? '#2e7d32' : '#FFFFFF' 
+                style={{
+                  backgroundColor: addedWords.has(searchQuery.toLowerCase()) ? '#c8e6c9' : '#002844',
+                  color: addedWords.has(searchQuery.toLowerCase()) ? '#2e7d32' : '#FFFFFF'
                 }}>
-                {addedWords.has(entry.word.toLowerCase()) ? (
+                {addedWords.has(searchQuery.toLowerCase()) ? (
                   <>
                     <span>✓</span>
                     {interfaceLang === 'fr' ? 'Ajouté à mon vocabulaire' : 'Added to my vocabulary'}
@@ -335,7 +371,7 @@ export default function DictionnairePage() {
                 )}
               </button>
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -344,9 +380,9 @@ export default function DictionnairePage() {
         <div className="text-center py-16">
           <BookOpen className="h-12 w-12 mx-auto mb-4" style={{ color: '#D9B438' }} />
           <p className="text-sm" style={{ color: '#555555' }}>
-            {interfaceLang === 'fr' 
-              ? 'Recherchez n\'importe quel mot en anglais ou espagnol' 
-              : 'Search any word in English or Spanish'}
+            {interfaceLang === 'fr'
+              ? 'Recherchez n\'importe quel mot en anglais ou français'
+              : 'Search any word in English or French'}
           </p>
         </div>
       )}

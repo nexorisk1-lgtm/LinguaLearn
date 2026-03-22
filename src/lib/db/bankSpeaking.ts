@@ -300,5 +300,60 @@ export const BANK_SPEAKING: SpeakingExercise[] = [
     target_text: 'Me gustaría reservar una habitación con vistas al mar, por favor.',
     instruction_fr: 'Lisez la phrase suivante à voix haute.',
     instruction_en: 'Read the following sentence aloud.'
+  },
+
+  // ============================================
+  // ENGLISH - FAMILY THEME - A1
+  // ============================================
+
+  {
+    id: 'sp_en_21',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'word',
+    target_text: 'mother',
+    instruction_fr: 'Prononcez le mot suivant.',
+    instruction_en: 'Pronounce the following word.'
+  },
+  {
+    id: 'sp_en_22',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'word',
+    target_text: 'father',
+    instruction_fr: 'Prononcez le mot suivant.',
+    instruction_en: 'Pronounce the following word.'
+  },
+  {
+    id: 'sp_en_23',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'sentence',
+    target_text: 'I have two brothers and one sister.',
+    instruction_fr: 'Lisez la phrase suivante à voix haute.',
+    instruction_en: 'Read the following sentence aloud.'
+  },
+  {
+    id: 'sp_en_24',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'word',
+    target_text: 'grandmother',
+    instruction_fr: 'Prononcez le mot suivant.',
+    instruction_en: 'Pronounce the following word.'
+  },
+  {
+    id: 'sp_en_25',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'sentence',
+    target_text: 'My family is very happy and close.',
+    instruction_fr: 'Lisez la phrase suivante à voix haute.',
+    instruction_en: 'Read the following sentence aloud.'
   }
 ];

@@ -77,4 +77,14 @@ export const BANK_READING: ReadingText[] = [
   // ===== ESPAGNOL - DAILY_LIFE - A1 =====
   { id:'rd_es_06', language:'es', level:'A1', theme:'daily_life', title:'Un Día Normal',
     body_text:`Me despierto a las siete de la mañana. Desayuno café con tostadas. Voy al trabajo en metro. Trabajo en una oficina pequeña. A mediodía como con mis compañeros. Por la tarde hago ejercicio en el gimnasio. Por la noche ceno con mi familia y vemos una película. Me acuesto a las once.` },
+
+  // ===== ANGLAIS - FAMILY - A1 =====
+  { id:'rd_en_13', language:'en', level:'A1', theme:'family', title:'My Family',
+    body_text:`My name is Emma. I have a family of five people. My father is named James. He is a businessman. My mother is named Sarah. She is a teacher. I have two brothers named Tom and Jack. Tom is twelve years old and Jack is nine. I am fourteen years old. I love my family very much. My parents are kind and loving. My brothers are funny and friendly. We spend time together every weekend. We like to go to the park and play games. On Sundays, we have a big family dinner. My grandmother and grandfather sometimes visit us. We are a happy family.` },
+
+  { id:'rd_en_14', language:'en', level:'A1', theme:'family', title:'A Family Dinner',
+    body_text:`It is Saturday evening and the family is preparing for dinner. Father is cooking in the kitchen. Mother is setting the table with plates and glasses. My sister is preparing a salad. My brother is making the dessert. I am helping to arrange the chairs. Grandmother and Grandfather are sitting in the living room. They are talking about the old days. The baby is playing with toys on the floor. Soon, the food is ready. Everyone comes to the dinner table. We hold hands and say thank you for the meal. The roasted chicken is delicious. The vegetables are fresh and tasty. Grandfather tells funny stories. We all laugh together. The chocolate cake for dessert is amazing. After dinner, the family plays card games. It is a wonderful evening with my family.` },
+
+  { id:'rd_en_15', language:'en', level:'A1', theme:'family', title:'My Grandparents',
+    body_text:`I love my grandparents very much. My grandfather is eighty years old. His name is Robert. He is tall and strong for his age. He has white hair and kind blue eyes. My grandmother is seventy-eight years old. Her name is Margaret. She is warm and gentle. She has silver hair and a beautiful smile. My grandparents have been married for fifty years. They live in a small house by the sea. My grandfather enjoys fishing and gardening. My grandmother loves to cook and bake. She makes the best apple pie. They have four children and ten grandchildren. My grandparents are the heart of our family. They tell us stories about the old days. We visit them every month. They teach us about love, patience, and respect. I hope they live for many more years.` },
 ];

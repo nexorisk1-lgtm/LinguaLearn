@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, logoutUser, updateUserSettings, setActiveLang } from '@/lib/db/localStorage'
-import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
+import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LEARNING_OBJECTIVES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
 import { getThemeName } from '@/lib/i18n'
 import {
   User as UserIcon, Globe, Calendar,
@@ -23,12 +23,14 @@ export default function ProfilPage() {
   const [editingLangs, setEditingLangs] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(false)
   const [editingThemes, setEditingThemes] = useState(false)
+  const [editingObjectives, setEditingObjectives] = useState(false)
 
   // Temporary editing values
   const [tempLangs, setTempLangs] = useState<LearningLanguage[]>([])
   const [tempDays, setTempDays] = useState<DayOfWeek[]>([])
   const [tempDuration, setTempDuration] = useState<SessionDuration>(20)
   const [tempThemes, setTempThemes] = useState<string[]>([])
+  const [tempObjectives, setTempObjectives] = useState<string[]>([])
 
   useEffect(() => {
     const u = getCurrentUser()
@@ -154,6 +156,36 @@ export default function ProfilPage() {
       prev.includes(themeId)
         ? prev.filter(t => t !== themeId)
         : [...prev, themeId]
+    )
+  }
+
+  const handleEditObjectivesOpen = () => {
+    const activeLang = user!.activeLang || user!.settings.learningLangs[0] || 'en'
+    const langConfig = user!.settings.languageConfigs?.[activeLang]
+    setTempObjectives([...(langConfig?.objectives || [])])
+    setEditingObjectives(true)
+  }
+
+  const handleEditObjectivesSave = () => {
+    if (user) {
+      const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en'
+      const languageConfigs = { ...(user.settings.languageConfigs || {}) }
+      const currentConfig = languageConfigs[activeLang] || { objectives: [], themes: [], hasGrcThemes: false }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      languageConfigs[activeLang] = { ...currentConfig, objectives: tempObjectives as any }
+      const updated = updateUserSettings(user.id, { languageConfigs })
+      if (updated) {
+        setUser(updated)
+        setEditingObjectives(false)
+      }
+    }
+  }
+
+  const toggleObjective = (objectiveId: string) => {
+    setTempObjectives(prev =>
+      prev.includes(objectiveId)
+        ? prev.filter(o => o !== objectiveId)
+        : [...prev, objectiveId]
     )
   }
 
@@ -381,6 +413,67 @@ export default function ProfilPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ROW 3: Objectives — full width compact */}
+        <div className="rounded-xl bg-white shadow-sm">
+          <div className="p-3">
+            <div className="flex items-center justify-between gap-1.5 mb-2">
+              <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Objectifs' : 'Objectives'}</span>
+              {!editingObjectives && (
+                <button onClick={handleEditObjectivesOpen} className="p-1 hover:bg-gray-100 rounded transition-colors">
+                  <Edit2 className="h-3 w-3 text-[#002844]" />
+                </button>
+              )}
+            </div>
+            {!editingObjectives ? (
+              <div className="flex flex-wrap gap-1.5">
+                {(langConfig?.objectives || []).length > 0 ? (
+                  (langConfig?.objectives || []).map(objectiveId => {
+                    const obj = LEARNING_OBJECTIVES.find(o => o.id === objectiveId)
+                    return obj ? (
+                      <span key={objectiveId} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844] flex items-center gap-1">
+                        <span>{obj.icon}</span>
+                        {lang === 'fr' ? obj.nameFr : obj.nameEn}
+                      </span>
+                    ) : null
+                  })
+                ) : (
+                  <span className="text-[10px] text-[#999]">{lang === 'fr' ? 'Aucun objectif sélectionné' : 'No objectives selected'}</span>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {LEARNING_OBJECTIVES.map(obj => (
+                  <div key={obj.id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleObjective(obj.id)}
+                      className={`flex-shrink-0 w-4 h-4 rounded border transition-all ${
+                        tempObjectives.includes(obj.id)
+                          ? 'bg-[#D9B438] border-[#D9B438]'
+                          : 'border-gray-300 bg-white'
+                      }`}>
+                      {tempObjectives.includes(obj.id) && <Check className="h-3 w-3 text-[#002844]" />}
+                    </button>
+                    <span className="text-sm">{obj.icon}</span>
+                    <span className="text-xs text-[#002844] flex-1">{lang === 'fr' ? obj.nameFr : obj.nameEn}</span>
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-2 border-t border-gray-200 mt-2">
+                  <button
+                    onClick={() => setEditingObjectives(false)}
+                    className="flex-1 py-1.5 rounded text-xs font-bold bg-gray-100 text-[#555555] hover:bg-gray-200 transition-colors">
+                    {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={handleEditObjectivesSave}
+                    className="flex-1 py-1.5 rounded text-xs font-bold bg-[#D9B438] text-[#002844] hover:bg-[#c9a830] transition-colors">
+                    {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
