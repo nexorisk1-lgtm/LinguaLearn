@@ -677,7 +677,7 @@ export default function OnboardingPage() {
                   {interfaceLang === 'fr' ? 'Je connais déjà mon niveau' : 'I already know my level'}
                 </p>
                 <p className="text-xs text-[#555555] mt-1">
-                  {interfaceLang === 'fr' ? 'Sélectionner manuellement A1 → B2' : 'Manually select A1 → B2'}
+                  {interfaceLang === 'fr' ? 'Sélectionner manuellement A1 → C2' : 'Manually select A1 → C2'}
                 </p>
               </button>
             </div>

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, setActiveLang } from '@/lib/db/localStorage'
+import { getCurrentUser, setActiveLang, logoutUser } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningLanguage, LEARNING_LANGUAGES, LEARNING_OBJECTIVES } from '@/types'
 import { t } from '@/lib/i18n'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight,
-  BookOpen, PenTool, Languages, Dumbbell, Home, MessageCircle, User as UserIcon, BarChart3,
+  BookOpen, PenTool, Languages, Dumbbell, Home, MessageCircle, User as UserIcon, BarChart3, LogOut,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
+  const [isPending, setIsPending] = useState(false)
   const [langSelectorOpen, setLangSelectorOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
 
@@ -22,6 +23,13 @@ export default function DashboardPage() {
     const currentUser = getCurrentUser()
     if (!currentUser) { router.push('/auth'); return }
     if (!currentUser.onboardingCompleted && currentUser.role !== 'admin') { router.push('/onboarding'); return }
+    if (currentUser.status === 'pending') {
+      setIsPending(true)
+      setUser(currentUser)
+      setLang(currentUser.settings.interfaceLang || 'fr')
+      setLoading(false)
+      return
+    }
     if (!currentUser.activeLang && currentUser.settings.learningLangs.length > 0) {
       currentUser.activeLang = currentUser.settings.learningLangs[0]
     }
@@ -40,6 +48,32 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F0F0F0]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#002844]" />
+      </div>
+    )
+  }
+
+  if (isPending) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F0F0F0] px-6">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#D9B438]/20 flex items-center justify-center">
+            <svg className="h-8 w-8 text-[#D9B438]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-[#002844] mb-2">
+            {lang === 'fr' ? 'Compte en attente de validation' : 'Account pending approval'}
+          </h2>
+          <p className="text-sm text-[#555555] mb-6">
+            {lang === 'fr'
+              ? 'Votre compte a bien été créé. Un administrateur doit valider votre accès avant que vous puissiez utiliser les modules.'
+              : 'Your account has been created. An administrator must approve your access before you can use the modules.'}
+          </p>
+          <button onClick={() => { logoutUser(); router.push('/auth') }}
+            className="px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold hover:bg-[#003a5c] transition-colors">
+            {lang === 'fr' ? 'Retour à la connexion' : 'Back to login'}
+          </button>
+        </div>
       </div>
     )
   }
@@ -69,33 +103,40 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
-      {/* TOP BAR — compact: logo + lang selector */}
+      {/* TOP BAR — compact: logo + lang selector + logout */}
       <div className="sticky top-0 z-50 bg-[#002844] px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-bold text-white">Lingua<span className="text-[#D9B438]">Learn</span></h1>
-        
-        {/* Language selector */}
-        <div className="relative">
-          <button onClick={() => setLangSelectorOpen(!langSelectorOpen)}
-            className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white">
-            <span className="text-lg">{activeLangInfo?.flag}</span>
-            <span>{lang === 'fr' ? activeLangInfo?.nameFr : activeLangInfo?.nameEn}</span>
-            {user.settings.learningLangs.length > 1 && <ChevronDown className={`h-4 w-4 transition-transform ${langSelectorOpen ? 'rotate-180' : ''}`} />}
+
+        <div className="flex items-center gap-2">
+          {/* Language selector */}
+          <div className="relative">
+            <button onClick={() => setLangSelectorOpen(!langSelectorOpen)}
+              className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white">
+              <span className="text-lg">{activeLangInfo?.flag}</span>
+              <span>{lang === 'fr' ? activeLangInfo?.nameFr : activeLangInfo?.nameEn}</span>
+              {user.settings.learningLangs.length > 1 && <ChevronDown className={`h-4 w-4 transition-transform ${langSelectorOpen ? 'rotate-180' : ''}`} />}
+            </button>
+            {langSelectorOpen && user.settings.learningLangs.length > 1 && (
+              <div className="absolute right-0 top-full mt-1 z-50 rounded-xl bg-white shadow-lg border min-w-[180px]">
+                {user.settings.learningLangs.map(lc => {
+                  const info = LEARNING_LANGUAGES.find(l => l.code === lc)
+                  return (
+                    <button key={lc} onClick={() => switchLanguage(lc)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm ${lc === activeLang ? 'bg-[#002844]/5 font-bold' : 'hover:bg-gray-50'}`}>
+                      <span className="text-lg">{info?.flag}</span>
+                      <span className="text-[#002844]">{lang === 'fr' ? info?.nameFr : info?.nameEn}</span>
+                      {lc === activeLang && <span className="ml-auto text-[#D9B438]">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {/* Logout button */}
+          <button onClick={() => { logoutUser(); router.push('/auth') }}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={lang === 'fr' ? 'Déconnexion' : 'Logout'}>
+            <LogOut className="h-4 w-4 text-white/70" />
           </button>
-          {langSelectorOpen && user.settings.learningLangs.length > 1 && (
-            <div className="absolute right-0 top-full mt-1 z-50 rounded-xl bg-white shadow-lg border min-w-[180px]">
-              {user.settings.learningLangs.map(lc => {
-                const info = LEARNING_LANGUAGES.find(l => l.code === lc)
-                return (
-                  <button key={lc} onClick={() => switchLanguage(lc)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm ${lc === activeLang ? 'bg-[#002844]/5 font-bold' : 'hover:bg-gray-50'}`}>
-                    <span className="text-lg">{info?.flag}</span>
-                    <span className="text-[#002844]">{lang === 'fr' ? info?.nameFr : info?.nameEn}</span>
-                    {lc === activeLang && <span className="ml-auto text-[#D9B438]">✓</span>}
-                  </button>
-                )
-              })}
-            </div>
-          )}
         </div>
       </div>
 

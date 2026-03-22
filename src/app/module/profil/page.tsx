@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, logoutUser, updateUserSettings } from '@/lib/db/localStorage'
+import { getCurrentUser, logoutUser, updateUserSettings, setActiveLang } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
 import { getThemeName } from '@/lib/i18n'
 import {
   User as UserIcon, Globe, Calendar,
-  GraduationCap, Shield, LogOut, ChevronRight, Volume2, Mic, Edit2, Check,
+  GraduationCap, Shield, LogOut, ChevronRight, Volume2, Mic, Edit2, Check, ArrowLeft,
 } from 'lucide-react'
 
 export default function ProfilPage() {
@@ -67,7 +67,25 @@ export default function ProfilPage() {
     if (user) {
       const updated = updateUserSettings(user.id, { learningLangs: tempLangs })
       if (updated) {
-        setUser(updated)
+        // If activeLang was removed, reset to first remaining language
+        if (updated.activeLang && !tempLangs.includes(updated.activeLang)) {
+          const newActive = tempLangs[0] || 'en'
+          const finalUser = setActiveLang(updated.id, newActive)
+          if (finalUser) {
+            setUser(finalUser)
+          } else {
+            setUser(updated)
+          }
+        } else if (!updated.activeLang && tempLangs.length > 0) {
+          const finalUser = setActiveLang(updated.id, tempLangs[0])
+          if (finalUser) {
+            setUser(finalUser)
+          } else {
+            setUser(updated)
+          }
+        } else {
+          setUser(updated)
+        }
         setEditingLangs(false)
       }
     }
@@ -153,6 +171,9 @@ export default function ProfilPage() {
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
       {/* Compact header */}
       <div className="bg-[#002844] px-4 py-4 flex items-center gap-3">
+        <button onClick={() => router.back()} className="p-1 -ml-1 hover:bg-white/10 rounded-lg transition-colors">
+          <ArrowLeft className="h-5 w-5 text-white" />
+        </button>
         <div className="w-12 h-12 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
           <UserIcon className="h-6 w-6 text-[#002844]" />
         </div>

@@ -1149,8 +1149,12 @@ export default function AdminImportsPage() {
                               {lang === 'fr' ? 'Proposé par' : 'Proposed by'}
                             </p>
                             <p className="text-sm text-[#002844] mt-1">
-                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                              {word.proposedBy || (word as any).userId || '-'}
+                              {(() => {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const proposerId = word.proposedBy || (word as any).userId || ''
+                                const proposer = users.find(u => u.id === proposerId || u.email === proposerId)
+                                return proposer ? proposer.firstName : (proposerId || '-')
+                              })()}
                             </p>
                           </div>
                           <div>
