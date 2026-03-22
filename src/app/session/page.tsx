@@ -20,7 +20,7 @@ import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, Writing
 // TYPES
 // ==========================================
 
-type SessionPhase = 'intro' | 'exercise' | 'summary'
+type SessionPhase = 'intro' | 'lessonMap' | 'exercise' | 'summary'
 
 interface SessionExercise {
   type: 'vocab_translate' | 'vocab_listen' | 'grammar_qcm' | 'reading_comprehension' | 'speaking_repeat' | 'writing_fill'
@@ -34,6 +34,17 @@ interface SessionExercise {
   comprehensionQuestion?: string
   comprehensionAnswer?: string
   comprehensionOptions?: string[]
+  lessonIndex?: number
+}
+
+interface SessionLesson {
+  id: string
+  title: { fr: string; en: string }
+  module: string
+  icon: string
+  exercises: number[] // indices into the exercises array
+  completed: boolean
+  score?: number
 }
 
 interface SessionResult {
@@ -75,14 +86,27 @@ function generateVocabExercises(words: VocabWord[], count: number): SessionExerc
 
 function generateGrammarExercises(exercises: GrammarExercise[], count: number): SessionExercise[] {
   const shuffled = [...exercises].sort(() => Math.random() - 0.5).slice(0, count)
-  return shuffled.map(ex => ({
-    type: 'grammar_qcm',
-    module: 'grammaire',
-    data: ex,
-    question: ex.question,
-    answer: ex.answer,
-    options: ex.options,
-  }))
+  // BUG-43: For fill_blank exercises without options, generate QCM options
+  const allAnswers = exercises.map(e => e.answer)
+  const fallbacks = ['am', 'is', 'are', 'be', 'do', 'does', 'have', 'has', 'was', 'were', 'the', 'a', 'an']
+  return shuffled.map(ex => {
+    let options = ex.options
+    if (!options || options.length === 0) {
+      // Auto-generate 4 options including correct answer
+      const distractors = Array.from(new Set(
+        [...allAnswers, ...fallbacks].filter(a => a !== ex.answer)
+      )).slice(0, 3)
+      options = [ex.answer, ...distractors].sort(() => Math.random() - 0.5)
+    }
+    return {
+      type: 'grammar_qcm',
+      module: 'grammaire',
+      data: ex,
+      question: ex.question,
+      answer: ex.answer,
+      options,
+    }
+  })
 }
 
 function generateReadingExercise(texts: ReadingText[]): SessionExercise | null {
@@ -173,6 +197,8 @@ export default function SessionPage() {
   const [showFeedback, setShowFeedback] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
   const [sessionModules, setSessionModules] = useState<string[]>([])
+  const [lessons, setLessons] = useState<SessionLesson[]>([])
+  const [currentLessonIdx, setCurrentLessonIdx] = useState(0)
   const [showingComprehension, setShowingComprehension] = useState(false)
   const [wordDefinition, setWordDefinition] = useState<{ word: string; definition: string } | null>(null)
   const [defPosition, setDefPosition] = useState<{ x: number; y: number } | null>(null)
@@ -290,8 +316,86 @@ export default function SessionPage() {
 
     // STEP 4: Summary (handled separately in UI)
 
+    // Tag exercises with lesson indices and build lesson map
+    const sessionLessons: SessionLesson[] = []
+    let exIdx = 0
+
+    // Group vocab exercises into Lesson 1
+    const vocabIndices: number[] = []
+    while (exIdx < allExercises.length && allExercises[exIdx].module === 'vocabulaire') {
+      allExercises[exIdx].lessonIndex = 0
+      vocabIndices.push(exIdx)
+      exIdx++
+    }
+    if (vocabIndices.length > 0) {
+      sessionLessons.push({
+        id: 'lesson_vocab',
+        title: { fr: 'Vocabulaire du jour', en: 'Daily Vocabulary' },
+        module: 'vocabulaire',
+        icon: '📚',
+        exercises: vocabIndices,
+        completed: false,
+      })
+    }
+
+    // Group grammar exercises into Lesson 2
+    const grammarIndices: number[] = []
+    while (exIdx < allExercises.length && allExercises[exIdx].module === 'grammaire') {
+      allExercises[exIdx].lessonIndex = sessionLessons.length
+      grammarIndices.push(exIdx)
+      exIdx++
+    }
+    if (grammarIndices.length > 0) {
+      sessionLessons.push({
+        id: 'lesson_grammar',
+        title: { fr: 'Règle de grammaire', en: 'Grammar Rule' },
+        module: 'grammaire',
+        icon: '✏️',
+        exercises: grammarIndices,
+        completed: false,
+      })
+    }
+
+    // Group remaining exercises by module into Lesson 3+
+    const remainingByModule: Record<string, number[]> = {}
+    while (exIdx < allExercises.length) {
+      const mod = allExercises[exIdx].module
+      if (!remainingByModule[mod]) remainingByModule[mod] = []
+      remainingByModule[mod].push(exIdx)
+      exIdx++
+    }
+    const objectiveNames: Record<string, { fr: string; en: string; icon: string }> = {
+      oral: { fr: 'Exercice oral', en: 'Speaking Exercise', icon: '🎤' },
+      lecture: { fr: 'Lecture', en: 'Reading', icon: '📖' },
+      ecrit: { fr: 'Expression écrite', en: 'Writing', icon: '✍️' },
+      vocabulaire: { fr: 'Vocabulaire bonus', en: 'Bonus Vocabulary', icon: '📚' },
+    }
+    for (const [mod, indices] of Object.entries(remainingByModule)) {
+      const lessonIdx = sessionLessons.length
+      indices.forEach(i => { allExercises[i].lessonIndex = lessonIdx })
+      sessionLessons.push({
+        id: `lesson_${mod}`,
+        title: objectiveNames[mod] || { fr: mod, en: mod },
+        module: mod,
+        icon: objectiveNames[mod]?.icon || '📝',
+        exercises: indices,
+        completed: false,
+      })
+    }
+
+    // Add checkpoint at the end
+    sessionLessons.push({
+      id: 'checkpoint',
+      title: { fr: 'Bilan de session', en: 'Session Summary' },
+      module: 'checkpoint',
+      icon: '🏆',
+      exercises: [],
+      completed: false,
+    })
+
     // No shuffling — maintain the structured order
     setExercises(allExercises)
+    setLessons(sessionLessons)
     setSessionModules(Array.from(new Set(usedModules)))
   }, [])
 
@@ -317,7 +421,7 @@ export default function SessionPage() {
     if (phase !== 'intro') return
     if (introCountdown <= 0) {
       if (exercises.length > 0) {
-        setPhase('exercise')
+        setPhase('lessonMap')
       } else {
         setPhase('summary')
       }
@@ -383,9 +487,42 @@ export default function SessionPage() {
     setWordDefinition(null)
     setShowWhyWrong(false)
 
-    if (currentIdx < exercises.length - 1) {
-      setCurrentIdx(prev => prev + 1)
+    const nextIdx = currentIdx + 1
+    if (nextIdx < exercises.length) {
+      // Check if we're moving to a new lesson
+      const currentLessonIndex = exercises[currentIdx]?.lessonIndex ?? 0
+      const nextLessonIndex = exercises[nextIdx]?.lessonIndex ?? 0
+
+      if (nextLessonIndex !== currentLessonIndex) {
+        // Mark current lesson as completed
+        setLessons(prev => prev.map((l, i) => {
+          if (i === currentLessonIndex) {
+            const lessonResults = results.filter(r => r.exercise.lessonIndex === currentLessonIndex)
+            const correct = lessonResults.filter(r => r.correct).length
+            const total = lessonResults.length
+            return { ...l, completed: true, score: total > 0 ? Math.round((correct / total) * 100) : 100 }
+          }
+          return l
+        }))
+        setCurrentLessonIdx(nextLessonIndex)
+        // Show lesson map briefly between lessons
+        setPhase('lessonMap')
+        setCurrentIdx(nextIdx)
+        return
+      }
+      setCurrentIdx(nextIdx)
     } else {
+      // Mark final lesson as completed
+      const lastLessonIndex = exercises[currentIdx]?.lessonIndex ?? 0
+      setLessons(prev => prev.map((l, i) => {
+        if (i === lastLessonIndex) {
+          const lessonResults = results.filter(r => r.exercise.lessonIndex === lastLessonIndex)
+          const correct = lessonResults.filter(r => r.correct).length
+          const total = lessonResults.length
+          return { ...l, completed: true, score: total > 0 ? Math.round((correct / total) * 100) : 100 }
+        }
+        return l
+      }))
       // Session complete — update progress
       finishSession()
       setPhase('summary')
@@ -470,7 +607,7 @@ export default function SessionPage() {
 
   const skipIntro = () => {
     if (exercises.length > 0) {
-      setPhase('exercise')
+      setPhase('lessonMap')
     } else {
       setPhase('summary')
     }
@@ -619,6 +756,97 @@ export default function SessionPage() {
   }
 
   // ==========================================
+  // PHASE: LESSON MAP
+  // ==========================================
+  if (phase === 'lessonMap') {
+    return (
+      <div className="min-h-screen bg-[#F0F0F0] px-4 py-8">
+        <div className="max-w-lg mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-[#002844] mb-2">
+              {lang === 'fr' ? 'Parcours de session' : 'Session path'}
+            </h1>
+            <p className="text-sm text-[#555555]">
+              {lang === 'fr'
+                ? `${lessons.filter(l => l.completed).length}/${lessons.length} leçons`
+                : `${lessons.filter(l => l.completed).length}/${lessons.length} lessons`}
+            </p>
+          </div>
+
+          {/* Lesson path */}
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300" />
+
+            <div className="space-y-4">
+              {lessons.map((lesson, idx) => {
+                const isCurrent = idx === currentLessonIdx
+                const isCompleted = lesson.completed
+                const isLocked = idx > currentLessonIdx && !lesson.completed
+                const isCheckpoint = lesson.module === 'checkpoint'
+
+                return (
+                  <div key={lesson.id} className="relative flex items-center gap-4">
+                    {/* Circle indicator */}
+                    <div className={`relative z-10 flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-2xl border-4 transition-all ${
+                      isCompleted
+                        ? 'bg-green-100 border-green-500'
+                        : isCurrent
+                          ? 'bg-[#D9B438]/20 border-[#D9B438] animate-pulse'
+                          : isLocked
+                            ? 'bg-gray-100 border-gray-300'
+                            : 'bg-white border-gray-300'
+                    }`}>
+                      {isCompleted ? '✅' : lesson.icon}
+                    </div>
+
+                    {/* Lesson info */}
+                    <div className={`flex-1 p-4 rounded-xl transition-all ${
+                      isCurrent
+                        ? 'bg-white shadow-md border-2 border-[#D9B438]'
+                        : isCompleted
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-white border border-gray-200 opacity-60'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`font-bold text-sm ${isCurrent ? 'text-[#002844]' : isCompleted ? 'text-green-700' : 'text-gray-500'}`}>
+                            {lang === 'fr'
+                              ? (isCheckpoint ? lesson.title.fr : `Leçon ${idx + 1} — ${lesson.title.fr}`)
+                              : (isCheckpoint ? lesson.title.en : `Lesson ${idx + 1} — ${lesson.title.en}`)}
+                          </p>
+                          {isCompleted && lesson.score !== undefined && (
+                            <p className="text-xs text-green-600 font-semibold mt-1">
+                              {lesson.score}% {lang === 'fr' ? 'réussi' : 'correct'}
+                            </p>
+                          )}
+                          {isCurrent && !isCheckpoint && (
+                            <p className="text-xs text-[#555555] mt-1">
+                              {lesson.exercises.length} {lang === 'fr' ? 'exercices' : 'exercises'}
+                            </p>
+                          )}
+                        </div>
+                        {isCurrent && !isCheckpoint && (
+                          <button
+                            onClick={() => setPhase('exercise')}
+                            className="px-4 py-2 rounded-lg bg-[#002844] text-white text-xs font-bold hover:bg-[#003a5c] transition-colors"
+                          >
+                            {lang === 'fr' ? 'Commencer →' : 'Start →'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ==========================================
   // PHASE: SUMMARY
   // ==========================================
   if (phase === 'summary') {
@@ -706,6 +934,7 @@ export default function SessionPage() {
               setPhase('intro')
               setIntroCountdown(5)
               setCurrentIdx(0)
+              setCurrentLessonIdx(0)
               setResults([])
               setShowFeedback(false)
               setUserInput('')
@@ -734,6 +963,24 @@ export default function SessionPage() {
   return (
     <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
       <div className="max-w-lg mx-auto">
+        {/* Lesson indicator */}
+        {lessons[currentLessonIdx] && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-lg">{lessons[currentLessonIdx].icon}</span>
+            <span className="text-xs font-bold text-[#002844]">
+              {lang === 'fr'
+                ? `Leçon ${currentLessonIdx + 1} — ${lessons[currentLessonIdx].title.fr}`
+                : `Lesson ${currentLessonIdx + 1} — ${lessons[currentLessonIdx].title.en}`}
+            </span>
+            <button
+              onClick={() => setPhase('lessonMap')}
+              className="ml-auto text-xs text-[#D9B438] font-semibold hover:underline"
+            >
+              {lang === 'fr' ? 'Voir parcours' : 'View path'}
+            </button>
+          </div>
+        )}
+
         {/* Progress bar */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">

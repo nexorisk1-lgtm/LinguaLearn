@@ -28,15 +28,17 @@ import {
   proposeWord,
   getWritingExercises,
   getSpeakingExercises,
+  getReadingTexts,
   isCloseEnough,
 } from '@/lib/db/bankHelpers';
 import {
   VocabWord,
   WritingExercise,
   SpeakingExercise,
+  ReadingText,
 } from '@/lib/db/bankTypes';
 
-type TabType = 'discovery' | 'myWords' | 'write' | 'pronounce' | 'propose';
+type TabType = 'discovery' | 'myWords' | 'reading' | 'write' | 'pronounce' | 'propose';
 
 type WritingFeedback = 'correct' | 'almost' | 'wrong' | null;
 type SpeakingRecognitionState = 'idle' | 'listening' | 'recognized' | 'error';
@@ -79,6 +81,8 @@ export default function VocabulairePage() {
   const prevSpeakingIndexRef = useRef<number>(-1);
   const hasReceivedResultRef = useRef<boolean>(false);
   const [vocabulaireProgressUpdated, setVocabulaireProgressUpdated] = useState(false);
+  const [readingTexts, setReadingTexts] = useState<ReadingText[]>([]);
+  const [expandedReading, setExpandedReading] = useState<string | null>(null);
 
   // Form state for propose word
   const [formData, setFormData] = useState({
@@ -138,6 +142,10 @@ export default function VocabulairePage() {
     const statusMap: Record<string, string> = {};
     personal.forEach(pv => { statusMap[pv.wordId] = pv.status || 'in_progress'; });
     setPersonalVocabStatus(statusMap);
+
+    // Get reading texts (BUG-42)
+    const reading = getReadingTexts(activeLang, userThemes, userLevel);
+    setReadingTexts(reading);
 
     // Get writing exercises
     const writing = getWritingExercises(activeLang, userThemes, userLevel);
@@ -699,7 +707,7 @@ export default function VocabulairePage() {
             borderColor: activeTab === 'discovery' ? '#D9B438' : 'transparent',
           }}
         >
-          Découverte
+          {interfaceLang === 'fr' ? 'Mes mots' : 'My words'}
         </button>
         <button
           onClick={() => setActiveTab('myWords')}
@@ -709,7 +717,17 @@ export default function VocabulairePage() {
             borderColor: activeTab === 'myWords' ? '#D9B438' : 'transparent',
           }}
         >
-          {t('vocab.myWords', interfaceLang)}
+          {interfaceLang === 'fr' ? 'Favoris ❤️' : 'Favorites ❤️'}
+        </button>
+        <button
+          onClick={() => setActiveTab('reading')}
+          className="px-4 py-3 font-semibold text-sm md:text-base transition-colors border-b-2 whitespace-nowrap"
+          style={{
+            color: activeTab === 'reading' ? '#D9B438' : '#555555',
+            borderColor: activeTab === 'reading' ? '#D9B438' : 'transparent',
+          }}
+        >
+          {interfaceLang === 'fr' ? 'Lecture' : 'Reading'}
         </button>
         <button
           onClick={() => setActiveTab('write')}
@@ -719,7 +737,7 @@ export default function VocabulairePage() {
             borderColor: activeTab === 'write' ? '#D9B438' : 'transparent',
           }}
         >
-          Écrire
+          {interfaceLang === 'fr' ? 'Écrire' : 'Write'}
         </button>
         <button
           onClick={() => setActiveTab('pronounce')}
@@ -729,7 +747,7 @@ export default function VocabulairePage() {
             borderColor: activeTab === 'pronounce' ? '#D9B438' : 'transparent',
           }}
         >
-          Prononcer
+          {interfaceLang === 'fr' ? 'Prononcer' : 'Pronounce'}
         </button>
         <button
           onClick={() => setActiveTab('propose')}
@@ -829,6 +847,62 @@ export default function VocabulairePage() {
                     {interfaceLang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
                   </a>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Reading Tab (BUG-42) */}
+        {activeTab === 'reading' && (
+          <div className="max-w-3xl mx-auto">
+            {readingTexts.length > 0 ? (
+              <div className="space-y-6">
+                <p className="font-semibold" style={{ color: '#555555' }}>
+                  {readingTexts.length} {interfaceLang === 'fr' ? 'textes disponibles' : 'texts available'}
+                </p>
+                {readingTexts.map((text) => (
+                  <div key={text.id || text.title} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => setExpandedReading(expandedReading === (text.id || text.title) ? null : (text.id || text.title))}
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+                    >
+                      <div className="text-left">
+                        <h3 className="font-bold text-lg" style={{ color: '#002844' }}>{text.title}</h3>
+                        <p className="text-xs mt-1" style={{ color: '#555555' }}>
+                          {text.theme} · {text.level}
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 bg-blue-100 rounded-full text-xs font-medium" style={{ color: '#002844' }}>
+                        {text.level}
+                      </span>
+                    </button>
+                    {expandedReading === (text.id || text.title) && (
+                      <div className="px-6 pb-6 border-t border-gray-100">
+                        <div className="mt-4 mb-4 flex gap-2">
+                          <button
+                            onClick={() => speakText(text.body_text, activeLang)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[#D9B438] text-[#002844] hover:bg-yellow-400 transition"
+                          >
+                            <Volume2 className="h-4 w-4" />
+                            {interfaceLang === 'fr' ? 'Écouter' : 'Listen'}
+                          </button>
+                        </div>
+                        <p className="text-sm leading-[1.8]" style={{ color: '#555555' }}>
+                          {text.body_text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-lg">
+                <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p style={{ color: '#002844', fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+                  {interfaceLang === 'fr'
+                    ? 'Aucun texte de lecture disponible actuellement'
+                    : 'No reading texts available currently'}
+                </p>
               </div>
             )}
           </div>

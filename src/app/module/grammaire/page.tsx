@@ -18,7 +18,7 @@ import {
   IrregularVerb,
 } from '@/lib/db/bankTypes'
 import { VerbExercise } from '@/lib/db/bankGrammar'
-import GrammarCarousel from '@/components/exercises/GrammarCarousel'
+// GrammarCarousel removed from module — now only in session
 import {
   ArrowLeft,
   Volume2,
@@ -28,6 +28,7 @@ import {
   XCircle,
   BookOpen,
   Play,
+  Lock,
 } from 'lucide-react'
 
 type TabType = 'rules' | 'exercises' | 'irregularVerbs'
@@ -58,6 +59,7 @@ export default function GrammairePage() {
   const [irregularVerbs, setIrregularVerbs] = useState<IrregularVerb[]>([])
   const [verbGroupFilter, setVerbGroupFilter] = useState<string>('all')
   const [verbAssessment, setVerbAssessment] = useState<Record<string, string>>({})
+  const [grammarProgress, setGrammarProgress] = useState<Record<string, { stars: number; bestScore: number }>>({})
 
   const [exerciseState, setExerciseState] = useState<ExerciseState>({
     currentIndex: 0,
@@ -86,6 +88,17 @@ export default function GrammairePage() {
     // Load grammar rules
     const rules = getGrammarRules(activeLang, userLevel)
     setGrammarRules(rules)
+
+    // Load grammar progress for sequential unlocking (BUG-32)
+    const grammarStarKey = `lingualearn_grammar_stars_${loadedUser.id}_${activeLang}`
+    const grammarProgressStr = localStorage.getItem(grammarStarKey)
+    if (grammarProgressStr) {
+      try {
+        setGrammarProgress(JSON.parse(grammarProgressStr))
+      } catch {
+        setGrammarProgress({})
+      }
+    }
 
     // Load irregular verbs if English
     if (activeLang === 'en') {
@@ -145,6 +158,14 @@ export default function GrammairePage() {
     (rule) => rule.language === activeLang && rule.level === userLevel
   )
 
+  // BUG-32: Check if a rule is unlocked (first rule always unlocked, next needs ≥1 star on previous)
+  const isRuleUnlocked = (ruleIndex: number): boolean => {
+    if (ruleIndex === 0) return true
+    const prevRule = filteredRules[ruleIndex - 1]
+    if (!prevRule) return false
+    return (grammarProgress[prevRule.id]?.stars || 0) >= 1
+  }
+
   // Get current exercise
   const currentExercise =
     exercises.length > 0 ? exercises[exerciseState.currentIndex] : null
@@ -156,11 +177,18 @@ export default function GrammairePage() {
     let userAnswer: string | string[] | null = null
 
     if (currentExercise.type === 'fill_blank') {
-      const input = (document.getElementById('fill-blank-input') as HTMLInputElement)?.value
-      userAnswer = input?.trim().toLowerCase()
-      isCorrect =
-        userAnswer ===
-        (currentExercise.answer as string)?.toLowerCase()
+      // BUG-43: Check QCM radio for A1/A2, else check text input
+      if (userLevel === 'A1' || userLevel === 'A2') {
+        const selected = document.querySelector('input[name="fill-blank-qcm"]:checked') as HTMLInputElement
+        userAnswer = selected?.value
+        isCorrect = userAnswer === currentExercise.answer
+      } else {
+        const input = (document.getElementById('fill-blank-input') as HTMLInputElement)?.value
+        userAnswer = input?.trim().toLowerCase()
+        isCorrect =
+          userAnswer ===
+          (currentExercise.answer as string)?.toLowerCase()
+      }
     } else if (currentExercise.type === 'multiple_choice') {
       const selected = document.querySelector('input[name="multiple-choice"]:checked') as HTMLInputElement
       userAnswer = selected?.value
@@ -348,45 +376,32 @@ export default function GrammairePage() {
               </div>
             ) : (
               <>
-                {/* Grammar Carousel */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h2 style={{ color: '#002844' }} className="text-lg font-bold mb-4">
-                    {interfaceLang === 'fr' ? 'Votre progression' : 'Your progress'}
-                  </h2>
-                  {user && (
-                    <GrammarCarousel
-                      rules={filteredRules}
-                      user={user}
-                      activeLang={activeLang}
-                      lang={interfaceLang}
-                      onSelectRule={(ruleId) => {
-                        setSelectedRuleId(ruleId)
-                        setActiveTab('exercises')
-                      }}
-                    />
-                  )}
-                </div>
-
                 {/* Rules Details (Accordion) */}
                 <div className="space-y-4">
                   <h2 style={{ color: '#002844' }} className="text-lg font-bold">
                     {interfaceLang === 'fr' ? 'Détails des règles' : 'Rule details'}
                   </h2>
-                  {filteredRules.map((rule) => (
+                  {filteredRules.map((rule, ruleIdx) => {
+                    const unlocked = isRuleUnlocked(ruleIdx)
+                    return (
                 <div
                   key={rule.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+                  className={`rounded-lg shadow-sm border overflow-hidden ${unlocked ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-200 opacity-60'}`}
                 >
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      if (!unlocked) return
                       setExpandedRuleId(
                         expandedRuleId === rule.id ? null : rule.id
                       )
-                    }
-                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+                    }}
+                    className={`w-full px-6 py-4 flex items-center justify-between transition ${unlocked ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed'}`}
+                    disabled={!unlocked}
                   >
                     <div className="flex items-center gap-4">
-                      {expandedRuleId === rule.id ? (
+                      {!unlocked ? (
+                        <Lock className="w-5 h-5 text-gray-400" />
+                      ) : expandedRuleId === rule.id ? (
                         <ChevronUp
                           className="w-5 h-5"
                           style={{ color: '#D9B438' }}
@@ -513,7 +528,8 @@ export default function GrammairePage() {
                     </div>
                   )}
                 </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </>
             )}
@@ -647,18 +663,56 @@ export default function GrammairePage() {
                       <p style={{ color: '#555555' }} className="text-lg mb-4">
                         {currentExercise.question}
                       </p>
-                      <input
-                        id="fill-blank-input"
-                        type="text"
-                        placeholder={
-                          interfaceLang === 'fr'
-                            ? 'Votre réponse...'
-                            : 'Your answer...'
-                        }
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
-                        style={{ color: '#555555' }}
-                        disabled={exerciseState.answered}
-                      />
+                      {/* BUG-43: QCM for A1/A2 instead of free text */}
+                      {(userLevel === 'A1' || userLevel === 'A2') ? (
+                        <div className="space-y-3">
+                          {(() => {
+                            // Generate 4 options including the correct answer
+                            const correctAnswer = currentExercise.answer as string
+                            const allAnswers = exercises
+                              .filter(e => e.type === 'fill_blank' && (e.answer as string) !== correctAnswer)
+                              .map(e => e.answer as string)
+                            const distractors = Array.from(new Set(allAnswers)).slice(0, 3)
+                            // Common grammar distractors as fallback
+                            const fallbacks = ['am', 'is', 'are', 'be', 'do', 'does', 'have', 'has', 'was', 'were', 'the', 'a', 'an']
+                              .filter(w => w !== correctAnswer.toLowerCase())
+                            while (distractors.length < 3) {
+                              const fb = fallbacks[distractors.length]
+                              if (fb && !distractors.includes(fb)) distractors.push(fb)
+                              else break
+                            }
+                            const options = [correctAnswer, ...distractors.slice(0, 3)].sort(() => Math.random() - 0.5)
+                            return options.map((option, idx) => (
+                              <label
+                                key={idx}
+                                className="flex items-center p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer transition"
+                              >
+                                <input
+                                  type="radio"
+                                  name="fill-blank-qcm"
+                                  value={option}
+                                  disabled={exerciseState.answered}
+                                  className="w-4 h-4"
+                                />
+                                <span className="ml-3" style={{ color: '#555555' }}>{option}</span>
+                              </label>
+                            ))
+                          })()}
+                        </div>
+                      ) : (
+                        <input
+                          id="fill-blank-input"
+                          type="text"
+                          placeholder={
+                            interfaceLang === 'fr'
+                              ? 'Votre réponse...'
+                              : 'Your answer...'
+                          }
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
+                          style={{ color: '#555555' }}
+                          disabled={exerciseState.answered}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -851,52 +905,6 @@ export default function GrammairePage() {
                 </li>
               </ul>
             </div>
-
-            {/* Verb Exercises Section */}
-            {verbExercises.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold mb-6" style={{ color: '#002844' }}>
-                  {interfaceLang === 'fr' ? 'Exercices' : 'Exercises'}
-                </h2>
-                <p className="text-sm mb-6" style={{ color: '#555555' }}>
-                  {interfaceLang === 'fr'
-                    ? 'Complétez les formes manquantes des verbes irréguliers'
-                    : 'Complete the missing forms of irregular verbs'}
-                </p>
-                <div className="space-y-6">
-                  {['AAA', 'ABB', 'ABC', 'ABA'].map((group) => {
-                    const groupExercises = verbExercises.filter(e => e.group === group)
-                    return groupExercises.length > 0 ? (
-                      <div key={group}>
-                        <h3 className="font-semibold text-lg mb-4" style={{ color: '#002844' }}>
-                          Groupe {group}
-                        </h3>
-                        <div className="space-y-4">
-                          {groupExercises.map((exercise) => (
-                            <div key={exercise.id} className="p-4 bg-blue-50 rounded-lg border border-gray-200">
-                              <p style={{ color: '#555555' }} className="font-medium mb-2">
-                                {exercise.question_type === 'fill_past'
-                                  ? (interfaceLang === 'fr' ? 'Forme prétérit :' : 'Past tense form:')
-                                  : exercise.question_type === 'fill_participle'
-                                    ? (interfaceLang === 'fr' ? 'Participe passé :' : 'Past participle:')
-                                    : (interfaceLang === 'fr' ? 'Remplissez les deux formes :' : 'Fill both forms:')}
-                              </p>
-                              <p style={{ color: '#002844' }} className="text-lg font-semibold">
-                                {exercise.verb_base} / ___ / ___
-                              </p>
-                              <p style={{ color: '#555555' }} className="text-sm mt-2 italic">
-                                {interfaceLang === 'fr' ? 'Indice : ' : 'Hint: '}
-                                {exercise.hint_fr}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Filter */}
             <div className="flex gap-3 flex-wrap items-center">
@@ -1126,6 +1134,40 @@ export default function GrammairePage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Verb Exercises — shown after table, filtered by selected group */}
+            {verbGroupFilter !== 'all' && verbExercises.filter(e => e.group === verbGroupFilter).length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-2xl font-bold mb-6" style={{ color: '#002844' }}>
+                  {interfaceLang === 'fr' ? `Exercices — Groupe ${verbGroupFilter}` : `Exercises — Group ${verbGroupFilter}`}
+                </h2>
+                <p className="text-sm mb-6" style={{ color: '#555555' }}>
+                  {interfaceLang === 'fr'
+                    ? 'Complétez les formes manquantes des verbes irréguliers'
+                    : 'Complete the missing forms of irregular verbs'}
+                </p>
+                <div className="space-y-4">
+                  {verbExercises.filter(e => e.group === verbGroupFilter).map((exercise) => (
+                    <div key={exercise.id} className="p-4 bg-blue-50 rounded-lg border border-gray-200">
+                      <p style={{ color: '#555555' }} className="font-medium mb-2">
+                        {exercise.question_type === 'fill_past'
+                          ? (interfaceLang === 'fr' ? 'Forme prétérit :' : 'Past tense form:')
+                          : exercise.question_type === 'fill_participle'
+                            ? (interfaceLang === 'fr' ? 'Participe passé :' : 'Past participle:')
+                            : (interfaceLang === 'fr' ? 'Remplissez les deux formes :' : 'Fill both forms:')}
+                      </p>
+                      <p style={{ color: '#002844' }} className="text-lg font-semibold">
+                        {exercise.verb_base} / ___ / ___
+                      </p>
+                      <p style={{ color: '#555555' }} className="text-sm mt-2 italic">
+                        {interfaceLang === 'fr' ? 'Indice : ' : 'Hint: '}
+                        {exercise.hint_fr}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
