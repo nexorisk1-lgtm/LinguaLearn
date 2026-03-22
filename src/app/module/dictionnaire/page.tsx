@@ -69,7 +69,7 @@ export default function DictionnairePage() {
   const interfaceLang = user?.settings?.interfaceLang || 'fr'
 
   const getDictModes = () => {
-    return ['EN>EN', 'FR>EN']
+    return ['EN>EN', 'EN>FR', 'FR>EN']
   }
 
   const handleSearch = useCallback(async () => {
@@ -98,6 +98,27 @@ export default function DictionnairePage() {
         }
 
         const data: DictEntry[] = await response.json()
+        setResults(data)
+      } else if (dictMode === 'EN>FR') {
+        // English to French: use MyMemory API
+        const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(query)}&langpair=en|fr`)
+
+        if (!response.ok) {
+          setError(interfaceLang === 'fr' ? 'Erreur de connexion au dictionnaire.' : 'Dictionary connection error.')
+          setSearching(false)
+          return
+        }
+
+        const data: MyMemoryResponse = await response.json()
+
+        if (!data.responseData?.translatedText) {
+          setError(interfaceLang === 'fr'
+            ? `Aucun résultat trouvé pour ce mot`
+            : `No results found for this word`)
+          setSearching(false)
+          return
+        }
+
         setResults(data)
       } else if (dictMode === 'FR>EN') {
         // French to English: use MyMemory API
@@ -313,7 +334,7 @@ export default function DictionnairePage() {
             ))
           )}
 
-          {dictMode === 'FR>EN' && !Array.isArray(results) && (
+          {(dictMode === 'EN>FR' || dictMode === 'FR>EN') && !Array.isArray(results) && (
             <div className="rounded-2xl border-2 p-5 bg-white" style={{ borderColor: '#D9B438' }}>
               <h2 className="text-2xl font-bold mb-4" style={{ color: '#002844' }}>
                 {searchQuery}

@@ -65,10 +65,12 @@ export default function OnboardingPage() {
       // Init from existing data
       if (user.settings.learningLangs?.length > 0) {
         setLearningLangs(user.settings.learningLangs);
-        // Initialize objectives with all 5 by default for each language
+        // Initialize objectives: grammaire + vocabulaire always active
         const objInit: Record<string, LearningObjective[]> = {};
         for (const lang of user.settings.learningLangs) {
-          objInit[lang] = ['grammaire', 'vocabulaire', 'lecture', 'ecrit', 'oral'];
+          objInit[lang] = user.settings.languageConfigs?.[lang]?.objectives?.length
+            ? user.settings.languageConfigs[lang].objectives
+            : ['grammaire', 'vocabulaire'];
         }
         setLangObjectives(objInit);
       }
@@ -167,14 +169,6 @@ export default function OnboardingPage() {
   };
 
   const getObjectives = (lang: string): LearningObjective[] => langObjectives[lang] || [];
-
-  const toggleObjective = (objective: LearningObjective) => {
-    const objs = getObjectives(currentLang);
-    const newObjs = objs.includes(objective)
-      ? objs.filter(o => o !== objective)
-      : [...objs, objective];
-    setLangObjectives(prev => ({ ...prev, [currentLang]: newObjs }));
-  };
 
   const toggleScheduleDay = (day: DayOfWeek) => {
     const sched = getSchedule(scheduleLang);
@@ -518,31 +512,52 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Competency selection - 5 objectives */}
+        {/* Learning intentions - 3 choices (Grammaire + Vocabulaire always active) */}
         <div>
-          <label className="block text-sm font-semibold mb-3 text-[#002844]">
-            {interfaceLang === 'fr' ? 'Que souhaites-tu travailler en priorité ?' : 'What do you want to focus on?'}
+          <label className="block text-sm font-semibold mb-2 text-[#002844]">
+            {interfaceLang === 'fr' ? 'Quelle est ton intention principale ?' : 'What is your main intention?'}
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <p className="text-xs text-[#555555] mb-3">
+            {interfaceLang === 'fr'
+              ? 'Grammaire et Vocabulaire sont toujours inclus dans ta session.'
+              : 'Grammar and Vocabulary are always included in your session.'}
+          </p>
+          <div className="space-y-2">
             {[
-              { id: 'vocabulaire' as LearningObjective, icon: '📚', labelFr: 'Vocabulaire', labelEn: 'Vocabulary' },
-              { id: 'grammaire' as LearningObjective, icon: '📝', labelFr: 'Grammaire', labelEn: 'Grammar' },
-              { id: 'oral' as LearningObjective, icon: '🎤', labelFr: 'Oral', labelEn: 'Speaking' },
-              { id: 'ecrit' as LearningObjective, icon: '✍️', labelFr: 'Écrit', labelEn: 'Writing' },
-              { id: 'lecture' as LearningObjective, icon: '📖', labelFr: 'Lecture', labelEn: 'Reading' },
-            ].map(obj => {
-              const objectives = getObjectives(currentLang);
-              const selected = objectives.includes(obj.id);
+              { intentions: ['oral'] as LearningObjective[], icon: '🗣️', labelFr: 'Parler — Speaking + Écoute', labelEn: 'Speak — Speaking + Listening' },
+              { intentions: ['ecrit', 'grammaire'] as LearningObjective[], icon: '✍️', labelFr: 'Écrire — Writing + Grammaire', labelEn: 'Write — Writing + Grammar' },
+              { intentions: ['lecture'] as LearningObjective[], icon: '📖', labelFr: 'Comprendre — Reading + Écoute', labelEn: 'Understand — Reading + Listening' },
+            ].map(intent => {
+              const currentObjectives = getObjectives(currentLang);
+              // Check if this intention is selected: at least one of its objectives is in the list (beyond the always-active ones)
+              const selected = intent.intentions.some(i => currentObjectives.includes(i) && i !== 'grammaire' && i !== 'vocabulaire')
+                || (intent.intentions.includes('oral') && currentObjectives.includes('oral'))
+                || (intent.intentions.includes('lecture') && currentObjectives.includes('lecture'))
+                || (intent.intentions.includes('ecrit') && currentObjectives.includes('ecrit'));
               return (
-                <button key={obj.id} onClick={() => toggleObjective(obj.id)}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-lg border-2 font-semibold text-sm transition-all ${
+                <button key={intent.icon} onClick={() => {
+                  // Toggle this intention: add/remove its objectives
+                  const current = getObjectives(currentLang);
+                  const alwaysActive: LearningObjective[] = ['grammaire', 'vocabulaire'];
+                  if (selected) {
+                    // Remove this intention's specific objectives (keep always-active)
+                    const toRemove = intent.intentions.filter(i => !alwaysActive.includes(i));
+                    const newObjs = current.filter(o => !toRemove.includes(o));
+                    setLangObjectives(prev => ({ ...prev, [currentLang]: newObjs.length > 0 ? newObjs : alwaysActive }));
+                  } else {
+                    // Add this intention's objectives + ensure always-active
+                    const merged = Array.from(new Set([...current, ...intent.intentions, ...alwaysActive]));
+                    setLangObjectives(prev => ({ ...prev, [currentLang]: merged }));
+                  }
+                }}
+                  className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl border-2 font-semibold text-sm transition-all ${
                     selected
                       ? 'border-[#D9B438] bg-[#D9B438]/10 text-[#002844]'
                       : 'border-gray-200 text-[#002844] hover:border-[#002844]/30'
                   }`}>
-                  <span className="text-lg">{obj.icon}</span>
-                  <span className="flex-1 text-left">{interfaceLang === 'fr' ? obj.labelFr : obj.labelEn}</span>
-                  {selected && <span className="text-[#D9B438]">✓</span>}
+                  <span className="text-2xl">{intent.icon}</span>
+                  <span className="flex-1 text-left">{interfaceLang === 'fr' ? intent.labelFr : intent.labelEn}</span>
+                  {selected && <span className="text-[#D9B438] text-lg">✓</span>}
                 </button>
               );
             })}

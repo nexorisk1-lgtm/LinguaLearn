@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, logoutUser, updateUserSettings, setActiveLang } from '@/lib/db/localStorage'
-import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LEARNING_OBJECTIVES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
+import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
 import { getThemeName } from '@/lib/i18n'
 import {
   User as UserIcon, Globe, Calendar,
@@ -171,8 +171,11 @@ export default function ProfilPage() {
       const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en'
       const languageConfigs = { ...(user.settings.languageConfigs || {}) }
       const currentConfig = languageConfigs[activeLang] || { objectives: [], themes: [], hasGrcThemes: false }
+      // Ensure grammaire + vocabulaire always included
+      const alwaysActive = ['grammaire', 'vocabulaire']
+      const finalObjectives = Array.from(new Set([...tempObjectives, ...alwaysActive]))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      languageConfigs[activeLang] = { ...currentConfig, objectives: tempObjectives as any }
+      languageConfigs[activeLang] = { ...currentConfig, objectives: finalObjectives as any }
       const updated = updateUserSettings(user.id, { languageConfigs })
       if (updated) {
         setUser(updated)
@@ -416,11 +419,11 @@ export default function ProfilPage() {
           </div>
         </div>
 
-        {/* ROW 3: Objectives — full width compact */}
+        {/* ROW 3: Intentions (3 intentions + Grammaire/Vocabulaire always active) */}
         <div className="rounded-xl bg-white shadow-sm">
           <div className="p-3">
             <div className="flex items-center justify-between gap-1.5 mb-2">
-              <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Objectifs' : 'Objectives'}</span>
+              <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Intentions' : 'Intentions'}</span>
               {!editingObjectives && (
                 <button onClick={handleEditObjectivesOpen} className="p-1 hover:bg-gray-100 rounded transition-colors">
                   <Edit2 className="h-3 w-3 text-[#002844]" />
@@ -428,36 +431,59 @@ export default function ProfilPage() {
               )}
             </div>
             {!editingObjectives ? (
-              <div className="flex flex-wrap gap-1.5">
-                {(langConfig?.objectives || []).length > 0 ? (
-                  (langConfig?.objectives || []).map(objectiveId => {
-                    const obj = LEARNING_OBJECTIVES.find(o => o.id === objectiveId)
-                    return obj ? (
-                      <span key={objectiveId} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844] flex items-center gap-1">
-                        <span>{obj.icon}</span>
-                        {lang === 'fr' ? obj.nameFr : obj.nameEn}
-                      </span>
-                    ) : null
-                  })
-                ) : (
-                  <span className="text-[10px] text-[#999]">{lang === 'fr' ? 'Aucun objectif sélectionné' : 'No objectives selected'}</span>
-                )}
+              <div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {/* Always active badges */}
+                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#002844]/10 text-[#002844] flex items-center gap-1">
+                    <span>📝</span> {lang === 'fr' ? 'Grammaire' : 'Grammar'} <span className="text-[8px] opacity-60">auto</span>
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#002844]/10 text-[#002844] flex items-center gap-1">
+                    <span>📚</span> {lang === 'fr' ? 'Vocabulaire' : 'Vocabulary'} <span className="text-[8px] opacity-60">auto</span>
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(langConfig?.objectives || []).includes('oral') && (
+                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844] flex items-center gap-1">
+                      🗣️ {lang === 'fr' ? 'Parler' : 'Speak'}
+                    </span>
+                  )}
+                  {(langConfig?.objectives || []).includes('ecrit') && (
+                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844] flex items-center gap-1">
+                      ✍️ {lang === 'fr' ? 'Écrire' : 'Write'}
+                    </span>
+                  )}
+                  {(langConfig?.objectives || []).includes('lecture') && (
+                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844] flex items-center gap-1">
+                      📖 {lang === 'fr' ? 'Comprendre' : 'Understand'}
+                    </span>
+                  )}
+                  {!(langConfig?.objectives || []).some(o => ['oral', 'ecrit', 'lecture'].includes(o)) && (
+                    <span className="text-[10px] text-[#999]">{lang === 'fr' ? 'Aucune intention sélectionnée' : 'No intention selected'}</span>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
-                {LEARNING_OBJECTIVES.map(obj => (
-                  <div key={obj.id} className="flex items-center gap-2">
+                <p className="text-[10px] text-[#555555] mb-1">
+                  {lang === 'fr' ? 'Grammaire et Vocabulaire sont toujours inclus.' : 'Grammar and Vocabulary are always included.'}
+                </p>
+                {[
+                  { id: 'oral', icon: '🗣️', labelFr: 'Parler (Speaking + Écoute)', labelEn: 'Speak (Speaking + Listening)' },
+                  { id: 'ecrit', icon: '✍️', labelFr: 'Écrire (Writing + Grammaire)', labelEn: 'Write (Writing + Grammar)' },
+                  { id: 'lecture', icon: '📖', labelFr: 'Comprendre (Reading + Écoute)', labelEn: 'Understand (Reading + Listening)' },
+                ].map(intent => (
+                  <div key={intent.id} className="flex items-center gap-2">
                     <button
-                      onClick={() => toggleObjective(obj.id)}
+                      onClick={() => toggleObjective(intent.id)}
                       className={`flex-shrink-0 w-4 h-4 rounded border transition-all ${
-                        tempObjectives.includes(obj.id)
+                        tempObjectives.includes(intent.id)
                           ? 'bg-[#D9B438] border-[#D9B438]'
                           : 'border-gray-300 bg-white'
                       }`}>
-                      {tempObjectives.includes(obj.id) && <Check className="h-3 w-3 text-[#002844]" />}
+                      {tempObjectives.includes(intent.id) && <Check className="h-3 w-3 text-[#002844]" />}
                     </button>
-                    <span className="text-sm">{obj.icon}</span>
-                    <span className="text-xs text-[#002844] flex-1">{lang === 'fr' ? obj.nameFr : obj.nameEn}</span>
+                    <span className="text-sm">{intent.icon}</span>
+                    <span className="text-xs text-[#002844] flex-1">{lang === 'fr' ? intent.labelFr : intent.labelEn}</span>
                   </div>
                 ))}
                 <div className="flex gap-2 pt-2 border-t border-gray-200 mt-2">

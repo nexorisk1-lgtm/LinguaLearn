@@ -90,12 +90,11 @@ export default function OralModule() {
     setLoading(false)
   }, [router])
 
-  // Filter exercises based on user's active language and filters
+  // Filter exercises based on filters only (already language-filtered by getSpeakingExercises)
   const filteredExercises = exercises.filter((ex) => {
-    const langMatch = ex.language === user?.activeLang
     const themeMatch = !filterTheme || ex.theme === filterTheme
     const levelMatch = !filterLevel || ex.level === filterLevel
-    return langMatch && themeMatch && levelMatch
+    return themeMatch && levelMatch
   })
 
   const handlePlayAudio = async () => {

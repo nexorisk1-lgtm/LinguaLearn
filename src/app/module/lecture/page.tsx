@@ -54,6 +54,13 @@ export default function LecturePage() {
   const [addWordLoading, setAddWordLoading] = useState(false);
   const [addWordSuccess, setAddWordSuccess] = useState(false);
 
+  // BUG-16: Word-by-word highlight state
+  const [highlightWordIndex, setHighlightWordIndex] = useState<number>(-1);
+  const [highlightTextId, setHighlightTextId] = useState<string | null>(null);
+
+  // BUG-17: Track read texts
+  const [readTexts, setReadTexts] = useState<Set<string>>(new Set());
+
   // Initialize user and load data
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -124,10 +131,17 @@ export default function LecturePage() {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
       setSpeakingTextId(null);
+      setHighlightWordIndex(-1);
+      setHighlightTextId(null);
     } else {
-      // Start reading
+      // Stop any ongoing speech first
+      window.speechSynthesis.cancel();
+
       setSpeakingTextId(textId);
+      setHighlightTextId(textId);
+      setHighlightWordIndex(0);
       setIsSpeaking(true);
+
       const utterance = new SpeechSynthesisUtterance(text);
 
       const languageMap: Record<string, string> = {
@@ -147,17 +161,64 @@ export default function LecturePage() {
       utterance.pitch = 1;
       utterance.volume = 1;
 
+      // BUG-16: Word-by-word highlight via boundary event
+      const words = text.split(/\s+/);
+      utterance.onboundary = (event: SpeechSynthesisEvent) => {
+        if (event.name === 'word') {
+          // Find which word index we're at based on charIndex
+          let charCount = 0;
+          for (let i = 0; i < words.length; i++) {
+            if (charCount >= event.charIndex) {
+              setHighlightWordIndex(i);
+              break;
+            }
+            charCount += words[i].length + 1; // +1 for space
+          }
+        }
+      };
+
       utterance.onend = () => {
         setIsSpeaking(false);
         setSpeakingTextId(null);
+        setHighlightWordIndex(-1);
+        setHighlightTextId(null);
+        // BUG-17: Mark text as read and update progression
+        markTextAsRead(textId);
       };
 
       utterance.onerror = () => {
         setIsSpeaking(false);
         setSpeakingTextId(null);
+        setHighlightWordIndex(-1);
+        setHighlightTextId(null);
       };
 
       window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // BUG-17: Update reading progression
+  const markTextAsRead = (textId: string) => {
+    if (readTexts.has(textId)) return;
+    const newRead = new Set(readTexts);
+    newRead.add(textId);
+    setReadTexts(newRead);
+
+    // Update progression in localStorage
+    if (user && readingTexts.length > 0) {
+      const totalTexts = readingTexts.length;
+      const readCount = newRead.size;
+      const pct = Math.round((readCount / totalTexts) * 100);
+
+      // Import and call updateUserProgress
+      import('@/lib/db/localStorage').then(({ updateUserProgress }) => {
+        updateUserProgress(user.id, activeLang, {
+          objectiveProgress: {
+            ...user.progress?.[activeLang]?.objectiveProgress,
+            lecture: pct,
+          },
+        });
+      });
     }
   };
 
@@ -424,7 +485,29 @@ export default function LecturePage() {
               onDoubleClick={handleTextDoubleClick}
               title={t('reading.doubleClick', interfaceLang)}
             >
-              {text.body_text}
+              {highlightTextId === text.id
+                ? text.body_text.split(/(\s+)/).map((segment, i) => {
+                    // Split preserving spaces: words are at even indices
+                    if (/^\s+$/.test(segment)) return segment;
+                    const wordIdx = Math.floor(i / 2);
+                    const isHighlighted = wordIdx === highlightWordIndex;
+                    return (
+                      <span
+                        key={i}
+                        style={{
+                          backgroundColor: isHighlighted ? '#D9B438' : 'transparent',
+                          color: isHighlighted ? '#002844' : '#555555',
+                          borderRadius: isHighlighted ? '3px' : '0',
+                          padding: isHighlighted ? '1px 2px' : '0',
+                          fontWeight: isHighlighted ? '600' : 'normal',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                      >
+                        {segment}
+                      </span>
+                    );
+                  })
+                : text.body_text}
             </p>
             <p
               className="mt-4 text-xs italic"
@@ -432,6 +515,21 @@ export default function LecturePage() {
             >
               {t('reading.doubleClick', interfaceLang)}
             </p>
+
+            {/* BUG-17: Mark as read button */}
+            <button
+              onClick={() => markTextAsRead(text.id)}
+              disabled={readTexts.has(text.id)}
+              className="mt-4 w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+              style={{
+                backgroundColor: readTexts.has(text.id) ? '#c8e6c9' : '#002844',
+                color: readTexts.has(text.id) ? '#2e7d32' : '#FFFFFF',
+              }}
+            >
+              {readTexts.has(text.id)
+                ? (interfaceLang === 'fr' ? '✓ Texte lu' : '✓ Text read')
+                : (interfaceLang === 'fr' ? 'Marquer comme lu' : 'Mark as read')}
+            </button>
           </div>
         )}
       </div>

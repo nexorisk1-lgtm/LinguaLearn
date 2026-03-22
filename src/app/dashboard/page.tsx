@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, setActiveLang, logoutUser } from '@/lib/db/localStorage'
-import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES, LEARNING_OBJECTIVES } from '@/types'
+import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
-  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, BarChart3, LogOut,
+  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -270,8 +270,8 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC-03: CTA — Bouton session du jour */}
-        <a href={sessionModules[0]?.href || '/module/vocabulaire'}
+        {/* BLOC-03: CTA — Bouton session du jour → page session guidée */}
+        <a href="/session"
           className="block mb-4 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-4 shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
@@ -444,35 +444,6 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Progression par objectifs */}
-            {objectives.length > 0 && (
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="h-4 w-4 text-[#002844]" />
-                  <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Progression par sujet' : 'Progress by subject'}</span>
-                </div>
-                <div className="space-y-3">
-                  {objectives.map(obj => {
-                    const objInfo = LEARNING_OBJECTIVES.find(o => o.id === obj)
-                    const pct = progress?.objectiveProgress?.[obj] || 0
-                    return (
-                      <div key={obj} className="flex items-center gap-3">
-                        <span className="text-lg w-6 text-center">{objInfo?.icon}</span>
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-0.5">
-                            <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? objInfo?.nameFr : objInfo?.nameEn}</span>
-                            <span className="text-xs text-[#555555]">{pct}%</span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-gray-200">
-                            <div className="h-full rounded-full bg-[#D9B438] transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right column (40%) */}
