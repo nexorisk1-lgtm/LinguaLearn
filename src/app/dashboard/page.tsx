@@ -6,6 +6,7 @@ import { getCurrentUser, setActiveLang, logoutUser } from '@/lib/db/localStorage
 import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
+import DailyWordsChest from '@/components/exercises/DailyWordsChest'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
   BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut,
@@ -430,6 +431,11 @@ export default function DashboardPage() {
                 </div>
               )
             })()}
+
+            {/* BLOC-08: Daily Words Chest */}
+            {activeLang && (
+              <DailyWordsChest user={user} activeLang={activeLang} lang={lang} />
+            )}
 
             {/* Accordéon — Tâches supplémentaires */}
             <div className="rounded-2xl bg-white shadow-sm overflow-hidden">

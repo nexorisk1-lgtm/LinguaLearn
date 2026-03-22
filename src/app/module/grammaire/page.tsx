@@ -18,6 +18,7 @@ import {
   IrregularVerb,
 } from '@/lib/db/bankTypes'
 import { VerbExercise } from '@/lib/db/bankGrammar'
+import GrammarCarousel from '@/components/exercises/GrammarCarousel'
 import {
   ArrowLeft,
   Volume2,
@@ -300,7 +301,7 @@ export default function GrammairePage() {
 
         {/* Rules Tab */}
         {activeTab === 'rules' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {filteredRules.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg">
                 <div className="max-w-md mx-auto">
@@ -323,7 +324,32 @@ export default function GrammairePage() {
                 </div>
               </div>
             ) : (
-              filteredRules.map((rule) => (
+              <>
+                {/* Grammar Carousel */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h2 style={{ color: '#002844' }} className="text-lg font-bold mb-4">
+                    {interfaceLang === 'fr' ? 'Votre progression' : 'Your progress'}
+                  </h2>
+                  {user && (
+                    <GrammarCarousel
+                      rules={filteredRules}
+                      user={user}
+                      activeLang={activeLang}
+                      lang={interfaceLang}
+                      onSelectRule={(ruleId) => {
+                        setSelectedRuleId(ruleId)
+                        setActiveTab('exercises')
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Rules Details (Accordion) */}
+                <div className="space-y-4">
+                  <h2 style={{ color: '#002844' }} className="text-lg font-bold">
+                    {interfaceLang === 'fr' ? 'Détails des règles' : 'Rule details'}
+                  </h2>
+                  {filteredRules.map((rule) => (
                 <div
                   key={rule.id}
                   className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
@@ -464,7 +490,9 @@ export default function GrammairePage() {
                     </div>
                   )}
                 </div>
-              ))
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
