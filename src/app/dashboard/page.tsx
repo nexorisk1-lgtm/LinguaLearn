@@ -19,7 +19,7 @@ export default function DashboardPage() {
   const [langSelectorOpen, setLangSelectorOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
 
-  useEffect(() => {
+  const loadUser = () => {
     const currentUser = getCurrentUser()
     if (!currentUser) { router.push('/auth'); return }
     if (!currentUser.onboardingCompleted && currentUser.role !== 'admin') { router.push('/onboarding'); return }
@@ -30,12 +30,32 @@ export default function DashboardPage() {
       setLoading(false)
       return
     }
+    // If activeLang was removed from learningLangs, reset it
+    if (currentUser.activeLang && !currentUser.settings.learningLangs.includes(currentUser.activeLang)) {
+      currentUser.activeLang = currentUser.settings.learningLangs[0] || undefined
+    }
     if (!currentUser.activeLang && currentUser.settings.learningLangs.length > 0) {
       currentUser.activeLang = currentUser.settings.learningLangs[0]
     }
     setUser(currentUser)
     setLang(currentUser.settings.interfaceLang || 'fr')
     setLoading(false)
+  }
+
+  useEffect(() => {
+    loadUser()
+    // Reload user data when returning to this page (e.g. back from Profile)
+    const handleReload = () => loadUser()
+    const handleVisibility = () => { if (document.visibilityState === 'visible') loadUser() }
+    window.addEventListener('focus', handleReload)
+    window.addEventListener('popstate', handleReload)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('focus', handleReload)
+      window.removeEventListener('popstate', handleReload)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
   const switchLanguage = (newLang: LearningLanguage) => {
