@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, setActiveLang, logoutUser } from '@/lib/db/localStorage'
-import { User, InterfaceLanguage, LearningLanguage, LEARNING_LANGUAGES, LEARNING_OBJECTIVES } from '@/types'
+import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES, LEARNING_OBJECTIVES } from '@/types'
 import { t } from '@/lib/i18n'
 import {
-  Flame, GraduationCap, Trophy, ChevronDown, ChevronRight,
-  BookOpen, PenTool, Languages, Dumbbell, Home, MessageCircle, User as UserIcon, BarChart3, LogOut,
+  Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
+  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, BarChart3, LogOut,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -105,13 +105,24 @@ export default function DashboardPage() {
   const hasGrc = langConfig?.hasGrcThemes || false
   const objectives = langConfig?.objectives || []
 
-  // Module blocks config
+  // 5 objective blocks (Spec V3 §6) — Entraînement is a mode, not an objective
   const moduleBlocks = [
     { id: 'vocabulaire', label: lang === 'fr' ? 'Vocabulaire' : 'Vocabulary', icon: BookOpen, color: '#1976D2', bgLight: '#E3F2FD', href: '/module/vocabulaire', objective: 'vocabulaire' },
     { id: 'grammaire', label: lang === 'fr' ? 'Grammaire' : 'Grammar', icon: PenTool, color: '#F9A825', bgLight: '#FFF8E1', href: '/module/grammaire', objective: 'grammaire' },
     { id: 'lecture', label: lang === 'fr' ? 'Lecture' : 'Reading', icon: Languages, color: '#2E7D32', bgLight: '#E8F5E9', href: '/module/lecture', objective: 'lecture' },
-    { id: 'entrainement', label: lang === 'fr' ? 'Entraînement' : 'Training', icon: Dumbbell, color: '#E65100', bgLight: '#FFF3E0', href: '/module/entrainement', objective: null },
+    { id: 'oral', label: lang === 'fr' ? 'Oral' : 'Speaking', icon: Mic, color: '#7B1FA2', bgLight: '#F3E5F5', href: '/module/oral', objective: 'oral' },
+    { id: 'ecrit', label: lang === 'fr' ? 'Écrit' : 'Writing', icon: Pencil, color: '#E65100', bgLight: '#FFF3E0', href: '/module/ecrit', objective: 'ecrit' },
   ]
+
+  // CTA — session du jour: pick 2 priority modules based on lowest progression
+  const sessionModules = [...moduleBlocks]
+    .sort((a, b) => {
+      const pctA = progress?.objectiveProgress?.[a.objective as keyof typeof progress.objectiveProgress] || 0
+      const pctB = progress?.objectiveProgress?.[b.objective as keyof typeof progress.objectiveProgress] || 0
+      return pctA - pctB
+    })
+    .slice(0, 2)
+  const sessionDuration = user.settings.schedules?.[activeLang]?.duration || user.settings.schedule?.duration || 10
 
   // Bottom nav items
   const bottomNav = [
@@ -162,19 +173,51 @@ export default function DashboardPage() {
 
       {/* MAIN CONTENT */}
       <main className="px-4 pt-4">
-        {/* Greeting + Streak */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {user.firstName && !user.firstName.includes('@') ? user.firstName : user.firstName?.split('@')[0] || (lang === 'fr' ? 'apprenant' : 'learner')} 👋</h2>
-            <p className="text-xs text-[#555555] mt-0.5">
-              {lang === 'fr' ? `Jour 1 — Continue comme ça !` : `Day 1 — Keep it up!`}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 shadow-sm">
-            <Flame className="h-5 w-5 text-[#D9B438]" fill="#D9B438" />
-            <span className="text-lg font-bold text-[#002844]">0</span>
-          </div>
-        </div>
+        {/* BLOC-01: Greeting + BLOC-04: Streak + Daily objective */}
+        {(() => {
+          const streak = progress?.streak || 0
+          const dailyWords = progress?.dailyWordsCompleted || 0
+          const dailyExercises = progress?.dailyExercisesCompleted || 0
+          const wordsTarget = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
+          const dailyTotal = dailyWords + dailyExercises
+          const dailyTarget = wordsTarget + 4 // words + exercises
+          const dailyPct = Math.min(100, Math.round((dailyTotal / dailyTarget) * 100))
+          const displayName = user.firstName && !user.firstName.includes('@') ? user.firstName : user.firstName?.split('@')[0] || (lang === 'fr' ? 'apprenant' : 'learner')
+          return (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {displayName} 👋</h2>
+                  <p className="text-xs text-[#555555] mt-0.5">
+                    {streak > 0
+                      ? (lang === 'fr' ? `Jour ${streak} — Continue comme ça !` : `Day ${streak} — Keep it up!`)
+                      : (lang === 'fr' ? 'Commence ta première session !' : 'Start your first session!')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 shadow-sm">
+                  <Flame className="h-5 w-5 text-[#D9B438]" fill="#D9B438" />
+                  <span className="text-lg font-bold text-[#002844]">{streak}</span>
+                </div>
+              </div>
+              {/* Daily objective bar */}
+              <div className="rounded-xl bg-white p-3 shadow-sm mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-[#002844]">
+                    {lang === 'fr' ? "Objectif du jour" : "Today's goal"}
+                  </span>
+                  <span className="text-xs font-bold text-[#D9B438]">{dailyTotal}/{dailyTarget}</span>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-gradient-to-r from-[#D9B438] to-[#f0c84a] transition-all" style={{ width: `${dailyPct}%` }} />
+                </div>
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-[10px] text-[#555555]">{dailyWords} {lang === 'fr' ? 'mots' : 'words'}</span>
+                  <span className="text-[10px] text-[#555555]">{dailyExercises} {lang === 'fr' ? 'exercices' : 'exercises'}</span>
+                </div>
+              </div>
+            </>
+          )
+        })()}
 
         {/* Level badges */}
         <div className={`grid gap-2 mb-4 ${hasGrc ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -214,14 +257,35 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* 4 MODULE BLOCKS — 2x2 grid */}
+        {/* BLOC-03: CTA — Bouton session du jour */}
+        <a href={sessionModules[0]?.href || '/module/vocabulaire'}
+          className="block mb-4 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-4 shadow-lg active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
+              <Play className="h-6 w-6 text-[#002844] ml-0.5" fill="#002844" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-white">
+                {lang === 'fr' ? 'Commencer ma session' : 'Start my session'}
+              </p>
+              <p className="text-xs text-white/70 mt-0.5">
+                ~{sessionDuration} min · {sessionModules.map(m => m.label).join(' + ')}
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-[#D9B438] flex-shrink-0" />
+          </div>
+        </a>
+
+        {/* BLOC-05: 5 OBJECTIVE BLOCKS — grid */}
         <div className="grid grid-cols-2 gap-3 mb-4">
-          {moduleBlocks.map(block => {
+          {moduleBlocks.map((block, idx) => {
             const Icon = block.icon
-            const pct = block.objective ? (progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0) : 0
+            const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
+            // Last block (5th) spans full width
+            const isLast = idx === moduleBlocks.length - 1 && moduleBlocks.length % 2 !== 0
             return (
               <a key={block.id} href={block.href}
-                className="rounded-2xl p-4 shadow-sm transition-transform active:scale-95"
+                className={`rounded-2xl p-4 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2' : ''}`}
                 style={{ backgroundColor: block.bgLight }}>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="p-2 rounded-xl" style={{ backgroundColor: block.color }}>
@@ -229,21 +293,105 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <p className="font-bold text-sm mb-2" style={{ color: block.color }}>{block.label}</p>
-                {block.objective && (
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-xs text-[#555555]">{lang === 'fr' ? 'Progression' : 'Progress'}</span>
-                      <span className="text-xs font-bold" style={{ color: block.color }}>{pct}%</span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-white/60">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
-                    </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-xs text-[#555555]">{lang === 'fr' ? 'Progression' : 'Progress'}</span>
+                    <span className="text-xs font-bold" style={{ color: block.color }}>{pct}%</span>
                   </div>
-                )}
+                  <div className="h-1.5 w-full rounded-full bg-white/60">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
+                  </div>
+                </div>
               </a>
             )
           })}
         </div>
+
+        {/* BLOC-06: À réviser aujourd'hui */}
+        {(() => {
+          const wordsToReview = progress?.wordsToReview || 0
+          const grammarToReview = progress?.grammarToReview || 0
+          const totalReview = wordsToReview + grammarToReview
+          return (
+            <div className="rounded-2xl bg-white shadow-sm mb-4 overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <RefreshCw className="h-4 w-4 text-[#7B1FA2]" />
+                  <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'À réviser aujourd\'hui' : 'To review today'}</span>
+                </div>
+                {totalReview > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <a href="/module/vocabulaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#F3E5F5] hover:bg-[#E1BEE7] transition-colors">
+                      <BookOpen className="h-4 w-4 text-[#7B1FA2]" />
+                      <div>
+                        <p className="text-lg font-bold text-[#7B1FA2]">{wordsToReview}</p>
+                        <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'mots' : 'words'}</p>
+                      </div>
+                    </a>
+                    <a href="/module/grammaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#FFF8E1] hover:bg-[#FFECB3] transition-colors">
+                      <PenTool className="h-4 w-4 text-[#F9A825]" />
+                      <div>
+                        <p className="text-lg font-bold text-[#F9A825]">{grammarToReview}</p>
+                        <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'règles' : 'rules'}</p>
+                      </div>
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Rien à réviser pour le moment. Complète des exercices pour alimenter ta révision !' : 'Nothing to review yet. Complete exercises to build your review list!'}</p>
+                )}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* BLOC-07: Calendrier révision + rappel du jour */}
+        {(() => {
+          const schedule = user.settings.schedules?.[activeLang] || user.settings.schedule
+          const today = new Date()
+          const dayNames = lang === 'fr'
+            ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+            : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+          const dayIds = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+          const todayDayId = dayIds[today.getDay()]
+          const isScheduledToday = schedule?.days?.includes(todayDayId as DayOfWeek) || false
+          return (
+            <div className="rounded-2xl bg-white p-4 shadow-sm mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-[#002844]" />
+                  <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Mon planning' : 'My schedule'}</span>
+                </div>
+                <a href="/module/profil" className="text-[10px] font-semibold text-[#D9B438]">{lang === 'fr' ? 'Modifier' : 'Edit'}</a>
+              </div>
+              <div className="flex gap-1 mb-3">
+                {dayNames.map((name, i) => {
+                  const isActive = schedule?.days?.includes(dayIds[i] as DayOfWeek) || false
+                  const isToday = i === today.getDay()
+                  return (
+                    <div key={i} className={`flex-1 rounded-lg py-1.5 text-center text-[10px] font-bold transition-all ${
+                      isToday && isActive ? 'bg-[#D9B438] text-[#002844] ring-2 ring-[#D9B438]/30' :
+                      isToday ? 'bg-[#002844]/10 text-[#002844] ring-2 ring-[#002844]/20' :
+                      isActive ? 'bg-[#002844] text-white' :
+                      'bg-[#F0F0F0] text-[#999]'
+                    }`}>
+                      {name}
+                    </div>
+                  )
+                })}
+              </div>
+              {isScheduledToday ? (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#D9B438]/10">
+                  <Clock className="h-3.5 w-3.5 text-[#D9B438]" />
+                  <span className="text-xs font-semibold text-[#002844]">
+                    {lang === 'fr' ? `Session prévue aujourd'hui · ${schedule?.duration || 20} min` : `Session scheduled today · ${schedule?.duration || 20} min`}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Pas de session prévue aujourd\'hui' : 'No session scheduled today'}</p>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Accordéon — Tâches supplémentaires */}
         <div className="rounded-2xl bg-white shadow-sm mb-4 overflow-hidden">
@@ -254,17 +402,17 @@ export default function DashboardPage() {
           </button>
           {tasksOpen && (
             <div className="px-4 pb-4 space-y-2">
+              <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
+                <Dumbbell className="h-4 w-4 text-[#E65100]" />
+                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Entraînement (quiz, flashcards, jeux)' : 'Training (quiz, flashcards, games)'}</span>
+              </a>
               <a href="/module/vocabulaire?tab=write" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
                 <PenTool className="h-4 w-4 text-[#002844]" />
                 <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Exercice de traduction' : 'Translation exercise'}</span>
               </a>
-              <a href="/module/vocabulaire?tab=write" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                <PenTool className="h-4 w-4 text-[#002844]" />
-                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Écrit' : 'Writing'}</span>
-              </a>
-              <a href="/module/vocabulaire?tab=pronounce" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                <Languages className="h-4 w-4 text-[#002844]" />
-                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Oral' : 'Speaking'}</span>
+              <a href="/onboarding/diagnostic" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
+                <GraduationCap className="h-4 w-4 text-[#002844]" />
+                <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Évaluation diagnostique' : 'Diagnostic assessment'}</span>
               </a>
             </div>
           )}
@@ -300,16 +448,37 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Weekly ranking */}
-        <div className="rounded-2xl bg-white p-4 shadow-sm mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-[#D9B438]" />
-              <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Classement hebdo' : 'Weekly ranking'}</span>
+        {/* BLOC-08: Weekly ranking */}
+        {(() => {
+          const streak = progress?.streak || 0
+          const dailyWords = progress?.dailyWordsCompleted || 0
+          const dailyExercises = progress?.dailyExercisesCompleted || 0
+          const score = (streak * 10) + (dailyWords * 2) + (dailyExercises * 3)
+          return (
+            <div className="rounded-2xl bg-white p-4 shadow-sm mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="h-4 w-4 text-[#D9B438]" />
+                <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Classement hebdo' : 'Weekly ranking'}</span>
+              </div>
+              {score > 0 ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#D9B438]/20 flex items-center justify-center">
+                    <span className="text-lg font-bold text-[#D9B438]">1</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-[#002844]">{user.firstName}</p>
+                    <p className="text-xs text-[#555555]">{score} pts · {streak} {lang === 'fr' ? 'jours' : 'days'}</p>
+                  </div>
+                  <Trophy className="h-5 w-5 text-[#D9B438]" />
+                </div>
+              ) : (
+                <p className="text-xs text-[#555555]">
+                  {lang === 'fr' ? 'Complète des exercices pour apparaître au classement !' : 'Complete exercises to appear in the ranking!'}
+                </p>
+              )}
             </div>
-            <span className="text-sm text-[#555555]">{lang === 'fr' ? 'Pas encore de données' : 'No data yet'}</span>
-          </div>
-        </div>
+          )
+        })()}
       </main>
 
       {/* ===== BOTTOM NAVIGATION BAR ===== */}

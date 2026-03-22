@@ -173,6 +173,13 @@ export interface UserProgress {
   diagnosticResults?: DiagnosticResult;
   diagnosticCompleted?: boolean;
   grcDiagnosticCompleted?: boolean;
+  // Streak & daily tracking
+  streak?: number;
+  lastActivityDate?: string; // YYYY-MM-DD
+  dailyWordsCompleted?: number;
+  dailyExercisesCompleted?: number;
+  wordsToReview?: number;
+  grammarToReview?: number;
 }
 
 // --- User complet ---
