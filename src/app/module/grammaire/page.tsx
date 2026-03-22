@@ -50,6 +50,7 @@ export default function GrammairePage() {
   const [activeTab, setActiveTab] = useState<TabType>('rules')
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null)
   const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null)
+  const [showingLesson, setShowingLesson] = useState(true)
 
   const [grammarRules, setGrammarRules] = useState<GrammarRule[]>([])
   const [exercises, setExercises] = useState<GrammarExercise[]>([])
@@ -101,6 +102,7 @@ export default function GrammairePage() {
     if (selectedRuleId) {
       const ruleExercises = getExercisesForRule(selectedRuleId)
       setExercises(ruleExercises)
+      setShowingLesson(true)
       setExerciseState({
         currentIndex: 0,
         answered: false,
@@ -511,8 +513,95 @@ export default function GrammairePage() {
               </div>
             ) : (
               <div className="space-y-8">
+                {/* Grammar Rule Lesson Phase */}
+                {selectedRuleId && exercises.length > 0 && showingLesson && (() => {
+                  const selectedRule = grammarRules.find((r) => r.id === selectedRuleId)
+                  if (!selectedRule) return null
+                  return (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <div className="mb-6">
+                        <h2 className="text-3xl font-bold mb-4" style={{ color: '#002844' }}>
+                          {selectedRule.rule_name}
+                        </h2>
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="font-semibold text-lg mb-2" style={{ color: '#D9B438' }}>
+                              {interfaceLang === 'fr' ? 'Définition' : 'Definition'}
+                            </h3>
+                            <p style={{ color: '#555555' }} className="text-base mb-3">
+                              {selectedRule.definition_en}
+                            </p>
+                            {selectedRule.definition_fr && (
+                              <p style={{ color: '#555555' }} className="text-base">
+                                <span className="font-medium">FR:</span> {selectedRule.definition_fr}
+                              </p>
+                            )}
+                          </div>
+
+                          {selectedRule.attention_points && selectedRule.attention_points.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-lg mb-2" style={{ color: '#D9B438' }}>
+                                {interfaceLang === 'fr' ? 'Points importants' : 'Important points'}
+                              </h3>
+                              <ul className="space-y-2">
+                                {Array.isArray(selectedRule.attention_points) ? (
+                                  selectedRule.attention_points.map((point, idx) => (
+                                    <li key={idx} style={{ color: '#555555' }} className="text-sm">
+                                      • {point}
+                                    </li>
+                                  ))
+                                ) : (
+                                  <li style={{ color: '#555555' }}>{selectedRule.attention_points}</li>
+                                )}
+                              </ul>
+                            </div>
+                          )}
+
+                          {selectedRule.examples && selectedRule.examples.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-lg mb-3" style={{ color: '#D9B438' }}>
+                                {interfaceLang === 'fr' ? 'Exemples' : 'Examples'}
+                              </h3>
+                              <ul className="space-y-3">
+                                {selectedRule.examples.map((example, idx) => (
+                                  <li key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200">
+                                    <div className="flex-1">
+                                      <p style={{ color: '#002844' }} className="text-sm font-medium">
+                                        {example.en}
+                                      </p>
+                                      <p style={{ color: '#555555' }} className="text-xs mt-1">
+                                        {example.fr}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handlePlayExample(example.en)}
+                                      className="p-2 hover:bg-white rounded transition"
+                                      aria-label="Écouter"
+                                    >
+                                      <Volume2 className="w-4 h-4" style={{ color: '#D9B438' }} />
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setShowingLesson(false)}
+                        className="w-full py-3 rounded-lg font-bold text-white transition hover:opacity-90 flex items-center justify-center gap-2"
+                        style={{ backgroundColor: '#002844' }}
+                      >
+                        <Play className="w-4 h-4" />
+                        {interfaceLang === 'fr' ? 'Commencer les exercices' : 'Start exercises'}
+                      </button>
+                    </div>
+                  )
+                })()}
+
                 {/* Grammar Rule Exercises */}
-                {selectedRuleId && exercises.length > 0 && (
+                {selectedRuleId && exercises.length > 0 && !showingLesson && (
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 {/* Score */}
                 <div className="flex justify-between items-center mb-6">

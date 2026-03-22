@@ -182,96 +182,97 @@ export default function SessionPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [heardText, setHeardText] = useState('')
 
-  // Build session exercises
+  // BUG-33: TTS audio + speed control + word highlight
+  const [readingSpeed, setReadingSpeed] = useState(1)
+  const [highlightWordIndex, setHighlightWordIndex] = useState<number | null>(null)
+  const [isReadingAloud, setIsReadingAloud] = useState(false)
+
+  // BUG-34: text spacing + truncation
+  const [readingExpanded, setReadingExpanded] = useState(false)
+
+  // Build session exercises with structured 4-step flow
   const buildSession = useCallback((currentUser: User) => {
     const activeLang = currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en'
     const langConfig = currentUser.settings.languageConfigs?.[activeLang]
     const userLevel = currentUser.progress?.[activeLang]?.levelCecrl || 'A1'
     const userThemes = langConfig?.themes || ['travel']
-    const intentions = langConfig?.objectives || ['vocabulaire', 'grammaire']
-    const progress = currentUser.progress?.[activeLang]
-
-    // Map intentions to allowed modules
-    // oral -> oral, grammaire, vocabulaire
-    // ecrit -> ecrit, grammaire, vocabulaire
-    // lecture -> lecture, grammaire, vocabulaire
-    // grammaire and vocabulaire are ALWAYS included
-    const allowedModules = new Set<LearningObjective>(['grammaire', 'vocabulaire'])
-    for (const intention of intentions as string[]) {
-      if (intention === 'oral') allowedModules.add('oral')
-      else if (intention === 'ecrit') allowedModules.add('ecrit')
-      else if (intention === 'lecture') allowedModules.add('lecture')
-    }
-
-    // Determine which modules to include based on allowed modules, prioritize lowest progress
-    const moduleBlocks: { id: LearningObjective; pct: number }[] = [
-      { id: 'vocabulaire', pct: progress?.objectiveProgress?.vocabulaire || 0 },
-      { id: 'grammaire', pct: progress?.objectiveProgress?.grammaire || 0 },
-      { id: 'lecture', pct: progress?.objectiveProgress?.lecture || 0 },
-      { id: 'oral', pct: progress?.objectiveProgress?.oral || 0 },
-      { id: 'ecrit', pct: progress?.objectiveProgress?.ecrit || 0 },
-    ]
-
-    // Filter only allowed modules and sort by progress
-    const prioritized = moduleBlocks
-      .filter(b => allowedModules.has(b.id))
-      .sort((a, b) => a.pct - b.pct)
-      .slice(0, 3) // Pick top 3 modules for session
-
+    const objectives = langConfig?.objectives || ['vocabulaire', 'grammaire']
     const allExercises: SessionExercise[] = []
     const usedModules: string[] = []
+    const userId = currentUser.id
+    const todayStr = new Date().toISOString().split('T')[0]
 
-    for (const mod of prioritized) {
-      switch (mod.id) {
-        case 'vocabulaire': {
-          const words = getVocabulary(activeLang, userThemes, userLevel)
-          if (words.length > 0) {
-            allExercises.push(...generateVocabExercises(words, 3))
-            usedModules.push(mod.id)
-          }
-          break
-        }
-        case 'grammaire': {
-          const rules = getGrammarRules(activeLang, userLevel)
-          const gramExercises: GrammarExercise[] = []
-          rules.forEach(r => gramExercises.push(...getExercisesForRule(r.id)))
-          if (gramExercises.length > 0) {
-            allExercises.push(...generateGrammarExercises(gramExercises, 3))
-            usedModules.push(mod.id)
-          }
-          break
-        }
-        case 'lecture': {
-          const texts = getReadingTexts(activeLang, userThemes, userLevel)
-          const readEx = generateReadingExercise(texts)
-          if (readEx) {
-            allExercises.push(readEx)
-            usedModules.push(mod.id)
-          }
-          break
-        }
-        case 'oral': {
-          const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
-          if (speakExercises.length > 0) {
-            allExercises.push(...generateSpeakingExercises(speakExercises, 2))
-            usedModules.push(mod.id)
-          }
-          break
-        }
-        case 'ecrit': {
-          const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
-          if (writeExercises.length > 0) {
-            allExercises.push(...generateWritingExercises(writeExercises, 2))
-            usedModules.push(mod.id)
-          }
-          break
+    // STEP 1: Daily Words
+    const chestKey = `lingualearn_chest_${userId}_${todayStr}`
+    const chestOpened = localStorage.getItem(chestKey)
+    if (!chestOpened) {
+      const words = getVocabulary(activeLang, userThemes, userLevel)
+      const wordsPerDay = currentUser.settings.schedules?.[activeLang]?.wordsPerDay || 8
+      if (words.length > 0) {
+        // Generate vocab presentation + matching exercises
+        const dailyWords = words.slice(0, wordsPerDay)
+        allExercises.push(...generateVocabExercises(dailyWords, Math.min(3, wordsPerDay)))
+        usedModules.push('vocabulaire')
+      }
+      // Mark chest as opened
+      localStorage.setItem(chestKey, 'true')
+    }
+
+    // STEP 2: Grammar rule of the day
+    const grammarStarKey = `lingualearn_grammar_stars_${userId}_${activeLang}`
+    const grammarProgressStr = localStorage.getItem(grammarStarKey)
+    const grammarProgress = grammarProgressStr ? JSON.parse(grammarProgressStr) : {}
+
+    const rules = getGrammarRules(activeLang, userLevel)
+    const uncompleted = rules.find(r => !grammarProgress[r.id])
+    if (uncompleted) {
+      const gramExercises = getExercisesForRule(uncompleted.id)
+      if (gramExercises.length > 0) {
+        allExercises.push(...generateGrammarExercises(gramExercises, Math.min(3, gramExercises.length)))
+        usedModules.push('grammaire')
+      }
+    }
+
+    // STEP 3: Objective exercise based on user intentions
+    const objectiveSet = new Set<string>(objectives as string[])
+    if (objectiveSet.has('oral')) {
+      const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
+      if (speakExercises.length > 0) {
+        allExercises.push(...generateSpeakingExercises(speakExercises, 2))
+        usedModules.push('oral')
+      }
+    }
+    if (objectiveSet.has('lecture')) {
+      const texts = getReadingTexts(activeLang, userThemes, userLevel)
+      const readEx = generateReadingExercise(texts)
+      if (readEx) {
+        allExercises.push(readEx)
+        usedModules.push('lecture')
+      }
+    }
+    if (objectiveSet.has('ecrit')) {
+      const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
+      if (writeExercises.length > 0) {
+        allExercises.push(...generateWritingExercises(writeExercises, 2))
+        usedModules.push('ecrit')
+      }
+    }
+
+    // If no objective exercises added, default to vocab
+    if (!objectiveSet.has('oral') && !objectiveSet.has('lecture') && !objectiveSet.has('ecrit')) {
+      const words = getVocabulary(activeLang, userThemes, userLevel)
+      if (words.length > 0) {
+        allExercises.push(...generateVocabExercises(words, 3))
+        if (!usedModules.includes('vocabulaire')) {
+          usedModules.push('vocabulaire')
         }
       }
     }
 
-    // Shuffle exercises for variety
-    const shuffled = allExercises.sort(() => Math.random() - 0.5)
-    setExercises(shuffled)
+    // STEP 4: Summary (handled separately in UI)
+
+    // No shuffling — maintain the structured order
+    setExercises(allExercises)
     setSessionModules(Array.from(new Set(usedModules)))
   }, [])
 
@@ -454,6 +455,54 @@ export default function SessionPage() {
       }
     } catch {
       setWordDefinition({ word, definition: 'Unable to fetch definition' })
+    }
+  }
+
+  // BUG-33: TTS function with speed control and word highlighting
+  const playReadingAloud = (text: string) => {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      if (isReadingAloud) {
+        window.speechSynthesis.cancel()
+        setIsReadingAloud(false)
+        setHighlightWordIndex(null)
+        return
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.rate = readingSpeed
+      utterance.lang = user?.activeLang === 'fr' ? 'fr-FR' : 'en-US'
+
+      const words = text.split(/\s+/)
+
+      utterance.onboundary = (event: any) => {
+        if (event.name === 'word') {
+          const charIndex = event.charIndex
+          let wordIdx = 0
+          let charCount = 0
+          for (let i = 0; i < words.length; i++) {
+            charCount += words[i].length + 1 // +1 for space
+            if (charCount > charIndex) {
+              wordIdx = i
+              break
+            }
+          }
+          setHighlightWordIndex(wordIdx)
+        }
+      }
+
+      utterance.onend = () => {
+        setIsReadingAloud(false)
+        setHighlightWordIndex(null)
+      }
+
+      utterance.onerror = () => {
+        setIsReadingAloud(false)
+        setHighlightWordIndex(null)
+      }
+
+      setIsReadingAloud(true)
+      window.speechSynthesis.speak(utterance)
     }
   }
 
@@ -671,22 +720,88 @@ export default function SessionPage() {
           {currentExercise.type === 'reading_comprehension' ? (
             <div>
               {!showingComprehension ? (
-                // Display reading text with clickable words
+                // Display reading text with clickable words, TTS, and speed control
                 <div>
                   <h2 className="text-sm font-bold text-[#002844] mb-3">
                     {lang === 'fr' ? 'Lisez ce texte attentivement :' : 'Read this text carefully:'}
                   </h2>
-                  <div className="text-sm text-[#555555] leading-relaxed mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 relative">
-                    {currentExercise.readingText?.split(/\s+/).map((word, idx) => (
-                      <span
-                        key={idx}
-                        onClick={(e) => fetchWordDefinition(word.replace(/[.,!?;:]/g, ''), e)}
-                        className="cursor-help hover:underline hover:text-blue-700 transition-colors"
+
+                  {/* TTS Controls */}
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <button
+                      onClick={() => playReadingAloud(currentExercise.readingText || '')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
+                        isReadingAloud
+                          ? 'bg-red-500 text-white'
+                          : 'bg-[#D9B438] text-[#002844] hover:bg-yellow-400'
+                      }`}
+                    >
+                      <Volume className="h-4 w-4" />
+                      {isReadingAloud ? (lang === 'fr' ? 'Arrêter' : 'Stop') : (lang === 'fr' ? 'Écouter' : 'Listen')}
+                    </button>
+
+                    {/* Speed buttons */}
+                    {[0.5, 1, 1.5].map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => setReadingSpeed(speed)}
+                        className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                          readingSpeed === speed
+                            ? 'bg-[#002844] text-white'
+                            : 'bg-gray-200 text-[#002844] hover:bg-gray-300'
+                        }`}
+                        disabled={isReadingAloud}
                       >
-                        {word}{' '}
-                      </span>
+                        {speed}x
+                      </button>
                     ))}
                   </div>
+
+                  {/* Reading text with word highlighting */}
+                  <div className="text-sm text-[#555555] leading-[1.8] mb-4 p-6 bg-blue-50 rounded-lg border border-blue-200 relative">
+                    {(() => {
+                      const fullText = currentExercise.readingText || ''
+                      const words = fullText.split(/\s+/)
+                      const wordLimit = 100
+                      const isLongText = words.length > wordLimit
+                      const displayWords = readingExpanded ? words : words.slice(0, wordLimit)
+
+                      return (
+                        <>
+                          {displayWords.map((word, idx) => (
+                            <span
+                              key={idx}
+                              onClick={(e) => fetchWordDefinition(word.replace(/[.,!?;:]/g, ''), e)}
+                              className={`cursor-help hover:underline hover:text-blue-700 transition-colors ${
+                                idx === highlightWordIndex ? 'bg-[#D9B438] text-white rounded px-0.5' : ''
+                              }`}
+                            >
+                              {word}{' '}
+                            </span>
+                          ))}
+                          {!readingExpanded && isLongText && <span>...</span>}
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Expand button for truncated text */}
+                  {(() => {
+                    const fullText = currentExercise.readingText || ''
+                    const words = fullText.split(/\s+/)
+                    const isLongText = words.length > 100
+                    return (
+                      isLongText && !readingExpanded && (
+                        <button
+                          onClick={() => setReadingExpanded(true)}
+                          className="text-sm font-semibold text-[#D9B438] hover:text-yellow-400 mb-3"
+                        >
+                          {lang === 'fr' ? 'Lire la suite' : 'Read more'}
+                        </button>
+                      )
+                    )
+                  })()}
+
                   {wordDefinition && defPosition && (
                     <div
                       className="fixed bg-gray-900 text-white px-3 py-2 rounded text-xs z-50 max-w-xs"

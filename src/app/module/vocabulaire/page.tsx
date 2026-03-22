@@ -104,10 +104,30 @@ export default function VocabulairePage() {
 
     // Get vocabulary
     const allVocab = getVocabulary(activeLang, userThemes, userLevel);
-    setVocabulary(allVocab);
+
+    // BUG-30: Filter Discovery tab to show only X words per day
+    const wordsPerDay = currentUser.settings.schedules?.[activeLang]?.wordsPerDay || 8;
+    const personal = getPersonalVocab(currentUser.id);
+    const personalWordIds = new Set(personal.map(pv => pv.wordId));
+
+    // Filter out words already in personal vocab (already learned)
+    const remainingWords = allVocab.filter(word => !personalWordIds.has(word.id));
+
+    // Use date as seed for deterministic daily rotation
+    const dateStr = new Date().toISOString().split('T')[0];
+    const seedHash = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+    // Shuffle deterministically using seed, then slice to wordsPerDay
+    const shuffled = remainingWords.slice().sort((a, b) => {
+      const hashA = (seedHash + (a.id?.charCodeAt(0) || 0)) % 1000;
+      const hashB = (seedHash + (b.id?.charCodeAt(0) || 0)) % 1000;
+      return hashA - hashB;
+    });
+
+    const discoveryWords = shuffled.slice(0, wordsPerDay);
+    setVocabulary(discoveryWords);
 
     // Get personal vocabulary
-    const personal = getPersonalVocab(currentUser.id);
     const personalWords = allVocab.filter((word) =>
       personal.some((pv) => pv.wordId === word.id)
     );

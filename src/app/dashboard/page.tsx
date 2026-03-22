@@ -302,36 +302,53 @@ export default function DashboardPage() {
           </div>
         </a>
 
-        {/* BLOC-05: 5 OBJECTIVE BLOCKS — 2 cols mobile, 5 cols desktop */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-          {moduleBlocks.map((block, idx) => {
-            const Icon = block.icon
-            const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
-            // Last block spans full width on mobile only (5th in 2-col = orphan)
-            const isLast = idx === moduleBlocks.length - 1 && moduleBlocks.length % 2 !== 0
-            return (
-              <a key={block.id} href={block.href}
-                className={`rounded-2xl p-3 md:p-3 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2 md:col-span-1' : ''}`}
-                style={{ backgroundColor: block.bgLight }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg" style={{ backgroundColor: block.color }}>
-                    <Icon className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-                <p className="font-bold text-xs mb-1.5" style={{ color: block.color }}>{block.label}</p>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[10px] text-[#555555] hidden md:inline">{lang === 'fr' ? 'Prog.' : 'Prog.'}</span>
-                    <span className="text-[10px] font-bold" style={{ color: block.color }}>{pct}%</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/60">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
-                  </div>
-                </div>
-              </a>
-            )
-          })}
-        </div>
+        {/* BLOC-05: 5 OBJECTIVE BLOCKS — filtered by user objectives */}
+        {(() => {
+          // Filter blocks: always show grammaire and vocabulaire, plus user's specific objectives
+          const visibleBlocks = moduleBlocks.filter(b =>
+            b.objective === 'grammaire' || b.objective === 'vocabulaire' || (objectives as string[]).includes(b.objective)
+          )
+          // Calculate responsive grid columns based on visible blocks count
+          const gridCols = visibleBlocks.length === 2
+            ? 'grid-cols-2'
+            : visibleBlocks.length === 3
+            ? 'grid-cols-3'
+            : visibleBlocks.length === 4
+            ? 'grid-cols-2 md:grid-cols-4'
+            : 'grid-cols-2 md:grid-cols-5'
+
+          return (
+            <div className={`grid ${gridCols} gap-3 mb-4`}>
+              {visibleBlocks.map((block, idx) => {
+                const Icon = block.icon
+                const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
+                // For 2-col layout on mobile with odd number of blocks, last one spans full width
+                const isLast = idx === visibleBlocks.length - 1 && visibleBlocks.length % 2 !== 0
+                return (
+                  <a key={block.id} href={block.href}
+                    className={`rounded-2xl p-3 md:p-3 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2 md:col-span-1' : ''}`}
+                    style={{ backgroundColor: block.bgLight }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-1.5 rounded-lg" style={{ backgroundColor: block.color }}>
+                        <Icon className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <p className="font-bold text-xs mb-1.5" style={{ color: block.color }}>{block.label}</p>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[10px] text-[#555555] hidden md:inline">{lang === 'fr' ? 'Prog.' : 'Prog.'}</span>
+                        <span className="text-[10px] font-bold" style={{ color: block.color }}>{pct}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-white/60">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
+                      </div>
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         {/* Responsive 2-column layout for lower dashboard */}
         <div className="md:grid md:grid-cols-5 md:gap-4">

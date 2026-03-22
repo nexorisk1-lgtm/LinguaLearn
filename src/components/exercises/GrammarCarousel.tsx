@@ -64,22 +64,6 @@ export default function GrammarCarousel({
   const items = createCheckpointItems(rules)
 
   const handleRuleClick = (rule: GrammarRule) => {
-    // Check if previous rule is completed
-    const ruleIndex = rules.findIndex((r) => r.id === rule.id)
-    if (ruleIndex > 0) {
-      const prevRule = rules[ruleIndex - 1]
-      const prevProgress = progress[prevRule.id]
-      if (!prevProgress || prevProgress.stars === 0) {
-        // Show message: need at least 1 star on previous rule
-        alert(
-          lang === 'fr'
-            ? 'Complétez la règle précédente d\'abord (au moins 1 étoile)'
-            : 'Complete the previous rule first (at least 1 star)'
-        )
-        return
-      }
-    }
-
     onSelectRule(rule.id)
   }
 
@@ -98,7 +82,8 @@ export default function GrammarCarousel({
             const stars = ruleProgress?.stars || 0
             const ruleIndex = item.index ?? 0
             const prevRule = ruleIndex > 0 ? rules[ruleIndex - 1] : null
-            const isPrevLocked = ruleIndex > 0 && prevRule && (!progress[prevRule.id]?.stars)
+            // Rule 0 is always unlocked. For index > 0, check if previous rule has at least 1 star
+            const isPrevLocked = ruleIndex > 0 && prevRule && (!progress[prevRule.id] || progress[prevRule.id].stars < 1)
 
             return (
               <button

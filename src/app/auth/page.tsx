@@ -58,7 +58,14 @@ export default function AuthPage() {
     const result = login(loginEmail, loginPassword);
 
     if (!result.success) {
-      setError(t(`auth.error.${result.error}`, interfaceLang));
+      // Handle storage unavailable error
+      if (result.error === 'storageUnavailable') {
+        setError(interfaceLang === 'fr'
+          ? 'Le stockage local n\'est pas disponible. Essayez de désactiver le mode de navigation privée.'
+          : 'Local storage is not available. Try disabling private browsing mode.');
+      } else {
+        setError(t(`auth.error.${result.error}`, interfaceLang));
+      }
       setLoading(false);
       return;
     }
@@ -97,7 +104,14 @@ export default function AuthPage() {
     const result = register(registerFirstName, registerEmail, registerPassword, registerRole);
 
     if (!result.success) {
-      setError(t(`auth.error.${result.error}`, interfaceLang));
+      // Handle storage unavailable error
+      if (result.error === 'storageUnavailable') {
+        setError(interfaceLang === 'fr'
+          ? 'Le stockage local n\'est pas disponible. Essayez de désactiver le mode de navigation privée.'
+          : 'Local storage is not available. Try disabling private browsing mode.');
+      } else {
+        setError(t(`auth.error.${result.error}`, interfaceLang));
+      }
       setLoading(false);
       return;
     }
