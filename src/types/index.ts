@@ -116,7 +116,19 @@ export interface LanguageConfig {
 export interface LanguageSchedule {
   days: DayOfWeek[];
   duration: SessionDuration;
+  wordsPerDay?: number;
 }
+
+// --- Goal type for onboarding step 2 ---
+export type GoalType = 'personal' | 'professional' | 'both';
+
+// --- Theme categories for grouped display ---
+export const THEME_CATEGORIES: { id: string; nameFr: string; nameEn: string; icon: string; themes: string[] }[] = [
+  { id: 'daily', nameFr: 'Vie quotidienne', nameEn: 'Daily Life', icon: '🏠', themes: ['family', 'house', 'food', 'restaurant', 'clothes', 'body'] },
+  { id: 'leisure', nameFr: 'Loisirs & Voyages', nameEn: 'Leisure & Travel', icon: '✈️', themes: ['sports', 'music', 'hobbies', 'travel'] },
+  { id: 'culture', nameFr: 'Culture & Découverte', nameEn: 'Culture & Discovery', icon: '🌍', themes: ['colours', 'animals', 'fruits', 'numbers', 'time', 'weather', 'emotions'] },
+  { id: 'education', nameFr: 'Éducation & Travail', nameEn: 'Education & Work', icon: '📚', themes: ['school', 'work'] },
+];
 
 export interface UserSettings {
   interfaceLang: InterfaceLanguage;

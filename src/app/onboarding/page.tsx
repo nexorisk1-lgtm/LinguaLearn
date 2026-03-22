@@ -7,11 +7,11 @@ import { t } from '@/lib/i18n';
 import { updateUserSettings, updateUserProgress, completeOnboarding } from '@/lib/db/localStorage';
 import {
   LEARNING_LANGUAGES,
-  LEARNING_OBJECTIVES,
   PERSONAL_THEMES,
   PROFESSIONAL_THEMES,
   SESSION_DURATIONS,
   DAYS_OF_WEEK,
+  THEME_CATEGORIES,
   InterfaceLanguage,
   LearningLanguage,
   LearningObjective,
@@ -19,14 +19,15 @@ import {
   SessionDuration,
   LanguageConfig,
   LevelCECRL,
-  DiagnosticChoice,
+  GoalType,
 } from '@/types';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
-// Diagnostic choices per language
+// Diagnostic setup per language
 interface LangDiagnosticSetup {
-  cecrChoice: DiagnosticChoice;
-  cecrManualLevel?: LevelCECRL;
-  grcChoice?: DiagnosticChoice;
+  choice: 'lesson' | 'manual' | 'undecided';
+  manualLevel?: LevelCECRL;
+  grcManual?: boolean;
 }
 
 export default function OnboardingPage() {
@@ -37,43 +38,56 @@ export default function OnboardingPage() {
   const [interfaceLang, setInterfaceLang] = useState<InterfaceLanguage>('fr');
   const [learningLangs, setLearningLangs] = useState<LearningLanguage[]>([]);
 
-  // CORRECTION #1: objectifs et thèmes PAR LANGUE
-  const [langConfigs, setLangConfigs] = useState<Record<string, { objectives: LearningObjective[]; themes: string[] }>>({});
+  // Step 2: Goal + themes PER LANGUAGE
+  const [langGoals, setLangGoals] = useState<Record<string, GoalType>>({});
+  const [langThemes, setLangThemes] = useState<Record<string, string[]>>({});
   const [currentLangIndex, setCurrentLangIndex] = useState(0);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
-  // CORRECTION v2: schedule PAR LANGUE
-  const [langSchedules, setLangSchedules] = useState<Record<string, { days: DayOfWeek[]; duration: SessionDuration }>>({});
+  // Step 3: Schedule PER LANGUAGE
+  const [langSchedules, setLangSchedules] = useState<Record<string, { days: DayOfWeek[]; duration: SessionDuration; wordsPerDay: number }>>({});
   const [currentScheduleLangIndex, setCurrentScheduleLangIndex] = useState(0);
 
-  // CORRECTION #2: Diagnostic optionnel PAR LANGUE
+  // Step 4: Diagnostic PER LANGUAGE
   const [langDiagnostics, setLangDiagnostics] = useState<Record<string, LangDiagnosticSetup>>({});
   const [currentDiagLangIndex, setCurrentDiagLangIndex] = useState(0);
-  const [diagStep, setDiagStep] = useState<'knowLevel' | 'selectLevel' | 'whatToDo' | 'grcChoice' | 'done'>('knowLevel');
 
   const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (!loading && !user) router.push('/auth');
     if (!loading && user) {
-      // AR-02 FIX: If onboarding already completed, go to dashboard
       if (user.onboardingCompleted) {
         router.push('/dashboard');
         return;
       }
-      // NAV-LANG FIX: Initialize with existing languages
-      if (user.settings.learningLangs && user.settings.learningLangs.length > 0) {
+      // Init from existing data
+      if (user.settings.learningLangs?.length > 0) {
         setLearningLangs(user.settings.learningLangs);
       }
-      // Also init existing configs
       if (user.settings.languageConfigs) {
-        const configs: Record<string, { objectives: LearningObjective[]; themes: string[] }> = {};
+        const goals: Record<string, GoalType> = {};
+        const themes: Record<string, string[]> = {};
         for (const [lang, cfg] of Object.entries(user.settings.languageConfigs)) {
-          configs[lang] = { objectives: (cfg.objectives || []) as LearningObjective[], themes: cfg.themes || [] };
+          themes[lang] = cfg.themes || [];
+          const proIds = PROFESSIONAL_THEMES.map(p => p.id);
+          const hasPersonal = cfg.themes?.some(t => !proIds.includes(t));
+          const hasPro = cfg.hasGrcThemes;
+          goals[lang] = hasPersonal && hasPro ? 'both' : hasPro ? 'professional' : 'personal';
         }
-        setLangConfigs(configs);
+        setLangGoals(goals);
+        setLangThemes(themes);
       }
       if (user.settings.schedules) {
-        setLangSchedules(user.settings.schedules as Record<string, { days: DayOfWeek[]; duration: SessionDuration }>);
+        const schedules: Record<string, { days: DayOfWeek[]; duration: SessionDuration; wordsPerDay: number }> = {};
+        for (const [lang, sched] of Object.entries(user.settings.schedules)) {
+          schedules[lang] = {
+            days: (sched.days || []) as DayOfWeek[],
+            duration: (sched.duration || 20) as SessionDuration,
+            wordsPerDay: sched.wordsPerDay || 8,
+          };
+        }
+        setLangSchedules(schedules);
       }
       if (user.settings.interfaceLang) {
         setInterfaceLang(user.settings.interfaceLang);
@@ -85,58 +99,84 @@ export default function OnboardingPage() {
     return <div className="flex items-center justify-center min-h-screen">{t('general.loading', interfaceLang)}</div>;
   }
 
-  // Current language being configured (Screen 2)
+  // Current language helpers
   const currentLang = learningLangs[currentLangIndex];
   const currentLangInfo = LEARNING_LANGUAGES.find(l => l.code === currentLang);
-
-  // Current language for schedule (Screen 3)
   const scheduleLang = learningLangs[currentScheduleLangIndex];
   const scheduleLangInfo = LEARNING_LANGUAGES.find(l => l.code === scheduleLang);
-
-  // Current language for diagnostic setup (Screen 4)
   const diagLang = learningLangs[currentDiagLangIndex];
   const diagLangInfo = LEARNING_LANGUAGES.find(l => l.code === diagLang);
 
-  // Get current lang config
-  const getCurrentConfig = (lang: string) => langConfigs[lang] || { objectives: [], themes: [] };
+  // State helpers
+  const getGoal = (lang: string): GoalType | undefined => langGoals[lang];
+  const getThemes = (lang: string): string[] => langThemes[lang] || [];
+  const getSchedule = (lang: string) => langSchedules[lang] || { days: [], duration: 20 as SessionDuration, wordsPerDay: 8 };
+  const getDiag = (lang: string): LangDiagnosticSetup => langDiagnostics[lang] || { choice: 'undecided' };
 
-  // Get current lang schedule
-  const getCurrentSchedule = (lang: string) => langSchedules[lang] || { days: [], duration: 20 };
-
-  // Toggle helpers for per-language config
-  const toggleObjective = (obj: LearningObjective) => {
-    const cfg = getCurrentConfig(currentLang);
-    const newObjs = cfg.objectives.includes(obj) ? cfg.objectives.filter(o => o !== obj) : [...cfg.objectives, obj];
-    setLangConfigs(prev => ({ ...prev, [currentLang]: { ...cfg, objectives: newObjs } }));
+  const hasGrcForLang = (lang: string) => {
+    const themes = getThemes(lang);
+    const proIds = PROFESSIONAL_THEMES.map(p => p.id);
+    return themes.some(t => proIds.includes(t));
   };
 
-  const toggleTheme = (themeId: string) => {
-    const cfg = getCurrentConfig(currentLang);
-    const newThemes = cfg.themes.includes(themeId) ? cfg.themes.filter(t => t !== themeId) : [...cfg.themes, themeId];
-    setLangConfigs(prev => ({ ...prev, [currentLang]: { ...cfg, themes: newThemes } }));
-  };
-
+  // Toggles
   const toggleLearningLang = (lang: LearningLanguage) => {
     setLearningLangs(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]);
   };
 
-  // Schedule toggles PER LANGUAGE
+  const setGoal = (goal: GoalType) => {
+    setLangGoals(prev => ({ ...prev, [currentLang]: goal }));
+    // Reset themes when changing goal type
+    if (goal === 'personal') {
+      // Remove any professional themes
+      const proIds = PROFESSIONAL_THEMES.map(p => p.id);
+      setLangThemes(prev => ({ ...prev, [currentLang]: (prev[currentLang] || []).filter(t => !proIds.includes(t)) }));
+    } else if (goal === 'professional') {
+      // Remove any personal themes
+      const persIds = PERSONAL_THEMES.map(p => p.id);
+      setLangThemes(prev => ({ ...prev, [currentLang]: (prev[currentLang] || []).filter(t => !persIds.includes(t)) }));
+    }
+    // Expand all categories by default
+    const expanded: Record<string, boolean> = {};
+    THEME_CATEGORIES.forEach(cat => { expanded[cat.id] = true; });
+    setExpandedCategories(expanded);
+  };
+
+  const toggleTheme = (themeId: string) => {
+    const themes = getThemes(currentLang);
+    const newThemes = themes.includes(themeId) ? themes.filter(t => t !== themeId) : [...themes, themeId];
+    setLangThemes(prev => ({ ...prev, [currentLang]: newThemes }));
+  };
+
+  const toggleCategory = (catId: string) => {
+    setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
+  };
+
+  const selectAllInCategory = (catThemes: string[]) => {
+    const themes = getThemes(currentLang);
+    const allSelected = catThemes.every(t => themes.includes(t));
+    if (allSelected) {
+      setLangThemes(prev => ({ ...prev, [currentLang]: themes.filter(t => !catThemes.includes(t)) }));
+    } else {
+      const newThemes = Array.from(new Set([...themes, ...catThemes]));
+      setLangThemes(prev => ({ ...prev, [currentLang]: newThemes }));
+    }
+  };
+
   const toggleScheduleDay = (day: DayOfWeek) => {
-    const sched = getCurrentSchedule(scheduleLang);
+    const sched = getSchedule(scheduleLang);
     const newDays = sched.days.includes(day) ? sched.days.filter(d => d !== day) : [...sched.days, day];
     setLangSchedules(prev => ({ ...prev, [scheduleLang]: { ...sched, days: newDays } }));
   };
 
   const setScheduleDuration = (dur: SessionDuration) => {
-    const sched = getCurrentSchedule(scheduleLang);
+    const sched = getSchedule(scheduleLang);
     setLangSchedules(prev => ({ ...prev, [scheduleLang]: { ...sched, duration: dur } }));
   };
 
-  // hasGrcThemes for a language
-  const hasGrcForLang = (lang: string) => {
-    const cfg = getCurrentConfig(lang);
-    const proIds = PROFESSIONAL_THEMES.map(p => p.id);
-    return cfg.themes.some(t => proIds.includes(t));
+  const setWordsPerDay = (n: number) => {
+    const sched = getSchedule(scheduleLang);
+    setLangSchedules(prev => ({ ...prev, [scheduleLang]: { ...sched, wordsPerDay: n } }));
   };
 
   // Validation
@@ -144,17 +184,21 @@ export default function OnboardingPage() {
     setErrors([]);
     const newErrors: string[] = [];
     if (step === 1 && learningLangs.length === 0) {
-      newErrors.push(t('onboarding.screen1.selectAtLeast1', interfaceLang));
+      newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins une langue.' : 'Select at least one language.');
     }
     if (step === 2) {
-      const cfg = getCurrentConfig(currentLang);
-      if (cfg.objectives.length === 0) newErrors.push(t('onboarding.screen2.objectives', interfaceLang));
-      if (cfg.themes.length === 0) newErrors.push(t('onboarding.screen2.selectAtLeast1Theme', interfaceLang));
+      const goal = getGoal(currentLang);
+      if (!goal) {
+        newErrors.push(interfaceLang === 'fr' ? 'Choisissez un objectif de parcours.' : 'Choose a learning goal.');
+      }
+      if (getThemes(currentLang).length === 0) {
+        newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un thème.' : 'Select at least one theme.');
+      }
     }
     if (step === 3) {
-      const sched = getCurrentSchedule(scheduleLang);
+      const sched = getSchedule(scheduleLang);
       if (sched.days.length === 0) {
-        newErrors.push(t('onboarding.screen3.selectAtLeast1Day', interfaceLang));
+        newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un jour.' : 'Select at least one day.');
       }
     }
     setErrors(newErrors);
@@ -164,42 +208,26 @@ export default function OnboardingPage() {
   // Navigation
   const handleNext = () => {
     if (!validateStep(currentStep)) return;
-
-    // Screen 2: cycle through languages
     if (currentStep === 2 && currentLangIndex < learningLangs.length - 1) {
       setCurrentLangIndex(currentLangIndex + 1);
       setErrors([]);
       return;
     }
-
-    // Screen 3: cycle through languages for schedule
     if (currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1) {
       setCurrentScheduleLangIndex(currentScheduleLangIndex + 1);
       setErrors([]);
       return;
     }
-
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
-      if (currentStep + 1 === 3) {
-        setCurrentScheduleLangIndex(0);
-      }
-      if (currentStep + 1 === 4) {
-        setCurrentDiagLangIndex(0);
-        setDiagStep('knowLevel');
-      }
+      if (currentStep + 1 === 3) setCurrentScheduleLangIndex(0);
+      if (currentStep + 1 === 4) setCurrentDiagLangIndex(0);
     }
   };
 
   const handlePrevious = () => {
-    if (currentStep === 2 && currentLangIndex > 0) {
-      setCurrentLangIndex(currentLangIndex - 1);
-      return;
-    }
-    if (currentStep === 3 && currentScheduleLangIndex > 0) {
-      setCurrentScheduleLangIndex(currentScheduleLangIndex - 1);
-      return;
-    }
+    if (currentStep === 2 && currentLangIndex > 0) { setCurrentLangIndex(currentLangIndex - 1); return; }
+    if (currentStep === 3 && currentScheduleLangIndex > 0) { setCurrentScheduleLangIndex(currentScheduleLangIndex - 1); return; }
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
       if (currentStep - 1 === 2) setCurrentLangIndex(learningLangs.length - 1);
@@ -207,398 +235,472 @@ export default function OnboardingPage() {
     }
   };
 
-  // Finish onboarding
+  // Finish
   const handleFinishOnboarding = () => {
-    // Build languageConfigs
     const languageConfigs: Record<string, LanguageConfig> = {};
+    const allObjectives: LearningObjective[] = ['grammaire', 'vocabulaire', 'lecture', 'ecrit', 'oral'];
+
     for (const lang of learningLangs) {
-      const cfg = getCurrentConfig(lang);
+      const themes = getThemes(lang);
       const proIds = PROFESSIONAL_THEMES.map(p => p.id);
       languageConfigs[lang] = {
-        objectives: cfg.objectives,
-        themes: cfg.themes,
-        hasGrcThemes: cfg.themes.some(t => proIds.includes(t)),
+        objectives: allObjectives,
+        themes,
+        hasGrcThemes: themes.some(t => proIds.includes(t)),
       };
     }
 
-    // Build per-language schedules
-    const schedules: Record<string, { days: DayOfWeek[]; duration: SessionDuration }> = {};
+    const schedules: Record<string, { days: DayOfWeek[]; duration: SessionDuration; wordsPerDay?: number }> = {};
     for (const lang of learningLangs) {
-      schedules[lang] = getCurrentSchedule(lang);
+      schedules[lang] = getSchedule(lang);
     }
 
-    // Fallback global schedule = first language's schedule
     const firstSched = schedules[learningLangs[0]] || { days: [], duration: 20 };
-
-    const settings = {
-      interfaceLang,
-      learningLangs,
-      languageConfigs,
-      schedule: firstSched,
-      schedules,
-    };
+    const settings = { interfaceLang, learningLangs, languageConfigs, schedule: firstSched, schedules };
 
     const updated = updateUserSettings(user.id, settings);
-    if (updated) {
-      const langsToTest: string[] = [];
-      for (const lang of learningLangs) {
-        const diag = langDiagnostics[lang];
-        if (diag?.cecrChoice === 'test') langsToTest.push(lang);
-        else if (diag?.grcChoice === 'test') langsToTest.push(lang);
-      }
+    if (!updated) return;
 
-      if (langsToTest.length > 0) {
-        const diagPlan = learningLangs.map(lang => ({
+    // Check if any language needs mini-lesson diagnostic
+    const langsToTest: string[] = [];
+    for (const lang of learningLangs) {
+      const diag = getDiag(lang);
+      if (diag.choice === 'lesson') langsToTest.push(lang);
+    }
+
+    if (langsToTest.length > 0) {
+      const diagPlan = learningLangs.map(lang => {
+        const diag = getDiag(lang);
+        return {
           lang,
-          cecrl: langDiagnostics[lang]?.cecrChoice || 'skip',
-          cecrManualLevel: langDiagnostics[lang]?.cecrManualLevel,
-          grc: langDiagnostics[lang]?.grcChoice || 'skip',
+          cecrl: diag.choice === 'lesson' ? 'test' : 'manual',
+          cecrManualLevel: diag.manualLevel,
+          grc: diag.choice === 'lesson' && hasGrcForLang(lang) ? 'test' : 'skip',
           hasGrc: hasGrcForLang(lang),
-        }));
-        sessionStorage.setItem('lingualearn_diag_plan', JSON.stringify(diagPlan));
-        router.push('/onboarding/diagnostic');
-      } else {
-        for (const lg of learningLangs) {
-          const diag = langDiagnostics[lg];
-          updateUserProgress(user.id, lg, {
-            levelCecrl: diag?.cecrManualLevel || 'A1',
-            levelGrc: hasGrcForLang(lg) ? 'Junior' : undefined,
-            diagnosticCompleted: true,
-            grcDiagnosticCompleted: hasGrcForLang(lg),
-            objectiveProgress: { grammaire: 0, vocabulaire: 0, lecture: 0, ecrit: 0, oral: 0 },
-          });
-        }
-        completeOnboarding(user.id);
-        router.push('/dashboard');
+        };
+      });
+      sessionStorage.setItem('lingualearn_diag_plan', JSON.stringify(diagPlan));
+      router.push('/onboarding/diagnostic');
+    } else {
+      // All manual — set levels and complete
+      for (const lang of learningLangs) {
+        const diag = getDiag(lang);
+        updateUserProgress(user.id, lang, {
+          levelCecrl: diag.manualLevel || 'A1',
+          levelGrc: hasGrcForLang(lang) ? 'Junior' : undefined,
+          diagnosticCompleted: true,
+          grcDiagnosticCompleted: hasGrcForLang(lang),
+          objectiveProgress: { grammaire: 0, vocabulaire: 0, lecture: 0, ecrit: 0, oral: 0 },
+        });
       }
+      completeOnboarding(user.id);
+      router.push('/dashboard');
     }
   };
 
-  // Diagnostic setup handlers (Screen 4)
-  const setDiagChoice = (field: 'cecrChoice' | 'grcChoice', value: DiagnosticChoice) => {
-    setLangDiagnostics(prev => ({
-      ...prev,
-      [diagLang]: { ...prev[diagLang], [field]: value },
-    }));
-  };
+  // Check if all languages have diagnostic choice
+  const allDiagsDone = learningLangs.every(lang => {
+    const d = getDiag(lang);
+    return d.choice === 'lesson' || (d.choice === 'manual' && d.manualLevel);
+  });
 
-  const setManualLevel = (level: LevelCECRL) => {
-    setLangDiagnostics(prev => ({
-      ...prev,
-      [diagLang]: { ...prev[diagLang], cecrChoice: 'manual' as DiagnosticChoice, cecrManualLevel: level },
-    }));
-  };
-
-  const advanceDiagLang = () => {
-    if (currentDiagLangIndex < learningLangs.length - 1) {
-      setCurrentDiagLangIndex(currentDiagLangIndex + 1);
-      setDiagStep('knowLevel');
-    }
-  };
-
-  // Progress bar
+  // ==================== PROGRESS BAR ====================
   const ProgressBar = () => (
-    <div className="w-full mb-4 sm:mb-6">
-      <div className="flex items-center justify-between mb-2 sm:mb-4">
-        <h1 className="text-lg sm:text-xl font-bold text-gray-800">
-          {t('onboarding.step', interfaceLang)} {currentStep} {t('onboarding.of', interfaceLang)} 4
+    <div className="w-full mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-base font-bold text-[#002844]">
+          {interfaceLang === 'fr' ? 'Étape' : 'Step'} {currentStep}/4
         </h1>
+        <span className="text-xs text-[#555555]">
+          {currentStep === 1 && (interfaceLang === 'fr' ? 'Paramétrage' : 'Setup')}
+          {currentStep === 2 && (interfaceLang === 'fr' ? 'Objectifs' : 'Goals')}
+          {currentStep === 3 && (interfaceLang === 'fr' ? 'Organisation' : 'Organization')}
+          {currentStep === 4 && (interfaceLang === 'fr' ? 'Première leçon' : 'First lesson')}
+        </span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-        <div className="h-full transition-all duration-300" style={{ width: `${(currentStep / 4) * 100}%`, backgroundColor: '#D9B438' }} />
+        <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${(currentStep / 4) * 100}%`, backgroundColor: '#D9B438' }} />
       </div>
     </div>
   );
 
-  // ============ SCREEN 1 ============
+  // Language indicator component
+  const LangIndicator = ({ info, index, total }: { info: typeof LEARNING_LANGUAGES[0] | undefined; index: number; total: number }) => (
+    <div className="flex items-center gap-3 p-3 bg-[#002844]/5 rounded-xl border border-[#002844]/20 mb-4">
+      <span className="text-2xl">{info?.flag}</span>
+      <p className="text-lg font-bold text-[#002844]">{interfaceLang === 'fr' ? info?.nameFr : info?.nameEn}</p>
+      {total > 1 && <span className="ml-auto text-xs font-medium text-[#555555]">{index + 1}/{total}</span>}
+    </div>
+  );
+
+  // ==================== SCREEN 1: LANGUAGES ====================
   const Screen1 = () => (
-    <div className="space-y-5 sm:space-y-8">
-      <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-gray-800">{t('onboarding.screen1.title', interfaceLang)}</h2>
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold text-[#002844]">{t('onboarding.screen1.title', interfaceLang)}</h2>
+
       <div>
-        <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen1.interfaceLang', interfaceLang)}</label>
-        <div className="flex gap-4">
+        <label className="block text-sm font-semibold mb-3 text-[#002844]">{t('onboarding.screen1.interfaceLang', interfaceLang)}</label>
+        <div className="flex gap-3">
           {(['fr', 'en'] as const).map(lang => (
             <button key={lang} onClick={() => setInterfaceLang(lang)}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${interfaceLang === lang ? 'text-white' : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-[#002844]'}`}
+              className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${interfaceLang === lang ? 'text-white' : 'bg-white border-2 border-gray-300 text-[#002844] hover:border-[#002844]'}`}
               style={interfaceLang === lang ? { backgroundColor: '#002844' } : {}}>
               {lang === 'fr' ? 'Français' : 'English'}
             </button>
           ))}
         </div>
       </div>
+
       <div>
-        <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen1.learningLangs', interfaceLang)}</label>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <label className="block text-sm font-semibold mb-3 text-[#002844]">{t('onboarding.screen1.learningLangs', interfaceLang)}</label>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {LEARNING_LANGUAGES.map(lang => (
             <button key={lang.code} onClick={() => toggleLearningLang(lang.code)}
-              className={`p-4 rounded-lg border-2 transition-all ${learningLangs.includes(lang.code) ? 'text-white' : 'bg-white border-gray-300 text-gray-700 hover:border-[#002844]'}`}
+              className={`p-3 rounded-xl border-2 transition-all ${learningLangs.includes(lang.code) ? 'text-white' : 'bg-white border-gray-200 text-[#002844] hover:border-[#002844]'}`}
               style={learningLangs.includes(lang.code) ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
-              <div className="text-2xl mb-2">{lang.flag}</div>
-              <div className="text-sm font-semibold">{interfaceLang === 'fr' ? lang.nameFr : lang.nameEn}</div>
+              <div className="text-2xl mb-1">{lang.flag}</div>
+              <div className="text-xs font-semibold">{interfaceLang === 'fr' ? lang.nameFr : lang.nameEn}</div>
             </button>
           ))}
         </div>
       </div>
-      {errors.length > 0 && <div className="p-4 bg-red-100 border border-red-400 rounded-lg text-red-700">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
+
+      {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
     </div>
   );
 
-  // ============ SCREEN 2: PER LANGUAGE (#1) ============
+  // ==================== SCREEN 2: GOAL + THEMES ====================
   const Screen2 = () => {
-    const cfg = getCurrentConfig(currentLang);
+    const goal = getGoal(currentLang);
+    const themes = getThemes(currentLang);
+    const showPersonal = goal === 'personal' || goal === 'both';
+    const showPro = goal === 'professional' || goal === 'both';
+
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-3 p-4 bg-[#002844]/5 rounded-xl border border-[#002844]/20">
-          <span className="text-3xl">{currentLangInfo?.flag}</span>
-          <div>
-            <p className="text-sm text-[#555555]">{t('onboarding.screen2.configFor', interfaceLang)}</p>
-            <p className="text-xl font-bold text-[#002844]">{interfaceLang === 'fr' ? currentLangInfo?.nameFr : currentLangInfo?.nameEn}</p>
-          </div>
-          <span className="ml-auto text-sm font-medium text-[#555555]">
-            {t('onboarding.screen2.langOf', interfaceLang)} {currentLangIndex + 1}/{learningLangs.length}
-          </span>
-        </div>
+      <div className="space-y-5">
+        <LangIndicator info={currentLangInfo} index={currentLangIndex} total={learningLangs.length} />
 
+        {/* Goal type selection */}
         <div>
-          <label className="block text-lg font-semibold mb-2 text-gray-700">{t('onboarding.screen2.objectives', interfaceLang)}</label>
-          <p className="text-sm text-gray-600 mb-4">{t('onboarding.screen2.objectivesHint', interfaceLang)}</p>
-          <div className="flex flex-wrap gap-3">
-            {LEARNING_OBJECTIVES.map(obj => (
-              <button key={obj.id} onClick={() => toggleObjective(obj.id)}
-                className={`px-4 py-2 rounded-full font-semibold transition-all ${cfg.objectives.includes(obj.id) ? 'text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                style={cfg.objectives.includes(obj.id) ? { backgroundColor: '#002844' } : {}}>
-                <span className="mr-2">{obj.icon}</span>
-                {interfaceLang === 'fr' ? obj.nameFr : obj.nameEn}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen2.personalThemes', interfaceLang)}</label>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {PERSONAL_THEMES.map(theme => (
-              <button key={theme.id} onClick={() => toggleTheme(theme.id)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${cfg.themes.includes(theme.id) ? 'text-white' : 'bg-white border border-gray-300 text-gray-700 hover:border-[#002844]'}`}
-                style={cfg.themes.includes(theme.id) ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
-                {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-lg font-semibold mb-4 text-gray-700">
-            <span className="mr-2">💼</span>{t('onboarding.screen2.proThemes', interfaceLang)}
+          <label className="block text-sm font-semibold mb-3 text-[#002844]">
+            {interfaceLang === 'fr' ? 'Quel est ton objectif ?' : 'What is your goal?'}
           </label>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {PROFESSIONAL_THEMES.map(theme => (
-              <button key={theme.id} onClick={() => toggleTheme(theme.id)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${cfg.themes.includes(theme.id) ? 'text-white' : 'bg-white border border-gray-300 text-gray-700 hover:border-[#002844]'}`}
-                style={cfg.themes.includes(theme.id) ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
-                {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
+          <div className="grid gap-3">
+            {([
+              { type: 'personal' as GoalType, icon: '🎯', labelFr: 'Personnel', labelEn: 'Personal', descFr: 'Voyage, culture, quotidien...', descEn: 'Travel, culture, daily life...' },
+              { type: 'professional' as GoalType, icon: '💼', labelFr: 'Professionnel', labelEn: 'Professional', descFr: 'GRC, business, métier...', descEn: 'GRC, business, career...' },
+              { type: 'both' as GoalType, icon: '🎯💼', labelFr: 'Les deux', labelEn: 'Both', descFr: 'Personnel + Professionnel', descEn: 'Personal + Professional' },
+            ]).map(item => (
+              <button key={item.type} onClick={() => setGoal(item.type)}
+                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                  goal === item.type ? 'border-[#D9B438] bg-[#D9B438]/10' : 'border-gray-200 hover:border-[#002844]/30'
+                }`}>
+                <span className="text-3xl">{item.icon}</span>
+                <div>
+                  <p className="font-bold text-[#002844]">{interfaceLang === 'fr' ? item.labelFr : item.labelEn}</p>
+                  <p className="text-xs text-[#555555]">{interfaceLang === 'fr' ? item.descFr : item.descEn}</p>
+                </div>
+                {goal === item.type && <span className="ml-auto text-[#D9B438] text-xl">✓</span>}
               </button>
             ))}
           </div>
         </div>
 
-        {errors.length > 0 && <div className="p-4 bg-red-100 border border-red-400 rounded-lg text-red-700">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
+        {/* Personal themes — grouped accordion */}
+        {showPersonal && (
+          <div>
+            <label className="block text-sm font-semibold mb-3 text-[#002844]">
+              {interfaceLang === 'fr' ? 'Thèmes personnels' : 'Personal themes'}
+            </label>
+            <div className="space-y-2">
+              {THEME_CATEGORIES.map(cat => {
+                const isExpanded = expandedCategories[cat.id] !== false; // expanded by default
+                const catThemeIds = cat.themes;
+                const selectedCount = catThemeIds.filter(t => themes.includes(t)).length;
+                const allSelected = selectedCount === catThemeIds.length;
+
+                return (
+                  <div key={cat.id} className="rounded-xl border border-gray-200 overflow-hidden">
+                    {/* Category header */}
+                    <button onClick={() => toggleCategory(cat.id)}
+                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 transition-all">
+                      <span className="text-lg">{cat.icon}</span>
+                      <span className="text-sm font-semibold text-[#002844] flex-1 text-left">
+                        {interfaceLang === 'fr' ? cat.nameFr : cat.nameEn}
+                      </span>
+                      {selectedCount > 0 && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#D9B438]/20 text-[#002844]">
+                          {selectedCount}/{catThemeIds.length}
+                        </span>
+                      )}
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-[#555555]" /> : <ChevronRight className="h-4 w-4 text-[#555555]" />}
+                    </button>
+
+                    {/* Category themes */}
+                    {isExpanded && (
+                      <div className="p-3 space-y-2">
+                        <button onClick={() => selectAllInCategory(catThemeIds)}
+                          className="text-xs font-semibold text-[#D9B438] hover:underline mb-1">
+                          {allSelected
+                            ? (interfaceLang === 'fr' ? 'Tout désélectionner' : 'Deselect all')
+                            : (interfaceLang === 'fr' ? 'Tout sélectionner' : 'Select all')}
+                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          {catThemeIds.map(themeId => {
+                            const theme = PERSONAL_THEMES.find(t => t.id === themeId);
+                            if (!theme) return null;
+                            const selected = themes.includes(themeId);
+                            return (
+                              <button key={themeId} onClick={() => toggleTheme(themeId)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                  selected ? 'text-white' : 'bg-gray-100 text-[#002844] hover:bg-gray-200'
+                                }`}
+                                style={selected ? { backgroundColor: '#002844' } : {}}>
+                                {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Professional GRC themes */}
+        {showPro && (
+          <div>
+            <label className="block text-sm font-semibold mb-3 text-[#002844]">
+              <span className="mr-2">💼</span>
+              {interfaceLang === 'fr' ? 'Thèmes professionnels GRC' : 'Professional GRC themes'}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {PROFESSIONAL_THEMES.map(theme => {
+                const selected = themes.includes(theme.id);
+                return (
+                  <button key={theme.id} onClick={() => toggleTheme(theme.id)}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                      selected ? 'text-white' : 'bg-white border border-gray-200 text-[#002844] hover:border-[#002844]'
+                    }`}
+                    style={selected ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
+                    {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
       </div>
     );
   };
 
-  // ============ SCREEN 3: ORGANISATION PAR LANGUE ============
+  // ==================== SCREEN 3: ORGANISATION ====================
   const Screen3 = () => {
-    const sched = getCurrentSchedule(scheduleLang);
-    const schLangName = interfaceLang === 'fr' ? scheduleLangInfo?.nameFr : scheduleLangInfo?.nameEn;
+    const sched = getSchedule(scheduleLang);
     return (
-      <div className="space-y-8">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('onboarding.screen3.title', interfaceLang)}</h2>
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-[#002844]">{t('onboarding.screen3.title', interfaceLang)}</h2>
+        <LangIndicator info={scheduleLangInfo} index={currentScheduleLangIndex} total={learningLangs.length} />
 
-        {/* Language indicator */}
-        <div className="flex items-center gap-3 p-4 bg-[#002844]/5 rounded-xl border border-[#002844]/20">
-          <span className="text-3xl">{scheduleLangInfo?.flag}</span>
-          <div>
-            <p className="text-sm text-[#555555]">{t('onboarding.screen3.scheduleFor', interfaceLang)}</p>
-            <p className="text-xl font-bold text-[#002844]">{schLangName}</p>
-          </div>
-          <span className="ml-auto text-sm font-medium text-[#555555]">
-            {t('onboarding.screen2.langOf', interfaceLang)} {currentScheduleLangIndex + 1}/{learningLangs.length}
-          </span>
-        </div>
-
+        {/* Days */}
         <div>
-          <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen3.days', interfaceLang)}</label>
-          <div className="flex gap-2 flex-wrap">
+          <label className="block text-sm font-semibold mb-3 text-[#002844]">{t('onboarding.screen3.days', interfaceLang)}</label>
+          <div className="flex gap-2">
             {DAYS_OF_WEEK.map(day => (
               <button key={day.id} onClick={() => toggleScheduleDay(day.id)}
-                className={`px-4 py-3 rounded-lg font-bold transition-all ${sched.days.includes(day.id) ? 'text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${sched.days.includes(day.id) ? 'text-white' : 'bg-gray-100 text-[#002844] hover:bg-gray-200'}`}
                 style={sched.days.includes(day.id) ? { backgroundColor: '#002844' } : {}}>
                 {interfaceLang === 'fr' ? day.shortFr : day.shortEn}
               </button>
             ))}
           </div>
         </div>
+
+        {/* Duration */}
         <div>
-          <label className="block text-lg font-semibold mb-4 text-gray-700">{t('onboarding.screen3.duration', interfaceLang)}</label>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          <label className="block text-sm font-semibold mb-3 text-[#002844]">{t('onboarding.screen3.duration', interfaceLang)}</label>
+          <div className="grid grid-cols-4 gap-2">
             {SESSION_DURATIONS.map(dur => (
               <button key={dur.value} onClick={() => setScheduleDuration(dur.value)}
-                className={`px-4 py-3 rounded-lg font-semibold transition-all ${sched.duration === dur.value ? 'text-white' : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-[#002844]'}`}
-                style={sched.duration === dur.value ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
+                className={`py-2.5 rounded-lg font-semibold text-sm transition-all ${sched.duration === dur.value ? 'text-white' : 'bg-white border border-gray-200 text-[#002844] hover:border-[#002844]'}`}
+                style={sched.duration === dur.value ? { backgroundColor: '#002844' } : {}}>
                 {interfaceLang === 'fr' ? dur.labelFr : dur.labelEn}
               </button>
             ))}
           </div>
         </div>
-        {errors.length > 0 && <div className="p-4 bg-red-100 border border-red-400 rounded-lg text-red-700">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
+
+        {/* Words per day */}
+        <div>
+          <label className="block text-sm font-semibold mb-3 text-[#002844]">
+            {interfaceLang === 'fr' ? 'Mots par jour' : 'Words per day'}
+          </label>
+          <div className="flex gap-3">
+            {[4, 8, 12].map(n => (
+              <button key={n} onClick={() => setWordsPerDay(n)}
+                className={`flex-1 py-3 rounded-xl font-bold text-lg transition-all ${sched.wordsPerDay === n ? 'text-white' : 'bg-gray-100 text-[#002844] hover:bg-gray-200'}`}
+                style={sched.wordsPerDay === n ? { backgroundColor: '#D9B438', color: '#002844' } : {}}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
       </div>
     );
   };
 
-  // ============ SCREEN 4: Diagnostic OPTIONNEL per language (#2) ============
+  // ==================== SCREEN 4: MINI-LESSON / LEVEL ====================
   const Screen4 = () => {
-    const hasGrc = hasGrcForLang(diagLang);
-    const diag = langDiagnostics[diagLang] || {};
+    const diag = getDiag(diagLang);
     const langName = interfaceLang === 'fr' ? diagLangInfo?.nameFr : diagLangInfo?.nameEn;
-    const allLangsDone = currentDiagLangIndex >= learningLangs.length - 1 &&
-      (diagStep === 'done' || (diagStep === 'grcChoice' && diag.grcChoice) || (!hasGrc && (diagStep === 'whatToDo' || diagStep === 'selectLevel') && diag.cecrChoice));
+
+    const setDiagChoice = (choice: 'lesson' | 'manual') => {
+      setLangDiagnostics(prev => ({ ...prev, [diagLang]: { ...prev[diagLang], choice } }));
+    };
+
+    const setManualLevel = (level: LevelCECRL) => {
+      setLangDiagnostics(prev => ({
+        ...prev,
+        [diagLang]: { choice: 'manual', manualLevel: level },
+      }));
+      // Auto-advance to next language after a short delay
+      if (currentDiagLangIndex < learningLangs.length - 1) {
+        setTimeout(() => setCurrentDiagLangIndex(prev => prev + 1), 300);
+      }
+    };
 
     return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-800">{t('onboarding.screen4.title', interfaceLang)}</h2>
+      <div className="space-y-5">
+        <LangIndicator info={diagLangInfo} index={currentDiagLangIndex} total={learningLangs.length} />
 
-        <div className="flex items-center gap-3 p-4 bg-[#002844]/5 rounded-xl border border-[#002844]/20">
-          <span className="text-3xl">{diagLangInfo?.flag}</span>
-          <p className="text-xl font-bold text-[#002844]">{t('onboarding.screen4.cecrSection', interfaceLang)} {langName}</p>
-          <span className="ml-auto text-sm font-medium text-[#555555]">
-            {currentDiagLangIndex + 1}/{learningLangs.length}
-          </span>
-        </div>
+        {diag.choice === 'undecided' && (
+          <>
+            {/* Welcome message */}
+            <div className="text-center py-4">
+              <div className="text-5xl mb-3">🎓</div>
+              <h2 className="text-xl font-bold text-[#002844] mb-2">
+                {interfaceLang === 'fr'
+                  ? `Prêt(e) pour ta première leçon en ${langName} ?`
+                  : `Ready for your first ${langName} lesson?`}
+              </h2>
+              <p className="text-sm text-[#555555] max-w-sm mx-auto">
+                {interfaceLang === 'fr'
+                  ? 'Une mini-leçon pour découvrir ton niveau et personnaliser ton parcours. Tu apprends dès maintenant !'
+                  : 'A mini-lesson to discover your level and personalize your path. You start learning right now!'}
+              </p>
+              {hasGrcForLang(diagLang) && (
+                <p className="text-xs text-[#D9B438] mt-2 font-semibold">
+                  {interfaceLang === 'fr'
+                    ? '+ Exercices professionnels GRC inclus'
+                    : '+ Professional GRC exercises included'}
+                </p>
+              )}
+            </div>
 
-        {diagStep === 'knowLevel' && (
-          <div className="space-y-4">
-            <p className="text-lg font-semibold text-[#002844]">
-              {t('onboarding.screen4.knowLevel', interfaceLang)} {langName} ?
-            </p>
             <div className="grid gap-3">
-              <button onClick={() => setDiagStep('selectLevel')}
-                className="p-4 rounded-xl border-2 border-gray-200 text-left hover:border-[#002844] transition-all">
-                <span className="font-semibold text-[#002844]">{t('onboarding.screen4.yes', interfaceLang)}</span>
+              <button onClick={() => setDiagChoice('lesson')}
+                className="p-4 rounded-xl text-left transition-all hover:shadow-md"
+                style={{ backgroundColor: '#D9B438', color: '#002844' }}>
+                <p className="font-bold text-lg">
+                  {interfaceLang === 'fr' ? '🚀 Commencer ma première leçon' : '🚀 Start my first lesson'}
+                </p>
+                <p className="text-sm opacity-80 mt-1">
+                  {interfaceLang === 'fr' ? '~5 min • Vocabulaire, grammaire, écoute, lecture' : '~5 min • Vocabulary, grammar, listening, reading'}
+                </p>
               </button>
-              <button onClick={() => setDiagStep('whatToDo')}
-                className="p-4 rounded-xl border-2 border-gray-200 text-left hover:border-[#002844] transition-all">
-                <span className="font-semibold text-[#002844]">{t('onboarding.screen4.no', interfaceLang)}</span>
+
+              <button onClick={() => setDiagChoice('manual')}
+                className="p-4 rounded-xl border-2 border-gray-200 text-left transition-all hover:border-[#002844]/30">
+                <p className="font-semibold text-[#002844]">
+                  {interfaceLang === 'fr' ? 'Je connais déjà mon niveau' : 'I already know my level'}
+                </p>
+                <p className="text-xs text-[#555555] mt-1">
+                  {interfaceLang === 'fr' ? 'Sélectionner manuellement A1 → B2' : 'Manually select A1 → B2'}
+                </p>
               </button>
             </div>
+          </>
+        )}
+
+        {diag.choice === 'lesson' && (
+          <div className="text-center py-6">
+            <div className="text-4xl mb-2">✅</div>
+            <p className="text-lg font-bold text-[#002844]">
+              {interfaceLang === 'fr' ? `Mini-leçon prévue pour ${langName}` : `Mini-lesson planned for ${langName}`}
+            </p>
+            <p className="text-sm text-[#555555] mt-1">
+              {interfaceLang === 'fr' ? 'Elle commencera après la configuration.' : 'It will start after setup.'}
+            </p>
+            <button onClick={() => setLangDiagnostics(prev => ({ ...prev, [diagLang]: { choice: 'undecided' } }))}
+              className="mt-3 text-xs text-[#D9B438] font-semibold hover:underline">
+              {interfaceLang === 'fr' ? 'Modifier' : 'Change'}
+            </button>
           </div>
         )}
 
-        {diagStep === 'selectLevel' && (
+        {diag.choice === 'manual' && (
           <div className="space-y-4">
-            <p className="text-lg font-semibold text-[#002844]">{t('onboarding.screen4.selectLevel', interfaceLang)}</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <p className="text-sm font-semibold text-[#002844]">
+              {interfaceLang === 'fr' ? `Quel est ton niveau CECRL en ${langName} ?` : `What is your CECRL level in ${langName}?`}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
               {(['A1', 'A2', 'B1', 'B2'] as LevelCECRL[]).map(level => (
-                <button key={level} onClick={() => {
-                  setManualLevel(level);
-                  if (hasGrc) setDiagStep('grcChoice');
-                  else {
-                    setDiagStep('done');
-                    if (currentDiagLangIndex < learningLangs.length - 1) {
-                      setTimeout(() => advanceDiagLang(), 100);
-                    }
-                  }
-                }}
+                <button key={level} onClick={() => setManualLevel(level)}
                   className={`p-4 rounded-xl border-2 text-center font-bold text-xl transition-all ${
-                    diag.cecrManualLevel === level ? 'border-[#002844] bg-[#002844] text-white' : 'border-gray-200 text-[#002844] hover:border-[#002844]'
+                    diag.manualLevel === level ? 'border-[#D9B438] bg-[#D9B438]/10 text-[#002844]' : 'border-gray-200 text-[#002844] hover:border-[#002844]'
                   }`}>
                   {level}
+                  <p className="text-xs font-normal text-[#555555] mt-1">
+                    {level === 'A1' && (interfaceLang === 'fr' ? 'Débutant' : 'Beginner')}
+                    {level === 'A2' && (interfaceLang === 'fr' ? 'Élémentaire' : 'Elementary')}
+                    {level === 'B1' && (interfaceLang === 'fr' ? 'Intermédiaire' : 'Intermediate')}
+                    {level === 'B2' && (interfaceLang === 'fr' ? 'Avancé' : 'Upper intermediate')}
+                  </p>
                 </button>
               ))}
             </div>
+            <button onClick={() => setLangDiagnostics(prev => ({ ...prev, [diagLang]: { choice: 'undecided' } }))}
+              className="text-xs text-[#D9B438] font-semibold hover:underline">
+              {interfaceLang === 'fr' ? '← Revenir au choix' : '← Back to choice'}
+            </button>
           </div>
         )}
 
-        {diagStep === 'whatToDo' && (
-          <div className="space-y-4">
-            <p className="text-lg font-semibold text-[#002844]">{t('onboarding.screen4.whatToDo', interfaceLang)}</p>
-            <div className="grid gap-3">
-              <button onClick={() => {
-                setDiagChoice('cecrChoice', 'test');
-                if (hasGrc) setDiagStep('grcChoice');
-                else {
-                  setDiagStep('done');
-                  if (currentDiagLangIndex < learningLangs.length - 1) setTimeout(() => advanceDiagLang(), 100);
-                }
-              }}
-                className="p-4 rounded-xl border-2 border-gray-200 text-left hover:border-[#D9B438] transition-all">
-                <span className="font-semibold text-[#002844]">{t('onboarding.screen4.takeTest', interfaceLang)}</span>
-              </button>
-              <button onClick={() => {
-                setDiagChoice('cecrChoice', 'skip');
-                if (hasGrc) setDiagStep('grcChoice');
-                else {
-                  setDiagStep('done');
-                  if (currentDiagLangIndex < learningLangs.length - 1) setTimeout(() => advanceDiagLang(), 100);
-                }
-              }}
-                className="p-4 rounded-xl border-2 border-gray-200 text-left hover:border-[#002844] transition-all">
-                <span className="font-semibold text-[#002844]">{t('onboarding.screen4.startA1', interfaceLang)}</span>
-                <p className="text-sm text-[#555555] mt-1">{t('onboarding.screen4.startA1Note', interfaceLang)}</p>
-              </button>
-            </div>
-          </div>
+        {/* Navigation between diagnostic languages */}
+        {currentDiagLangIndex < learningLangs.length - 1 && diag.choice !== 'undecided' && (diag.choice === 'lesson' || diag.manualLevel) && (
+          <button onClick={() => setCurrentDiagLangIndex(prev => prev + 1)}
+            className="w-full py-3 rounded-xl font-semibold text-[#002844] border-2 border-[#002844]/20 hover:bg-[#002844]/5 transition-all">
+            {interfaceLang === 'fr' ? 'Langue suivante →' : 'Next language →'}
+          </button>
         )}
 
-        {diagStep === 'grcChoice' && hasGrc && (
-          <div className="space-y-4 mt-6">
-            <div className="p-4 bg-[#D9B438]/10 rounded-xl border border-[#D9B438]/30">
-              <p className="text-lg font-semibold text-[#002844]">{t('onboarding.screen4.grcSection', interfaceLang)} {langName}</p>
-            </div>
-            <div className="grid gap-3">
-              <button onClick={() => {
-                setDiagChoice('grcChoice', 'test');
-                setDiagStep('done');
-                if (currentDiagLangIndex < learningLangs.length - 1) setTimeout(() => advanceDiagLang(), 100);
-              }}
-                className="p-4 rounded-xl border-2 border-gray-200 text-left hover:border-[#D9B438] transition-all">
-                <span className="font-semibold text-[#002844]">{t('onboarding.screen4.grcTest', interfaceLang)}</span>
-              </button>
-              <button onClick={() => {
-                setDiagChoice('grcChoice', 'skip');
-                setDiagStep('done');
-                if (currentDiagLangIndex < learningLangs.length - 1) setTimeout(() => advanceDiagLang(), 100);
-              }}
-                className="p-4 rounded-xl border-2 border-gray-200 text-left hover:border-[#002844] transition-all">
-                <span className="font-semibold text-[#002844]">{t('onboarding.screen4.startJunior', interfaceLang)}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {diagStep === 'done' && currentDiagLangIndex >= learningLangs.length - 1 && (
-          <div className="text-center text-green-600 font-semibold py-4">
-            ✅ {interfaceLang === 'fr' ? 'Configuration terminée pour toutes les langues' : 'Setup complete for all languages'}
-          </div>
-        )}
-
-        {(allLangsDone || (diagStep === 'done' && currentDiagLangIndex >= learningLangs.length - 1)) && (
+        {/* Finish button */}
+        {allDiagsDone && currentDiagLangIndex >= learningLangs.length - 1 && (
           <button onClick={handleFinishOnboarding}
-            className="w-full py-4 px-6 rounded-lg font-bold text-lg transition-all hover:shadow-lg"
+            className="w-full py-4 rounded-xl font-bold text-lg transition-all hover:shadow-lg"
             style={{ backgroundColor: '#D9B438', color: '#002844' }}>
-            {t('onboarding.startDiagnostic', interfaceLang)}
+            {learningLangs.some(l => getDiag(l).choice === 'lesson')
+              ? (interfaceLang === 'fr' ? '🚀 Lancer ma première leçon' : '🚀 Start my first lesson')
+              : (interfaceLang === 'fr' ? 'Accéder au Dashboard' : 'Go to Dashboard')}
           </button>
         )}
       </div>
     );
   };
 
-  // ============ MAIN RENDER ============
+  // ==================== MAIN RENDER ====================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-3 sm:p-4 md:p-6 lg:p-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-3 sm:p-6">
+      <div className="max-w-lg mx-auto">
         <ProgressBar />
-        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 md:p-8 lg:p-10 mb-6 overflow-y-auto max-h-[calc(100vh-180px)]">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-4 overflow-y-auto max-h-[calc(100vh-160px)]">
           {currentStep === 1 && <Screen1 />}
           {currentStep === 2 && <Screen2 />}
           {currentStep === 3 && <Screen3 />}
@@ -606,22 +708,21 @@ export default function OnboardingPage() {
         </div>
 
         {currentStep < 4 && (
-          <div className="flex gap-4 justify-between">
+          <div className="flex gap-3 justify-between">
             <button onClick={handlePrevious}
               disabled={currentStep === 1 && currentLangIndex === 0}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                currentStep === 1 && currentLangIndex === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+              className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${
+                currentStep === 1 && currentLangIndex === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white border border-gray-300 text-[#002844] hover:bg-gray-50'
               }`}>
-              {t('onboarding.previous', interfaceLang)}
+              {interfaceLang === 'fr' ? 'Précédent' : 'Previous'}
             </button>
             <button onClick={handleNext}
-              className="px-8 py-3 rounded-lg font-semibold transition-all hover:shadow-lg"
+              className="px-6 py-2.5 rounded-lg font-semibold transition-all hover:shadow-md"
               style={{ backgroundColor: '#D9B438', color: '#002844' }}>
-              {currentStep === 2 && currentLangIndex < learningLangs.length - 1
-                ? t('onboarding.screen2.nextLang', interfaceLang)
-                : currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1
-                  ? t('onboarding.screen2.nextLang', interfaceLang)
-                  : t('onboarding.next', interfaceLang)}
+              {(currentStep === 2 && currentLangIndex < learningLangs.length - 1) ||
+               (currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1)
+                ? (interfaceLang === 'fr' ? 'Langue suivante →' : 'Next language →')
+                : (interfaceLang === 'fr' ? 'Suivant' : 'Next')}
             </button>
           </div>
         )}
