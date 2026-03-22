@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, logoutUser, updateUserSettings } from '@/lib/db/localStorage'
-import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK } from '@/types'
+import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
 import { getThemeName } from '@/lib/i18n'
 import {
   User as UserIcon, Globe, Calendar,
-  GraduationCap, Shield, LogOut, ChevronRight, Volume2, Mic,
+  GraduationCap, Shield, LogOut, ChevronRight, Volume2, Mic, Edit2, Check,
 } from 'lucide-react'
 
 export default function ProfilPage() {
@@ -18,6 +18,17 @@ export default function ProfilPage() {
   const [wordsPerDay, setWordsPerDay] = useState(8)
   const [listenEnabled, setListenEnabled] = useState(true)
   const [speakEnabled, setSpeakEnabled] = useState(true)
+
+  // Edit mode states
+  const [editingLangs, setEditingLangs] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState(false)
+  const [editingThemes, setEditingThemes] = useState(false)
+
+  // Temporary editing values
+  const [tempLangs, setTempLangs] = useState<LearningLanguage[]>([])
+  const [tempDays, setTempDays] = useState<DayOfWeek[]>([])
+  const [tempDuration, setTempDuration] = useState<SessionDuration>(20)
+  const [tempThemes, setTempThemes] = useState<string[]>([])
 
   useEffect(() => {
     const u = getCurrentUser()
@@ -47,6 +58,87 @@ export default function ProfilPage() {
     }
   }
 
+  const handleEditLangsOpen = () => {
+    setTempLangs([...user!.settings.learningLangs])
+    setEditingLangs(true)
+  }
+
+  const handleEditLangsSave = () => {
+    if (user) {
+      const updated = updateUserSettings(user.id, { learningLangs: tempLangs })
+      if (updated) {
+        setUser(updated)
+        setEditingLangs(false)
+      }
+    }
+  }
+
+  const toggleLang = (langCode: LearningLanguage) => {
+    setTempLangs(prev =>
+      prev.includes(langCode)
+        ? prev.filter(l => l !== langCode)
+        : [...prev, langCode]
+    )
+  }
+
+  const handleEditScheduleOpen = () => {
+    const activeLang = user!.activeLang || user!.settings.learningLangs[0] || 'en'
+    const schedule = user!.settings.schedules?.[activeLang] || user!.settings.schedule
+    setTempDays([...(schedule?.days || [])])
+    setTempDuration((schedule?.duration || 20) as SessionDuration)
+    setEditingSchedule(true)
+  }
+
+  const handleEditScheduleSave = () => {
+    if (user) {
+      const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en'
+      const schedules = { ...(user.settings.schedules || {}) }
+      schedules[activeLang] = { days: tempDays, duration: tempDuration }
+      const updated = updateUserSettings(user.id, { schedules })
+      if (updated) {
+        setUser(updated)
+        setEditingSchedule(false)
+      }
+    }
+  }
+
+  const toggleScheduleDay = (dayId: DayOfWeek) => {
+    setTempDays(prev =>
+      prev.includes(dayId)
+        ? prev.filter(d => d !== dayId)
+        : [...prev, dayId]
+    )
+  }
+
+  const handleEditThemesOpen = () => {
+    const activeLang = user!.activeLang || user!.settings.learningLangs[0] || 'en'
+    const langConfig = user!.settings.languageConfigs?.[activeLang]
+    setTempThemes([...(langConfig?.themes || [])])
+    setEditingThemes(true)
+  }
+
+  const handleEditThemesSave = () => {
+    if (user) {
+      const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en'
+      const languageConfigs = { ...(user.settings.languageConfigs || {}) }
+      const currentConfig = languageConfigs[activeLang] || { objectives: [], themes: [], hasGrcThemes: false }
+      languageConfigs[activeLang] = { ...currentConfig, themes: tempThemes }
+      const updated = updateUserSettings(user.id, { languageConfigs })
+      if (updated) {
+        setUser(updated)
+        setEditingThemes(false)
+      }
+    }
+  }
+
+  const toggleTheme = (themeId: string) => {
+    setTempThemes(prev =>
+      prev.includes(themeId)
+        ? prev.filter(t => t !== themeId)
+        : [...prev, themeId]
+    )
+  }
+
   if (loading || !user) {
     return <div className="flex h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#002844]" /></div>
   }
@@ -74,22 +166,63 @@ export default function ProfilPage() {
         {/* ROW 1: Languages + Level — 2 cards side by side */}
         <div className="grid grid-cols-2 gap-3">
           {/* Languages card */}
-          <div className="rounded-xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Globe className="h-3.5 w-3.5 text-[#002844]" />
-              <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Langues' : 'Languages'}</span>
-            </div>
-            <div className="space-y-1.5">
-              {user.settings.learningLangs.map(lc => {
-                const info = LEARNING_LANGUAGES.find(l => l.code === lc)
-                return (
-                  <div key={lc} className="flex items-center gap-1.5">
-                    <span className="text-sm">{info?.flag}</span>
-                    <span className="text-xs text-[#002844] truncate">{lang === 'fr' ? info?.nameFr : info?.nameEn}</span>
-                    {lc === activeLang && <span className="ml-auto text-[8px] font-bold text-[#D9B438]">●</span>}
+          <div className="rounded-xl bg-white shadow-sm">
+            <div className="p-3">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-[#002844]" />
+                  <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Langues' : 'Languages'}</span>
+                </div>
+                {!editingLangs && (
+                  <button onClick={handleEditLangsOpen} className="p-1 hover:bg-gray-100 rounded transition-colors">
+                    <Edit2 className="h-3 w-3 text-[#002844]" />
+                  </button>
+                )}
+              </div>
+              {!editingLangs ? (
+                <div className="space-y-1.5">
+                  {user.settings.learningLangs.map(lc => {
+                    const info = LEARNING_LANGUAGES.find(l => l.code === lc)
+                    return (
+                      <div key={lc} className="flex items-center gap-1.5">
+                        <span className="text-sm">{info?.flag}</span>
+                        <span className="text-xs text-[#002844] truncate">{lang === 'fr' ? info?.nameFr : info?.nameEn}</span>
+                        {lc === activeLang && <span className="ml-auto text-[8px] font-bold text-[#D9B438]">●</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {LEARNING_LANGUAGES.map(l => (
+                    <div key={l.code} className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleLang(l.code)}
+                        className={`flex-shrink-0 w-4 h-4 rounded border transition-all ${
+                          tempLangs.includes(l.code)
+                            ? 'bg-[#D9B438] border-[#D9B438]'
+                            : 'border-gray-300 bg-white'
+                        }`}>
+                        {tempLangs.includes(l.code) && <Check className="h-3 w-3 text-[#002844]" />}
+                      </button>
+                      <span className="text-sm">{l.flag}</span>
+                      <span className="text-xs text-[#002844] flex-1">{lang === 'fr' ? l.nameFr : l.nameEn}</span>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 mt-2 pt-2 border-t border-gray-200">
+                    <button
+                      onClick={() => setEditingLangs(false)}
+                      className="flex-1 py-1.5 rounded text-xs font-bold bg-gray-100 text-[#555555] hover:bg-gray-200 transition-colors">
+                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={handleEditLangsSave}
+                      className="flex-1 py-1.5 rounded text-xs font-bold bg-[#D9B438] text-[#002844] hover:bg-[#c9a830] transition-colors">
+                      {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                    </button>
                   </div>
-                )
-              })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -117,22 +250,82 @@ export default function ProfilPage() {
         {/* ROW 2: Organization + Settings — 2 cards side by side */}
         <div className="grid grid-cols-2 gap-3">
           {/* Organization card */}
-          <div className="rounded-xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Calendar className="h-3.5 w-3.5 text-[#002844]" />
-              <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Organisation' : 'Organization'}</span>
-            </div>
-            <div className="flex gap-0.5 mb-2">
-              {DAYS_OF_WEEK.map(day => {
-                const isActive = schedule?.days?.includes(day.id)
-                return (
-                  <div key={day.id} className={`flex-1 rounded py-0.5 text-center text-[9px] font-bold ${isActive ? 'bg-[#002844] text-white' : 'bg-[#F0F0F0] text-[#999]'}`}>
-                    {lang === 'fr' ? day.shortFr : day.shortEn}
+          <div className="rounded-xl bg-white shadow-sm">
+            <div className="p-3">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-[#002844]" />
+                  <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Organisation' : 'Organization'}</span>
+                </div>
+                {!editingSchedule && (
+                  <button onClick={handleEditScheduleOpen} className="p-1 hover:bg-gray-100 rounded transition-colors">
+                    <Edit2 className="h-3 w-3 text-[#002844]" />
+                  </button>
+                )}
+              </div>
+              {!editingSchedule ? (
+                <>
+                  <div className="flex gap-0.5 mb-2">
+                    {DAYS_OF_WEEK.map(day => {
+                      const isActive = schedule?.days?.includes(day.id)
+                      return (
+                        <div key={day.id} className={`flex-1 rounded py-0.5 text-center text-[9px] font-bold ${isActive ? 'bg-[#002844] text-white' : 'bg-[#F0F0F0] text-[#999]'}`}>
+                          {lang === 'fr' ? day.shortFr : day.shortEn}
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
+                  <p className="text-[10px] text-[#555555]">{schedule?.duration || 20} min/{lang === 'fr' ? 'jour' : 'day'}</p>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-0.5">
+                    {DAYS_OF_WEEK.map(day => {
+                      const isActive = tempDays.includes(day.id)
+                      return (
+                        <button
+                          key={day.id}
+                          onClick={() => toggleScheduleDay(day.id)}
+                          className={`flex-1 rounded py-1 text-center text-[9px] font-bold transition-all ${
+                            isActive ? 'bg-[#002844] text-white' : 'bg-[#F0F0F0] text-[#999] hover:bg-gray-200'
+                          }`}>
+                          {lang === 'fr' ? day.shortFr : day.shortEn}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="pt-2 border-t border-gray-200">
+                    <p className="text-[10px] text-[#555555] mb-1">{lang === 'fr' ? 'Durée' : 'Duration'}</p>
+                    <div className="grid grid-cols-3 gap-1 mb-2">
+                      {SESSION_DURATIONS.map(dur => (
+                        <button
+                          key={dur.value}
+                          onClick={() => setTempDuration(dur.value)}
+                          className={`py-1 rounded text-[9px] font-bold transition-all ${
+                            tempDuration === dur.value
+                              ? 'bg-[#D9B438] text-[#002844]'
+                              : 'bg-[#F0F0F0] text-[#555555] hover:bg-gray-200'
+                          }`}>
+                          {lang === 'fr' ? dur.labelFr : dur.labelEn}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-gray-200">
+                    <button
+                      onClick={() => setEditingSchedule(false)}
+                      className="flex-1 py-1.5 rounded text-xs font-bold bg-gray-100 text-[#555555] hover:bg-gray-200 transition-colors">
+                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={handleEditScheduleSave}
+                      className="flex-1 py-1.5 rounded text-xs font-bold bg-[#D9B438] text-[#002844] hover:bg-[#c9a830] transition-colors">
+                      {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-[10px] text-[#555555]">{schedule?.duration || 20} min/{lang === 'fr' ? 'jour' : 'day'}</p>
           </div>
 
           {/* Settings card */}
@@ -171,18 +364,102 @@ export default function ProfilPage() {
         </div>
 
         {/* Themes — full width compact */}
-        <div className="rounded-xl bg-white p-3 shadow-sm">
-          <span className="text-xs font-bold text-[#002844] block mb-2">{lang === 'fr' ? 'Thèmes actifs' : 'Active themes'}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {(langConfig?.themes || []).slice(0, 8).map(themeId => (
-              <span key={themeId} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844]">
-                {getThemeName(themeId, lang, ALL_THEMES)}
-              </span>
-            ))}
-            {(langConfig?.themes || []).length > 8 && (
-              <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-100 text-[#555555]">
-                +{(langConfig?.themes || []).length - 8}
-              </span>
+        <div className="rounded-xl bg-white shadow-sm">
+          <div className="p-3">
+            <div className="flex items-center justify-between gap-1.5 mb-2">
+              <span className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Thèmes actifs' : 'Active themes'}</span>
+              {!editingThemes && (
+                <button onClick={handleEditThemesOpen} className="p-1 hover:bg-gray-100 rounded transition-colors">
+                  <Edit2 className="h-3 w-3 text-[#002844]" />
+                </button>
+              )}
+            </div>
+            {!editingThemes ? (
+              <div className="flex flex-wrap gap-1.5">
+                {(langConfig?.themes || []).slice(0, 8).map(themeId => (
+                  <span key={themeId} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#D9B438]/15 text-[#002844]">
+                    {getThemeName(themeId, lang, ALL_THEMES)}
+                  </span>
+                ))}
+                {(langConfig?.themes || []).length > 8 && (
+                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-100 text-[#555555]">
+                    +{(langConfig?.themes || []).length - 8}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {/* Personal themes by category */}
+                {THEME_CATEGORIES.map(cat => {
+                  const themesInCat = cat.themes.filter(t => PERSONAL_THEMES.some(pt => pt.id === t))
+                  return themesInCat.length > 0 ? (
+                    <div key={cat.id}>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="text-sm">{cat.icon}</span>
+                        <span className="text-[10px] font-bold text-[#002844]">{lang === 'fr' ? cat.nameFr : cat.nameEn}</span>
+                      </div>
+                      <div className="space-y-1 pl-2 border-l-2 border-gray-200">
+                        {themesInCat.map(themeId => {
+                          const theme = PERSONAL_THEMES.find(t => t.id === themeId)
+                          return theme ? (
+                            <div key={themeId} className="flex items-center gap-2">
+                              <button
+                                onClick={() => toggleTheme(themeId)}
+                                className={`flex-shrink-0 w-4 h-4 rounded border transition-all ${
+                                  tempThemes.includes(themeId)
+                                    ? 'bg-[#D9B438] border-[#D9B438]'
+                                    : 'border-gray-300 bg-white'
+                                }`}>
+                                {tempThemes.includes(themeId) && <Check className="h-3 w-3 text-[#002844]" />}
+                              </button>
+                              <span className="text-[10px] text-[#002844] flex-1">{lang === 'fr' ? theme.nameFr : theme.nameEn}</span>
+                            </div>
+                          ) : null
+                        })}
+                      </div>
+                    </div>
+                  ) : null
+                })}
+
+                {/* Professional themes */}
+                {PROFESSIONAL_THEMES.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-sm">💼</span>
+                      <span className="text-[10px] font-bold text-[#002844]">{lang === 'fr' ? 'Professionnel' : 'Professional'}</span>
+                    </div>
+                    <div className="space-y-1 pl-2 border-l-2 border-gray-200">
+                      {PROFESSIONAL_THEMES.map(theme => (
+                        <div key={theme.id} className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleTheme(theme.id)}
+                            className={`flex-shrink-0 w-4 h-4 rounded border transition-all ${
+                              tempThemes.includes(theme.id)
+                                ? 'bg-[#D9B438] border-[#D9B438]'
+                                : 'border-gray-300 bg-white'
+                            }`}>
+                            {tempThemes.includes(theme.id) && <Check className="h-3 w-3 text-[#002844]" />}
+                          </button>
+                          <span className="text-[10px] text-[#002844] flex-1">{lang === 'fr' ? theme.nameFr : theme.nameEn}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2 border-t border-gray-200 mt-3">
+                  <button
+                    onClick={() => setEditingThemes(false)}
+                    className="flex-1 py-1.5 rounded text-xs font-bold bg-gray-100 text-[#555555] hover:bg-gray-200 transition-colors">
+                    {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={handleEditThemesSave}
+                    className="flex-1 py-1.5 rounded text-xs font-bold bg-[#D9B438] text-[#002844] hover:bg-[#c9a830] transition-colors">
+                    {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -16,7 +16,7 @@ import {
 import { BANK_VOCABULARY } from '@/lib/db/bankVocabulary'
 import { BANK_GRAMMAR } from '@/lib/db/bankGrammar'
 import { BANK_READING } from '@/lib/db/bankReading'
-import { InterfaceLanguage, User } from '@/types'
+import { InterfaceLanguage, User, ALL_THEMES } from '@/types'
 import { t } from '@/lib/i18n'
 import {
   ArrowLeft, Download, Upload, FileText, CheckCircle, XCircle, BarChart3, Lock,
@@ -96,6 +96,9 @@ export default function AdminImportsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createFormData, setCreateFormData] = useState({ firstName: '', email: '', password: '', role: 'user' as 'user' | 'admin' })
   const [createError, setCreateError] = useState('')
+  const [detailView, setDetailView] = useState<'vocab' | 'reading' | 'grammar' | null>(null)
+  const [editingWordId, setEditingWordId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Record<string, string>>({})
   const [tabState, setTabState] = useState<TabState>({
     selectedType: null,
     file: null,
@@ -468,21 +471,21 @@ export default function AdminImportsPage() {
         value: vocabCount,
         icon: FileText,
         color: '#D9B438',
-        action: null,
+        action: () => setDetailView('vocab'),
       },
       {
         label: lang === 'fr' ? 'Textes de lecture' : 'Reading Texts',
         value: readingCount,
         icon: FileText,
         color: '#D9B438',
-        action: null,
+        action: () => setDetailView('reading'),
       },
       {
         label: lang === 'fr' ? 'Règles de grammaire' : 'Grammar Rules',
         value: grammarCount,
         icon: FileText,
         color: '#D9B438',
-        action: null,
+        action: () => setDetailView('grammar'),
       },
       {
         label: lang === 'fr' ? 'Mots en attente' : 'Pending Words',
@@ -515,10 +518,10 @@ export default function AdminImportsPage() {
             return (
               <button
                 key={idx}
-                onClick={() => stat.action && stat.action()}
-                disabled={!stat.action}
+                onClick={() => { if (stat.action) stat.action(); }}
+                disabled={stat.action === undefined}
                 className={`rounded-2xl bg-white p-6 shadow-lg transition-all ${
-                  stat.action ? 'hover:shadow-xl hover:scale-105 cursor-pointer' : 'cursor-default'
+                  stat.action !== undefined ? 'hover:shadow-xl hover:scale-105 cursor-pointer' : 'cursor-default'
                 }`}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -534,6 +537,66 @@ export default function AdminImportsPage() {
             )
           })}
         </div>
+
+        {/* Detail View Section */}
+        {detailView && (
+          <div className="mt-8 rounded-2xl bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-[#002844]">
+                {detailView === 'vocab' && (lang === 'fr' ? 'Vocabulaire par niveau' : 'Vocabulary by level')}
+                {detailView === 'reading' && (lang === 'fr' ? 'Lectures par niveau' : 'Readings by level')}
+                {detailView === 'grammar' && (lang === 'fr' ? 'Grammaire par niveau' : 'Grammar by level')}
+              </h3>
+              <button
+                onClick={() => setDetailView(null)}
+                className="px-4 py-2 rounded-lg bg-[#002844] text-white font-semibold hover:opacity-90 transition-opacity"
+              >
+                {lang === 'fr' ? 'Fermer' : 'Close'}
+              </button>
+            </div>
+
+            {/* Level breakdown table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: '#E8F4F8' }}>
+                    <th className="px-4 py-3 text-left font-semibold text-[#002844]">
+                      {lang === 'fr' ? 'Niveau' : 'Level'}
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-[#002844]">
+                      {lang === 'fr' ? 'Nombre' : 'Count'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    let source: any[] = [];
+                    if (detailView === 'vocab') source = BANK_VOCABULARY || [];
+                    else if (detailView === 'reading') source = BANK_READING || [];
+                    else if (detailView === 'grammar') source = BANK_GRAMMAR || [];
+
+                    const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+                    const counts: Record<string, number> = {};
+
+                    levels.forEach(level => {
+                      counts[level] = source.filter(item => {
+                        return item.level === level;
+                      }).length;
+                    });
+
+                    return levels.map((level) => (
+                      <tr key={level} className="border-b border-gray-200 hover:bg-blue-50">
+                        <td className="px-4 py-3 font-semibold text-[#002844]">{level}</td>
+                        <td className="px-4 py-3 text-[#555555]">{counts[level]}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -851,91 +914,282 @@ export default function AdminImportsPage() {
                 </p>
               </div>
             ) : (
-              <div className="rounded-2xl bg-white shadow-lg">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr style={{ backgroundColor: '#002844' }}>
-                        <th className="px-6 py-4 text-left font-semibold text-white">
-                          {lang === 'fr' ? 'Mot (langue cible)' : 'Word (target language)'}
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-white">
-                          {lang === 'fr' ? 'Traduction FR' : 'French Translation'}
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-white">
-                          {lang === 'fr' ? 'Langue' : 'Language'}
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-white">
-                          {lang === 'fr' ? 'Proposé par' : 'Proposed by'}
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-white">
-                          {lang === 'fr' ? 'Date' : 'Date'}
-                        </th>
-                        <th className="px-6 py-4 text-center font-semibold text-white">
-                          {lang === 'fr' ? 'Actions' : 'Actions'}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {getPendingProposedWords().map((word) => (
-                        <tr key={word.id} className="border-b border-gray-200 hover:bg-blue-50">
-                          <td className="px-6 py-4 font-semibold" style={{ color: '#002844' }}>
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            {(word as any).word_target || word.word || '-'}
-                          </td>
-                          <td className="px-6 py-4" style={{ color: '#555555' }}>
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            {(word as any).word_fr || word.definition || '-'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className="px-3 py-1 rounded-full text-sm font-medium"
-                              style={{
-                                backgroundColor: '#D9B438',
-                                color: '#002844',
-                              }}
+              <div className="space-y-6">
+                {getPendingProposedWords().map((word) => (
+                  <div key={word.id} className="rounded-2xl bg-white p-6 shadow-lg">
+                    {editingWordId === word.id ? (
+                      // Edit Form
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-[#002844] mb-4">
+                          {lang === 'fr' ? 'Éditer le mot' : 'Edit Word'}
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* word_target */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Mot cible' : 'Target Word'} *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={lang === 'fr' ? 'Mot dans la langue cible' : 'Word in target language'}
+                              value={editForm.word_target || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, word_target: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            />
+                          </div>
+
+                          {/* word_fr */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Traduction FR' : 'French Translation'} *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={lang === 'fr' ? 'Traduction en français' : 'French translation'}
+                              value={editForm.word_fr || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, word_fr: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            />
+                          </div>
+
+                          {/* definition_en */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Définition EN' : 'English Definition'}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={lang === 'fr' ? 'Définition en anglais' : 'English definition'}
+                              value={editForm.definition_en || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, definition_en: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            />
+                          </div>
+
+                          {/* definition_fr */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Définition FR' : 'French Definition'}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={lang === 'fr' ? 'Définition en français' : 'French definition'}
+                              value={editForm.definition_fr || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, definition_fr: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            />
+                          </div>
+
+                          {/* example_en */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Exemple EN' : 'English Example'}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={lang === 'fr' ? 'Exemple en anglais' : 'English example'}
+                              value={editForm.example_en || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, example_en: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            />
+                          </div>
+
+                          {/* example_fr */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Exemple FR' : 'French Example'}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={lang === 'fr' ? 'Exemple en français' : 'French example'}
+                              value={editForm.example_fr || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, example_fr: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            />
+                          </div>
+
+                          {/* theme */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Thème' : 'Theme'} *
+                            </label>
+                            <select
+                              value={editForm.theme || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, theme: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
                             >
+                              <option value="">{lang === 'fr' ? 'Sélectionner un thème' : 'Select a theme'}</option>
+                              {(ALL_THEMES || []).map(theme => (
+                                <option key={theme.id} value={theme.id}>{lang === 'fr' ? theme.nameFr : theme.nameEn}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* level */}
+                          <div>
+                            <label className="block text-sm font-semibold text-[#002844] mb-1">
+                              {lang === 'fr' ? 'Niveau' : 'Level'} *
+                            </label>
+                            <select
+                              value={editForm.level || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, level: e.target.value }))}
+                              className="w-full rounded-lg border-2 border-[#002844] px-3 py-2 text-sm focus:outline-none focus:border-[#D9B438]"
+                            >
+                              <option value="">{lang === 'fr' ? 'Sélectionner un niveau' : 'Select a level'}</option>
+                              {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => (
+                                <option key={lvl} value={lvl}>{lvl}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 pt-4">
+                          <button
+                            onClick={() => {
+                              const canValidate = editForm.word_target && editForm.word_fr && editForm.level && editForm.theme;
+                              if (!canValidate) {
+                                alert(lang === 'fr' ? 'Remplissez les champs obligatoires' : 'Fill required fields');
+                                return;
+                              }
+
+                              // Validate the word
+                              validateProposedWord(word.id);
+
+                              // Save enriched data to vocabulary bank
+                              const existingVocab = JSON.parse(localStorage.getItem('lingualearn_imported_vocab') || '[]');
+                              const newVocabItem = {
+                                id: crypto.randomUUID(),
+                                language: word.language,
+                                word_target: editForm.word_target,
+                                word_fr: editForm.word_fr,
+                                definition_en: editForm.definition_en || '',
+                                definition_fr: editForm.definition_fr || '',
+                                example_en: editForm.example_en || '',
+                                example_fr: editForm.example_fr || '',
+                                theme: editForm.theme,
+                                level: editForm.level,
+                                type: 'noun',
+                                phonetic: '',
+                                is_grc: '0',
+                              };
+                              existingVocab.push(newVocabItem);
+                              localStorage.setItem('lingualearn_imported_vocab', JSON.stringify(existingVocab));
+
+                              // Reset and refresh
+                              setEditingWordId(null);
+                              setEditForm({});
+                              setPendingWordsCount(getPendingProposedWords().length);
+                            }}
+                            className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                            style={{ backgroundColor: '#2e7d32' }}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            {lang === 'fr' ? 'Valider' : 'Validate'}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              rejectProposedWord(word.id);
+                              setEditingWordId(null);
+                              setEditForm({});
+                              setPendingWordsCount(getPendingProposedWords().length);
+                            }}
+                            className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                            style={{ backgroundColor: '#d32f2f' }}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            {lang === 'fr' ? 'Refuser' : 'Reject'}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setEditingWordId(null);
+                              setEditForm({});
+                            }}
+                            className="px-4 py-2 rounded-lg border-2 border-[#002844] font-semibold text-[#002844] hover:bg-[#002844]/5 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Display mode
+                      <div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <p className="text-xs font-semibold text-[#555555] uppercase">
+                              {lang === 'fr' ? 'Mot cible' : 'Target Word'}
+                            </p>
+                            <p className="text-sm font-semibold text-[#002844] mt-1">
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {(word as any).word_target || word.word || '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-[#555555] uppercase">
+                              {lang === 'fr' ? 'Traduction FR' : 'French Translation'}
+                            </p>
+                            <p className="text-sm font-semibold text-[#002844] mt-1">
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {(word as any).word_fr || word.definition || '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-[#555555] uppercase">
+                              {lang === 'fr' ? 'Langue' : 'Language'}
+                            </p>
+                            <p className="text-sm font-semibold text-[#D9B438] mt-1">
                               {word.language.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm" style={{ color: '#555555' }}>
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            {word.proposedBy || (word as any).userId || '-'}
-                          </td>
-                          <td className="px-6 py-4 text-sm" style={{ color: '#555555' }}>
-                            {new Date(word.createdAt).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US')}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex gap-2 justify-center">
-                              <button
-                                onClick={() => {
-                                  validateProposedWord(word.id)
-                                  setPendingWordsCount(getPendingProposedWords().length)
-                                }}
-                                className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
-                                style={{ backgroundColor: '#2e7d32' }}
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                                {lang === 'fr' ? 'Valider' : 'Validate'}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  rejectProposedWord(word.id)
-                                  setPendingWordsCount(getPendingProposedWords().length)
-                                }}
-                                className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
-                                style={{ backgroundColor: '#d32f2f' }}
-                              >
-                                <XCircle className="h-4 w-4" />
-                                {lang === 'fr' ? 'Refuser' : 'Reject'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-[#555555] uppercase">
+                              {lang === 'fr' ? 'Proposé par' : 'Proposed by'}
+                            </p>
+                            <p className="text-sm text-[#002844] mt-1">
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {word.proposedBy || (word as any).userId || '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-[#555555] uppercase">
+                              {lang === 'fr' ? 'Date' : 'Date'}
+                            </p>
+                            <p className="text-sm text-[#002844] mt-1">
+                              {new Date(word.createdAt).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US')}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-4 border-t border-gray-200">
+                          <button
+                            onClick={() => {
+                              setEditingWordId(word.id);
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              const wordAny = word as any;
+                              setEditForm({
+                                word_target: wordAny.word_target || '',
+                                word_fr: wordAny.word_fr || '',
+                                definition_en: '',
+                                definition_fr: '',
+                                example_en: '',
+                                example_fr: '',
+                                theme: '',
+                                level: '',
+                              });
+                            }}
+                            className="px-4 py-2 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                            style={{ backgroundColor: '#1976d2' }}
+                          >
+                            {lang === 'fr' ? 'Éditer' : 'Edit'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

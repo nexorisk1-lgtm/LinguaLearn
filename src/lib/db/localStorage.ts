@@ -88,11 +88,6 @@ export function loginUser(email: string, password: string): { success: boolean; 
     return { success: false, error: 'credentials' };
   }
 
-  // Check if user is pending approval
-  if (user.status === 'pending') {
-    return { success: false, error: 'pending' };
-  }
-
   // AR-02: Data integrity — if user has learning languages, onboarding is done
   if (user.settings.learningLangs && user.settings.learningLangs.length > 0 && !user.onboardingCompleted) {
     user.onboardingCompleted = true;
@@ -101,6 +96,22 @@ export function loginUser(email: string, password: string): { success: boolean; 
       users[idx] = user;
       saveUsers(users);
     }
+  }
+
+  // Fix status for old accounts — if no status and user exists, set to active
+  if (!user.status) {
+    user.status = 'active';
+    // Save the fix
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      users[idx] = user;
+      saveUsers(users);
+    }
+  }
+
+  // Check if user is pending approval
+  if (user.status === 'pending') {
+    return { success: false, error: 'pending' };
   }
 
   setCurrentUser(user);
@@ -302,7 +313,16 @@ export function rejectProposedWord(wordId: string): ProposedWord | null {
 
 // --- Admin: Get all users ---
 export function getAllUsers(): User[] {
-  return getUsers();
+  const users = getUsers();
+  let needsSave = false;
+  users.forEach(u => {
+    if (!u.status) {
+      u.status = 'active';
+      needsSave = true;
+    }
+  });
+  if (needsSave) saveUsers(users);
+  return users;
 }
 
 // --- Admin: Get user passwords (DEV only) ---

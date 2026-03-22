@@ -134,18 +134,29 @@ export default function DiagnosticPage() {
     if (!SpeechRecognition) { setMicPermission('denied'); return }
     const recognition = new SpeechRecognition()
     recognition.lang = diagPlan[currentPlanIndex]?.lang === 'en' ? 'en-US' : diagPlan[currentPlanIndex]?.lang || 'en'
-    recognition.continuous = false
-    recognition.interimResults = false
-    recognition.onresult = (event: any) => { setSpeechResult(event.results[0][0].transcript); setIsRecording(false) }
-    recognition.onerror = () => setIsRecording(false)
-    recognition.onend = () => setIsRecording(false)
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.onresult = (event: any) => {
+      let transcript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript
+      }
+      setSpeechResult(transcript)
+    }
+    recognition.onerror = () => {}
+    recognition.onend = () => {}
     recognitionRef.current = recognition
     recognition.start()
     setIsRecording(true)
     setSpeechResult('')
   }
 
-  const stopRecording = () => { if (recognitionRef.current) recognitionRef.current.stop(); setIsRecording(false) }
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.abort()
+      setIsRecording(false)
+    }
+  }
 
   const processAnswer = (correct: boolean, objKey: string) => {
     setLastCorrect(correct)
@@ -438,6 +449,10 @@ export default function DiagnosticPage() {
 
   // Exercise type label
   const getExerciseLabel = () => {
+    // Show interaction type for oral/listening exercises
+    if (currentQ.interactionType === 'listening') return lang === 'fr' ? '🎧 Écoute' : '🎧 Listening'
+    if (currentQ.interactionType === 'speaking') return lang === 'fr' ? '🎤 Oral' : '🎤 Speaking'
+    // Fallback to objective for text exercises
     const obj = currentQ.objective as string
     if (obj === 'grammaire') return lang === 'fr' ? '📝 Grammaire' : '📝 Grammar'
     if (obj === 'vocabulaire') return lang === 'fr' ? '📚 Vocabulaire' : '📚 Vocabulary'

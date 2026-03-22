@@ -287,7 +287,8 @@ export default function VocabulairePage() {
     };
 
     recognition.lang = langMap[activeLang] || activeLang;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
@@ -295,9 +296,20 @@ export default function VocabulairePage() {
     };
 
     recognition.onresult = (event: any) => {
+      // Build transcript from all results
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+
       hasReceivedResultRef.current = true;
-      const transcript = event.results[0][0].transcript;
       setSpeakingRecognizedText(transcript);
+
+      // Only process final results (not interim results)
+      const isFinal = event.results[event.results.length - 1].isFinal;
+      if (!isFinal) {
+        return;
+      }
 
       const exercise = speakingExercises[speakingIndex];
       if (exercise) {
