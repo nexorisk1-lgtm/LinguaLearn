@@ -5,14 +5,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Play, CheckCircle, XCircle, ArrowRight, Trophy, Flame,
-  BookOpen, PenTool, Mic, Volume2, Pencil, Home,
+  BookOpen, PenTool, Mic, Volume2, Pencil, Home, Volume,
 } from 'lucide-react'
 import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningObjective } from '@/types'
 import {
   getVocabulary, getGrammarRules, getExercisesForRule,
   getReadingTexts, getSpeakingExercises, getWritingExercises,
-  speakText, isCloseEnough,
+  speakText, isCloseEnough, addToPersonalVocab,
 } from '@/lib/db/bankHelpers'
 import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, WritingExercise } from '@/lib/db/bankTypes'
 
@@ -30,6 +30,10 @@ interface SessionExercise {
   answer: string
   options?: string[]
   hint?: string
+  readingText?: string
+  comprehensionQuestion?: string
+  comprehensionAnswer?: string
+  comprehensionOptions?: string[]
 }
 
 interface SessionResult {
@@ -84,15 +88,46 @@ function generateGrammarExercises(exercises: GrammarExercise[], count: number): 
 function generateReadingExercise(texts: ReadingText[]): SessionExercise | null {
   if (texts.length === 0) return null
   const text = texts[Math.floor(Math.random() * texts.length)]
-  const words = text.body_text.split(/\s+/)
-  // Simple comprehension: how many words
+
+  // Generate comprehension questions based on text title
+  let comprehensionQuestion = ''
+  let comprehensionAnswer = ''
+  let comprehensionOptions: string[] = []
+
+  switch (text.title) {
+    case 'My Family':
+      comprehensionQuestion = "What does Emma's mother do?"
+      comprehensionAnswer = 'She is a teacher'
+      comprehensionOptions = ['She is a teacher', 'She is a doctor', 'She cooks Italian food']
+      break
+    case 'A Family Dinner':
+      comprehensionQuestion = 'What does Grandma make?'
+      comprehensionAnswer = 'Pasta and salad'
+      comprehensionOptions = ['Pasta and salad', 'Pizza and soup', 'Rice and chicken']
+      break
+    case 'My Grandparents':
+      comprehensionQuestion = 'Where do the grandparents live?'
+      comprehensionAnswer = 'Near a small lake'
+      comprehensionOptions = ['In the city', 'Near a river', 'Near a small lake']
+      break
+    default:
+      comprehensionQuestion = 'What is the main topic of this text?'
+      comprehensionAnswer = text.theme || 'General'
+      comprehensionOptions = [text.theme || 'General', 'Other topic 1', 'Other topic 2']
+      break
+  }
+
   return {
     type: 'reading_comprehension',
     module: 'lecture',
     data: text,
     question: text.body_text,
-    answer: String(words.length),
+    answer: comprehensionAnswer,
     hint: text.title,
+    readingText: text.body_text,
+    comprehensionQuestion,
+    comprehensionAnswer,
+    comprehensionOptions,
   }
 }
 
@@ -138,6 +173,9 @@ export default function SessionPage() {
   const [showFeedback, setShowFeedback] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
   const [sessionModules, setSessionModules] = useState<string[]>([])
+  const [showingComprehension, setShowingComprehension] = useState(false)
+  const [wordDefinition, setWordDefinition] = useState<{ word: string; definition: string } | null>(null)
+  const [defPosition, setDefPosition] = useState<{ x: number; y: number } | null>(null)
 
   // Speech recognition refs
   const recognitionRef = useRef<any>(null)
@@ -150,10 +188,22 @@ export default function SessionPage() {
     const langConfig = currentUser.settings.languageConfigs?.[activeLang]
     const userLevel = currentUser.progress?.[activeLang]?.levelCecrl || 'A1'
     const userThemes = langConfig?.themes || ['travel']
-    const objectives = langConfig?.objectives || ['vocabulaire', 'grammaire']
+    const intentions = langConfig?.objectives || ['vocabulaire', 'grammaire']
     const progress = currentUser.progress?.[activeLang]
 
-    // Determine which modules to include based on objectives, prioritize lowest progress
+    // Map intentions to allowed modules
+    // oral -> oral, grammaire, vocabulaire
+    // ecrit -> ecrit, grammaire, vocabulaire
+    // lecture -> lecture, grammaire, vocabulaire
+    // grammaire and vocabulaire are ALWAYS included
+    const allowedModules = new Set<LearningObjective>(['grammaire', 'vocabulaire'])
+    for (const intention of intentions as string[]) {
+      if (intention === 'oral') allowedModules.add('oral')
+      else if (intention === 'ecrit') allowedModules.add('ecrit')
+      else if (intention === 'lecture') allowedModules.add('lecture')
+    }
+
+    // Determine which modules to include based on allowed modules, prioritize lowest progress
     const moduleBlocks: { id: LearningObjective; pct: number }[] = [
       { id: 'vocabulaire', pct: progress?.objectiveProgress?.vocabulaire || 0 },
       { id: 'grammaire', pct: progress?.objectiveProgress?.grammaire || 0 },
@@ -162,11 +212,11 @@ export default function SessionPage() {
       { id: 'ecrit', pct: progress?.objectiveProgress?.ecrit || 0 },
     ]
 
-    // Prioritize user's objectives, then fill others
-    const prioritized = [
-      ...moduleBlocks.filter(b => (objectives as string[]).includes(b.id)).sort((a, b) => a.pct - b.pct),
-      ...moduleBlocks.filter(b => !(objectives as string[]).includes(b.id)).sort((a, b) => a.pct - b.pct),
-    ].slice(0, 3) // Pick top 3 modules for session
+    // Filter only allowed modules and sort by progress
+    const prioritized = moduleBlocks
+      .filter(b => allowedModules.has(b.id))
+      .sort((a, b) => a.pct - b.pct)
+      .slice(0, 3) // Pick top 3 modules for session
 
     const allExercises: SessionExercise[] = []
     const usedModules: string[] = []
@@ -261,16 +311,24 @@ export default function SessionPage() {
 
   const handleSubmitAnswer = (answer?: string) => {
     if (!currentExercise) return
+
+    // For reading comprehension, check if still showing text
+    if (currentExercise.type === 'reading_comprehension' && !showingComprehension) {
+      setShowingComprehension(true)
+      return
+    }
+
     const userAnswer = answer || userInput.trim()
     let correct = false
 
     if (currentExercise.type === 'grammar_qcm') {
       correct = userAnswer === currentExercise.answer
     } else if (currentExercise.type === 'reading_comprehension') {
-      // Auto-correct: reading is about reading, mark as completed
-      correct = true
+      // For comprehension, check against comprehensionAnswer
+      correct = userAnswer === currentExercise.comprehensionAnswer
     } else if (currentExercise.type === 'speaking_repeat') {
-      correct = isCloseEnough(userAnswer, currentExercise.answer, 3)
+      const maxDist = Math.max(1, Math.floor(currentExercise.answer.length * 0.2))
+      correct = isCloseEnough(userAnswer, currentExercise.answer, maxDist)
     } else {
       correct = isCloseEnough(userAnswer, currentExercise.answer, 2)
     }
@@ -285,6 +343,8 @@ export default function SessionPage() {
     setUserInput('')
     setSelectedOption(null)
     setHeardText('')
+    setShowingComprehension(false)
+    setWordDefinition(null)
 
     if (currentIdx < exercises.length - 1) {
       setCurrentIdx(prev => prev + 1)
@@ -314,12 +374,31 @@ export default function SessionPage() {
       newStreak = lastDate === yesterdayStr ? newStreak + 1 : 1
     }
 
+    // BUG-23: Update lecture progression for reading exercises
+    const correctReadingCount = results.filter(r => r.exercise.module === 'lecture' && r.correct).length
+    const currentLecturePct = currentProgress?.objectiveProgress?.lecture || 0
+    let newLecturePct = currentLecturePct
+    if (correctReadingCount > 0) {
+      newLecturePct = Math.min(100, currentLecturePct + correctReadingCount * 5)
+    }
+
     updateUserProgress(user.id, activeLang, {
       streak: newStreak,
       lastActivityDate: todayStr,
       dailyExercisesCompleted: (currentProgress?.dailyExercisesCompleted || 0) + totalCount,
       dailyWordsCompleted: (currentProgress?.dailyWordsCompleted || 0) + results.filter(r => r.exercise.module === 'vocabulaire' && r.correct).length,
+      objectiveProgress: {
+        ...(currentProgress?.objectiveProgress || {}),
+        lecture: newLecturePct,
+      },
     })
+
+    // BUG-24: Save vocabulary words seen to personal vocab
+    for (const result of results) {
+      if (result.exercise.module === 'vocabulaire' && result.exercise.data?.id) {
+        addToPersonalVocab(user.id, result.exercise.data.id)
+      }
+    }
   }
 
   // Speech recognition for oral exercises
@@ -357,6 +436,24 @@ export default function SessionPage() {
       setPhase('exercise')
     } else {
       setPhase('summary')
+    }
+  }
+
+  // BUG lecture standalone: Fetch word definition from dictionaryapi.dev
+  const fetchWordDefinition = async (word: string, event: React.MouseEvent) => {
+    try {
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`)
+      if (response.ok) {
+        const data = await response.json()
+        const definition = data[0]?.meanings?.[0]?.definitions?.[0]?.definition || 'No definition found'
+        setWordDefinition({ word, definition })
+        const rect = (event.target as HTMLElement).getBoundingClientRect()
+        setDefPosition({ x: rect.left, y: rect.bottom + 5 })
+      } else {
+        setWordDefinition({ word, definition: 'Definition not found' })
+      }
+    } catch {
+      setWordDefinition({ word, definition: 'Unable to fetch definition' })
     }
   }
 
@@ -573,14 +670,55 @@ export default function SessionPage() {
           {/* Question */}
           {currentExercise.type === 'reading_comprehension' ? (
             <div>
-              <h2 className="text-sm font-bold text-[#002844] mb-3">
-                {lang === 'fr' ? 'Lisez ce texte attentivement :' : 'Read this text carefully:'}
-              </h2>
-              <p className="text-sm text-[#555555] leading-relaxed mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                {currentExercise.question.slice(0, 500)}{currentExercise.question.length > 500 ? '...' : ''}
-              </p>
-              {currentExercise.hint && (
-                <p className="text-xs text-[#D9B438] font-semibold mb-2">📖 {currentExercise.hint}</p>
+              {!showingComprehension ? (
+                // Display reading text with clickable words
+                <div>
+                  <h2 className="text-sm font-bold text-[#002844] mb-3">
+                    {lang === 'fr' ? 'Lisez ce texte attentivement :' : 'Read this text carefully:'}
+                  </h2>
+                  <div className="text-sm text-[#555555] leading-relaxed mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 relative">
+                    {currentExercise.readingText?.split(/\s+/).map((word, idx) => (
+                      <span
+                        key={idx}
+                        onClick={(e) => fetchWordDefinition(word.replace(/[.,!?;:]/g, ''), e)}
+                        className="cursor-help hover:underline hover:text-blue-700 transition-colors"
+                      >
+                        {word}{' '}
+                      </span>
+                    ))}
+                  </div>
+                  {wordDefinition && defPosition && (
+                    <div
+                      className="fixed bg-gray-900 text-white px-3 py-2 rounded text-xs z-50 max-w-xs"
+                      style={{
+                        left: `${defPosition.x}px`,
+                        top: `${defPosition.y}px`,
+                      }}
+                    >
+                      <p className="font-semibold text-yellow-300">{wordDefinition.word}</p>
+                      <p className="mt-1">{wordDefinition.definition}</p>
+                      <button
+                        onClick={() => setWordDefinition(null)}
+                        className="mt-2 bg-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-600"
+                      >
+                        {lang === 'fr' ? 'Fermer' : 'Close'}
+                      </button>
+                    </div>
+                  )}
+                  {currentExercise.hint && (
+                    <p className="text-xs text-[#D9B438] font-semibold mb-2">📖 {currentExercise.hint}</p>
+                  )}
+                </div>
+              ) : (
+                // Display comprehension question
+                <div>
+                  <h2 className="text-sm font-bold text-[#002844] mb-4">
+                    {lang === 'fr' ? 'Question de compréhension :' : 'Reading comprehension:'}
+                  </h2>
+                  <p className="text-base font-semibold text-[#002844] mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    {currentExercise.comprehensionQuestion}
+                  </p>
+                </div>
               )}
             </div>
           ) : currentExercise.type === 'speaking_repeat' ? (
@@ -627,10 +765,25 @@ export default function SessionPage() {
                   ))}
                 </div>
               ) : currentExercise.type === 'reading_comprehension' ? (
-                <button onClick={() => handleSubmitAnswer('read')}
-                  className="w-full py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
-                  {lang === 'fr' ? "J'ai lu ce texte ✓" : 'I read this text ✓'}
-                </button>
+                !showingComprehension ? (
+                  <button onClick={() => handleSubmitAnswer('read')}
+                    className="w-full py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
+                    {lang === 'fr' ? 'Montrer la question →' : 'Show question →'}
+                  </button>
+                ) : currentExercise.comprehensionOptions ? (
+                  <div className="space-y-2">
+                    {currentExercise.comprehensionOptions.map((opt, i) => (
+                      <button key={i} onClick={() => { setSelectedOption(opt); handleSubmitAnswer(opt) }}
+                        className={`w-full text-left p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                          selectedOption === opt ? 'border-[#D9B438] bg-[#D9B438]/10' : 'border-gray-200 hover:border-[#D9B438]/50'
+                        }`}
+                        style={{ color: '#002844' }}>
+                        <span className="font-bold text-[#555555] mr-2">{String.fromCharCode(65 + i)}.</span>
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                ) : null
               ) : currentExercise.type === 'speaking_repeat' ? (
                 <div>
                   {heardText && (
@@ -638,7 +791,12 @@ export default function SessionPage() {
                       <p className="text-xs font-semibold text-[#002844] mb-1">
                         {lang === 'fr' ? 'Entendu :' : 'Heard:'}
                       </p>
-                      <p className="text-sm text-[#555555]">{heardText}</p>
+                      <p className="text-sm text-[#555555] mb-2">{heardText}</p>
+                      <button onClick={() => speakText(heardText, activeLang)}
+                        className="flex items-center gap-1 px-3 py-1 bg-[#D9B438] text-[#002844] rounded text-xs font-semibold hover:bg-[#c9a530]">
+                        <Volume className="h-3 w-3" />
+                        {lang === 'fr' ? 'Réécouter ma prononciation' : 'Replay my pronunciation'}
+                      </button>
                     </div>
                   )}
                   <button onClick={startRecording} disabled={isRecording}
@@ -676,21 +834,62 @@ export default function SessionPage() {
                 <span className="font-bold text-sm" style={{ color: isCorrect ? '#2E7D32' : '#C62828' }}>
                   {isCorrect
                     ? (lang === 'fr' ? 'Correct !' : 'Correct!')
+                    : currentExercise.type === 'speaking_repeat'
+                    ? (lang === 'fr' ? 'À retravailler' : 'Need improvement')
                     : (lang === 'fr' ? 'Incorrect' : 'Incorrect')}
                 </span>
               </div>
+
+              {/* BUG-25: Show user's answer alongside correct answer */}
               {!isCorrect && currentExercise.type !== 'reading_comprehension' && (
-                <p className="text-sm text-[#555555]">
-                  {lang === 'fr' ? 'Réponse correcte :' : 'Correct answer:'}{' '}
-                  <span className="font-bold text-green-700">{currentExercise.answer}</span>
-                </p>
+                <div className="space-y-2 mb-3">
+                  <p className="text-sm text-[#555555]">
+                    {lang === 'fr' ? 'Ta réponse :' : 'Your answer:'}{' '}
+                    <span className="font-bold text-red-600">{results[results.length - 1]?.userAnswer || 'N/A'}</span>
+                  </p>
+                  <p className="text-sm text-[#555555]">
+                    {lang === 'fr' ? 'Réponse correcte :' : 'Correct answer:'}{' '}
+                    <span className="font-bold text-green-700">{currentExercise.answer}</span>
+                  </p>
+                </div>
               )}
-              <button onClick={handleNext}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
-                {currentIdx < exercises.length - 1
-                  ? <>{lang === 'fr' ? 'Suivant' : 'Next'} <ArrowRight className="h-4 w-4" /></>
-                  : <>{lang === 'fr' ? 'Voir le résumé' : 'See summary'} <Trophy className="h-4 w-4" /></>}
-              </button>
+
+              {/* BUG-21: Special handling for speaking exercises */}
+              {!isCorrect && currentExercise.type === 'speaking_repeat' && (
+                <div className="space-y-2 mb-3">
+                  <p className="text-sm text-[#555555]">
+                    {lang === 'fr' ? 'Vous avez dit :' : 'You said:'}{' '}
+                    <span className="font-semibold text-[#002844]">{results[results.length - 1]?.userAnswer || 'N/A'}</span>
+                  </p>
+                  <p className="text-sm text-[#555555]">
+                    {lang === 'fr' ? 'Cible :' : 'Target:'}{' '}
+                    <span className="font-semibold text-green-700">{currentExercise.answer}</span>
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {currentExercise.type === 'speaking_repeat' && !isCorrect && (
+                  <button onClick={() => {
+                    setShowFeedback(false)
+                    setUserInput('')
+                    setSelectedOption(null)
+                    setHeardText('')
+                    setShowingComprehension(false)
+                  }}
+                    className="flex-1 py-2.5 rounded-xl bg-[#D9B438] text-[#002844] font-bold text-sm hover:bg-[#c9a530] transition-colors">
+                    {lang === 'fr' ? 'Réessayer' : 'Try again'}
+                  </button>
+                )}
+                <button onClick={handleNext}
+                  className={`${currentExercise.type === 'speaking_repeat' && !isCorrect ? 'flex-1' : 'w-full'} flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors`}>
+                  {currentExercise.type === 'speaking_repeat' && !isCorrect
+                    ? (lang === 'fr' ? 'Exercice suivant' : 'Next exercise')
+                    : currentIdx < exercises.length - 1
+                    ? <>{lang === 'fr' ? 'Suivant' : 'Next'} <ArrowRight className="h-4 w-4" /></>
+                    : <>{lang === 'fr' ? 'Voir le résumé' : 'See summary'} <Trophy className="h-4 w-4" /></>}
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -231,7 +231,7 @@ const translations = {
     // Oral
     'oral.title': 'Expression orale',
     'oral.instruction': 'Consigne',
-    'oral.targetText': 'Texte à prononcer',
+    'oral.target_text': 'Texte à prononcer',
     'oral.record': 'Enregistrer',
     'oral.recording': 'Enregistrement...',
     'oral.stop': 'Arrêter',
@@ -498,7 +498,7 @@ const translations = {
     // Speaking
     'oral.title': 'Speaking',
     'oral.instruction': 'Instruction',
-    'oral.targetText': 'Text to pronounce',
+    'oral.target_text': 'Text to pronounce',
     'oral.record': 'Record',
     'oral.recording': 'Recording...',
     'oral.stop': 'Stop',

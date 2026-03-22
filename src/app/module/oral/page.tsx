@@ -16,7 +16,7 @@ import {
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { InterfaceLanguage } from '@/types'
 import { t } from '@/lib/i18n'
-import { getSpeakingExercises, speakText } from '@/lib/db/bankHelpers'
+import { getSpeakingExercises, speakText, isCloseEnough } from '@/lib/db/bankHelpers'
 import { SpeakingExercise } from '@/lib/db/bankTypes'
 
 type ResultType = 'match' | 'mismatch' | null
@@ -189,7 +189,10 @@ export default function OralModule() {
     const targetLower = currentExercise.target_text.toLowerCase().trim()
     const heardLower = heardTranscript.toLowerCase().trim()
 
-    if (targetLower === heardLower) {
+    const maxDist = Math.max(1, Math.floor(currentExercise.target_text.length * 0.2))
+    const isMatch = isCloseEnough(heardLower, targetLower, maxDist)
+
+    if (isMatch) {
       setResult('match')
     } else {
       setResult('mismatch')

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser, setActiveLang, logoutUser } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
+import { initNotifications, scheduleReminder } from '@/lib/notifications'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
   BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut,
@@ -40,6 +41,17 @@ export default function DashboardPage() {
     setUser(currentUser)
     setLang(currentUser.settings.interfaceLang || 'fr')
     setLoading(false)
+
+    // Initialize notifications
+    initNotifications().catch(err => console.error('Failed to initialize notifications:', err))
+
+    // Schedule reminder for active language
+    if (currentUser.activeLang) {
+      const activeLangConfig = currentUser.settings.schedules?.[currentUser.activeLang] || currentUser.settings.schedule
+      if (activeLangConfig?.days) {
+        scheduleReminder(activeLangConfig.days, currentUser.activeLang)
+      }
+    }
   }
 
   useEffect(() => {
@@ -370,7 +382,7 @@ export default function DashboardPage() {
               const dayNames = lang === 'fr'
                 ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
                 : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-              const dayIds = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+              const dayIds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
               const todayDayId = dayIds[today.getDay()]
               const isScheduledToday = sched?.days?.includes(todayDayId as DayOfWeek) || false
               return (

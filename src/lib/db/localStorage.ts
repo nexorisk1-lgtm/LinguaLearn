@@ -15,12 +15,21 @@ const STORAGE_KEYS = {
 // --- Helpers ---
 function getUsers(): User[] {
   if (typeof window === 'undefined') return [];
-  const data = localStorage.getItem(STORAGE_KEYS.USERS);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.USERS);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+    return [];
+  }
 }
 
 function saveUsers(users: User[]): void {
-  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  try {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
 }
 
 // --- Auth ---
@@ -64,9 +73,13 @@ export function registerUser(
   };
 
   // Store password separately (DEV only - not for PROD)
-  const usersWithPwd = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
-  usersWithPwd[email] = password;
-  localStorage.setItem('lingualearn_passwords', JSON.stringify(usersWithPwd));
+  try {
+    const usersWithPwd = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+    usersWithPwd[email] = password;
+    localStorage.setItem('lingualearn_passwords', JSON.stringify(usersWithPwd));
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
 
   users.push(newUser);
   saveUsers(users);
@@ -83,7 +96,12 @@ export function loginUser(email: string, password: string): { success: boolean; 
     return { success: false, error: 'credentials' };
   }
 
-  const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+  let passwords: Record<string, string> = {};
+  try {
+    passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
   if (passwords[email] !== password) {
     return { success: false, error: 'credentials' };
   }
@@ -129,17 +147,30 @@ export function logoutUser(): void {
       saveUsers(users);
     }
   }
-  localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  try {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
 }
 
 export function getCurrentUser(): User | null {
   if (typeof window === 'undefined') return null;
-  const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-  return data ? JSON.parse(data) : null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    return data ? JSON.parse(data) : null;
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+    return null;
+  }
 }
 
 export function setCurrentUser(user: User): void {
-  localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+  try {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
   // AR-02: Always sync to USERS array for persistence across logout/login
   const users = getUsers();
   const index = users.findIndex(u => u.id === user.id);
@@ -269,18 +300,27 @@ export function addProposedWord(word: string, language: string, proposedBy: stri
   };
 
   if (typeof window === 'undefined') return proposed;
-  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
-  const words: ProposedWord[] = data ? JSON.parse(data) : [];
-  words.push(proposed);
-  localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+    const words: ProposedWord[] = data ? JSON.parse(data) : [];
+    words.push(proposed);
+    localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
 
   return proposed;
 }
 
 export function getAllProposedWords(): ProposedWord[] {
   if (typeof window === 'undefined') return [];
-  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+    return [];
+  }
 }
 
 export function getPendingProposedWords(): ProposedWord[] {
@@ -289,26 +329,36 @@ export function getPendingProposedWords(): ProposedWord[] {
 
 export function validateProposedWord(wordId: string): ProposedWord | null {
   if (typeof window === 'undefined') return null;
-  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
-  const words: ProposedWord[] = data ? JSON.parse(data) : [];
-  const index = words.findIndex(w => w.id === wordId);
-  if (index === -1) return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+    const words: ProposedWord[] = data ? JSON.parse(data) : [];
+    const index = words.findIndex(w => w.id === wordId);
+    if (index === -1) return null;
 
-  words[index].status = 'validated';
-  localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
-  return words[index];
+    words[index].status = 'validated';
+    localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+    return words[index];
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+    return null;
+  }
 }
 
 export function rejectProposedWord(wordId: string): ProposedWord | null {
   if (typeof window === 'undefined') return null;
-  const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
-  const words: ProposedWord[] = data ? JSON.parse(data) : [];
-  const index = words.findIndex(w => w.id === wordId);
-  if (index === -1) return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PROPOSED_WORDS);
+    const words: ProposedWord[] = data ? JSON.parse(data) : [];
+    const index = words.findIndex(w => w.id === wordId);
+    if (index === -1) return null;
 
-  words[index].status = 'rejected';
-  localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
-  return words[index];
+    words[index].status = 'rejected';
+    localStorage.setItem(STORAGE_KEYS.PROPOSED_WORDS, JSON.stringify(words));
+    return words[index];
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+    return null;
+  }
 }
 
 // --- Admin: Get all users ---
@@ -328,7 +378,12 @@ export function getAllUsers(): User[] {
 // --- Admin: Get user passwords (DEV only) ---
 export function getUserPasswords(): Record<string, string> {
   if (typeof window === 'undefined') return {};
-  return JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+  try {
+    return JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+    return {};
+  }
 }
 
 // --- Admin: Approve user ---
@@ -350,9 +405,13 @@ export function deleteUser(userId: string): boolean {
   users.splice(index, 1);
   saveUsers(users);
   // Also remove password
-  const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
-  delete passwords[email];
-  localStorage.setItem('lingualearn_passwords', JSON.stringify(passwords));
+  try {
+    const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+    delete passwords[email];
+    localStorage.setItem('lingualearn_passwords', JSON.stringify(passwords));
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
   return true;
 }
 
@@ -383,9 +442,13 @@ export function adminCreateUser(
     onboardingCompleted: false,
     createdAt: new Date().toISOString(),
   };
-  const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
-  passwords[email] = password;
-  localStorage.setItem('lingualearn_passwords', JSON.stringify(passwords));
+  try {
+    const passwords = JSON.parse(localStorage.getItem('lingualearn_passwords') || '{}');
+    passwords[email] = password;
+    localStorage.setItem('lingualearn_passwords', JSON.stringify(passwords));
+  } catch (e) {
+    console.warn('localStorage not available:', e);
+  }
   users.push(newUser);
   saveUsers(users);
   return { success: true, user: newUser };

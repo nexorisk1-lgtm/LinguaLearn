@@ -235,6 +235,70 @@ export const BANK_WRITING: WritingExercise[] = [
     answer: 'Me gustaría viajar a México este verano.'
   },
 
+  // ============================================
+  // ENGLISH - FAMILY THEME
+  // ============================================
+
+  // A1 Family
+  {
+    id: 'wr_en_fam_01',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'completion',
+    instruction_fr: 'Complète la phrase',
+    instruction_en: 'Complete the sentence.',
+    prompt: 'My ___ is a teacher.',
+    answer: 'mother'
+  },
+  {
+    id: 'wr_en_fam_02',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'completion',
+    instruction_fr: 'Complète la phrase',
+    instruction_en: 'Complete the sentence.',
+    prompt: 'I have two ___ and one sister.',
+    answer: 'brothers'
+  },
+  {
+    id: 'wr_en_fam_03',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'translation',
+    instruction_fr: 'Traduisez la phrase suivante en anglais.',
+    instruction_en: 'Translate the following sentence into English.',
+    prompt: 'Mon frère est grand.',
+    answer: 'My brother is tall.'
+  },
+  {
+    id: 'wr_en_fam_04',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'completion',
+    instruction_fr: 'Complète la phrase',
+    instruction_en: 'Complete the sentence.',
+    prompt: 'My grandmother likes to ___ in the garden.',
+    answer: 'work'
+  },
+  {
+    id: 'wr_en_fam_05',
+    language: 'en',
+    level: 'A1',
+    theme: 'family',
+    type: 'free_writing',
+    instruction_fr: 'Écris une phrase avec le mot "family"',
+    instruction_en: 'Write a sentence with the word "family"',
+    prompt: 'Écris une phrase avec le mot "family" / Write a sentence with the word "family"'
+  },
+
+  // ============================================
+  // SPANISH - TRAVEL THEME
+  // ============================================
+
   // A2 Travel
   {
     id: 'wr_es_03',

@@ -515,7 +515,7 @@ export default function OnboardingPage() {
         {/* Learning intentions - 3 choices (Grammaire + Vocabulaire always active) */}
         <div>
           <label className="block text-sm font-semibold mb-2 text-[#002844]">
-            {interfaceLang === 'fr' ? 'Quelle est ton intention principale ?' : 'What is your main intention?'}
+            {interfaceLang === 'fr' ? 'Qu\'est-ce que tu veux faire ?' : 'What do you want to do?'}
           </label>
           <p className="text-xs text-[#555555] mb-3">
             {interfaceLang === 'fr'
@@ -524,9 +524,9 @@ export default function OnboardingPage() {
           </p>
           <div className="space-y-2">
             {[
-              { intentions: ['oral'] as LearningObjective[], icon: '🗣️', labelFr: 'Parler — Speaking + Écoute', labelEn: 'Speak — Speaking + Listening' },
-              { intentions: ['ecrit', 'grammaire'] as LearningObjective[], icon: '✍️', labelFr: 'Écrire — Writing + Grammaire', labelEn: 'Write — Writing + Grammar' },
-              { intentions: ['lecture'] as LearningObjective[], icon: '📖', labelFr: 'Comprendre — Reading + Écoute', labelEn: 'Understand — Reading + Listening' },
+              { intentions: ['oral'] as LearningObjective[], icon: '🗣️', labelFr: 'Apprendre à parler', labelEn: 'Learn to speak' },
+              { intentions: ['ecrit', 'grammaire'] as LearningObjective[], icon: '✍️', labelFr: 'Apprendre à écrire', labelEn: 'Learn to write' },
+              { intentions: ['lecture'] as LearningObjective[], icon: '📖', labelFr: 'Apprendre à comprendre', labelEn: 'Learn to understand' },
             ].map(intent => {
               const currentObjectives = getObjectives(currentLang);
               // Check if this intention is selected: at least one of its objectives is in the list (beyond the always-active ones)
