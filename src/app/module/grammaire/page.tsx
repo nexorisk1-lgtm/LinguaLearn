@@ -57,6 +57,7 @@ export default function GrammairePage() {
   const [verbExercises, setVerbExercises] = useState<VerbExercise[]>([])
   const [irregularVerbs, setIrregularVerbs] = useState<IrregularVerb[]>([])
   const [verbGroupFilter, setVerbGroupFilter] = useState<string>('all')
+  const [verbAssessment, setVerbAssessment] = useState<Record<string, string>>({})
 
   const [exerciseState, setExerciseState] = useState<ExerciseState>({
     currentIndex: 0,
@@ -92,6 +93,17 @@ export default function GrammairePage() {
       setIrregularVerbs(verbs)
       // Load verb exercises
       setVerbExercises(BANK_VERB_EXERCISES)
+
+      // Load verb assessment from localStorage
+      const assessKey = `lingualearn_verb_assessment_${loadedUser?.id}_${activeLang}`
+      const stored = localStorage.getItem(assessKey)
+      if (stored) {
+        try {
+          setVerbAssessment(JSON.parse(stored))
+        } catch {
+          setVerbAssessment({})
+        }
+      }
     }
 
     setLoading(false)
@@ -225,6 +237,15 @@ export default function GrammairePage() {
     if (verbGroupFilter === 'all') return true
     return verb.group === verbGroupFilter
   })
+
+  // AMÉLIORATION P1: Function to assess verb knowledge
+  const assessVerb = (verbId: string, status: string) => {
+    const updated = { ...verbAssessment, [verbId]: status }
+    setVerbAssessment(updated)
+    if (user && activeLang) {
+      localStorage.setItem(`lingualearn_verb_assessment_${user.id}_${activeLang}`, JSON.stringify(updated))
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
@@ -980,6 +1001,9 @@ export default function GrammairePage() {
                     <th className="px-6 py-4 text-center font-semibold text-white">
                       Audio
                     </th>
+                    <th className="px-6 py-4 text-center font-semibold text-white">
+                      {interfaceLang === 'fr' ? 'Ma compréhension' : 'My understanding'}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1010,53 +1034,94 @@ export default function GrammairePage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredVerbs.map((verb, _idx) => ( // eslint-disable-line @typescript-eslint/no-unused-vars
-                      <tr
-                        key={verb.base}
-                        className="border-t border-gray-200 hover:bg-blue-50 transition"
-                      >
-                        <td className="px-6 py-4" style={{ color: '#002844' }}>
-                          <button
-                            onClick={() => handleSpeakVerb(verb.base, verb.past, verb.past_participle)}
-                            className="font-semibold hover:text-yellow-600 transition flex items-center gap-2"
-                          >
-                            {verb.base}
-                            <Volume2 className="w-4 h-4 opacity-0 group-hover:opacity-100" />
-                          </button>
-                        </td>
-                        <td className="px-6 py-4" style={{ color: '#555555' }}>
-                          {verb.past}
-                        </td>
-                        <td className="px-6 py-4" style={{ color: '#555555' }}>
-                          {verb.past_participle}
-                        </td>
-                        <td className="px-6 py-4" style={{ color: '#555555' }}>
-                          {verb.french}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className="px-3 py-1 rounded-full text-sm font-medium"
-                            style={{
-                              backgroundColor: '#D9B438',
-                              color: '#002844',
-                            }}
-                          >
-                            {verb.group}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => handleSpeakVerb(verb.base, verb.past, verb.past_participle)}
-                            className="p-2 hover:bg-blue-100 rounded transition inline-block"
-                          >
-                            <Volume2
-                              className="w-5 h-5"
-                              style={{ color: '#D9B438' }}
-                            />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    filteredVerbs.map((verb, _idx) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+                      const verbId = `${verb.base}_${verb.past}_${verb.past_participle}`
+                      const currentAssessment = verbAssessment[verbId]
+                      return (
+                        <tr
+                          key={verb.base}
+                          className="border-t border-gray-200 hover:bg-blue-50 transition"
+                        >
+                          <td className="px-6 py-4" style={{ color: '#002844' }}>
+                            <button
+                              onClick={() => handleSpeakVerb(verb.base, verb.past, verb.past_participle)}
+                              className="font-semibold hover:text-yellow-600 transition flex items-center gap-2"
+                            >
+                              {verb.base}
+                              <Volume2 className="w-4 h-4 opacity-0 group-hover:opacity-100" />
+                            </button>
+                          </td>
+                          <td className="px-6 py-4" style={{ color: '#555555' }}>
+                            {verb.past}
+                          </td>
+                          <td className="px-6 py-4" style={{ color: '#555555' }}>
+                            {verb.past_participle}
+                          </td>
+                          <td className="px-6 py-4" style={{ color: '#555555' }}>
+                            {verb.french}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className="px-3 py-1 rounded-full text-sm font-medium"
+                              style={{
+                                backgroundColor: '#D9B438',
+                                color: '#002844',
+                              }}
+                            >
+                              {verb.group}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => handleSpeakVerb(verb.base, verb.past, verb.past_participle)}
+                              className="p-2 hover:bg-blue-100 rounded transition inline-block"
+                            >
+                              <Volume2
+                                className="w-5 h-5"
+                                style={{ color: '#D9B438' }}
+                              />
+                            </button>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-1 justify-center flex-wrap">
+                              <button
+                                onClick={() => assessVerb(verbId, 'know')}
+                                className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                  currentAssessment === 'know'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-green-200'
+                                }`}
+                                title={interfaceLang === 'fr' ? 'Je connais' : 'I know'}
+                              >
+                                ✅
+                              </button>
+                              <button
+                                onClick={() => assessVerb(verbId, 'unsure')}
+                                className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                  currentAssessment === 'unsure'
+                                    ? 'bg-yellow-500 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-yellow-200'
+                                }`}
+                                title={interfaceLang === 'fr' ? 'J\'hésite' : 'I\'m unsure'}
+                              >
+                                🔄
+                              </button>
+                              <button
+                                onClick={() => assessVerb(verbId, 'review')}
+                                className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                  currentAssessment === 'review'
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-red-200'
+                                }`}
+                                title={interfaceLang === 'fr' ? 'À revoir' : 'To review'}
+                              >
+                                ❌
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>

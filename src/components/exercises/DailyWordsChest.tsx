@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { InterfaceLanguage, User } from '@/types'
-import { getVocabulary, speakText } from '@/lib/db/bankHelpers'
+import { getVocabulary, speakText, addToPersonalVocab } from '@/lib/db/bankHelpers'
 import { X, Volume2, ChevronRight, CheckCircle } from 'lucide-react'
 
 interface DailyWordsChestProps {
@@ -14,6 +14,7 @@ interface DailyWordsChestProps {
 type ChestPhase = 'closed' | 'presenting' | 'quiz' | 'done'
 
 interface WordForChest {
+  id?: string
   word_target: string
   word_fr: string
   definition_en?: string
@@ -66,6 +67,11 @@ export default function DailyWordsChest({ user, activeLang, lang }: DailyWordsCh
     const shuffled = [...allWords].sort(() => Math.random() - 0.5)
     const selectedWords = shuffled.slice(0, wordsPerDay)
 
+    // Save all daily words to personal vocab
+    selectedWords.forEach((w) => {
+      if (w.id) addToPersonalVocab(user.id, w.id, 'in_progress')
+    })
+
     setWords(selectedWords)
     setShowModal(true)
     setPhase('presenting')
@@ -77,6 +83,10 @@ export default function DailyWordsChest({ user, activeLang, lang }: DailyWordsCh
   }
 
   const handleCloseModal = () => {
+    // Mark all words as learned when closing
+    words.forEach((w) => {
+      if (w.id) addToPersonalVocab(user.id, w.id, 'learned')
+    })
     setShowModal(false)
     setPhase('closed')
     setPresentingIndex(0)

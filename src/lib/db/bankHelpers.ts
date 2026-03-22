@@ -128,17 +128,23 @@ export function getPersonalVocab(userId: string): PersonalVocab[] {
   }
 }
 
-export function addToPersonalVocab(userId: string, wordId: string): void {
+export function addToPersonalVocab(userId: string, wordId: string, status?: 'learned' | 'in_progress' | 'to_review'): void {
   if (typeof window === 'undefined') return;
 
   const key = `lingualearn_personal_vocab_${userId}`;
   const vocab = getPersonalVocab(userId);
 
-  if (!vocab.some((item) => item.wordId === wordId)) {
+  const existing = vocab.find(item => item.wordId === wordId);
+  if (existing) {
+    // Update status if provided
+    if (status) existing.status = status;
+    localStorage.setItem(key, JSON.stringify(vocab));
+  } else {
     vocab.push({
       wordId,
       userId,
       addedAt: new Date().toISOString(),
+      status: status || 'in_progress',
     });
     localStorage.setItem(key, JSON.stringify(vocab));
   }

@@ -190,6 +190,25 @@ export default function SessionPage() {
   // BUG-34: text spacing + truncation
   const [readingExpanded, setReadingExpanded] = useState(false)
 
+  // BUG-37: "Why am I wrong?" explanation
+  const [showWhyWrong, setShowWhyWrong] = useState(false)
+
+  // BUG-38: IPA phonetic transcriptions for common words
+  const IPA_MAP: Record<string, string> = {
+    'father': '[ˈfɑːðər]',
+    'mother': '[ˈmʌðər]',
+    'brother': '[ˈbrʌðər]',
+    'sister': '[ˈsɪstər]',
+    'family': '[ˈfæmɪli]',
+    'grandmother': '[ˈɡrænˌmʌðər]',
+    'grandfather': '[ˈɡrændˌfɑːðər]',
+    'my father is kind': '[maɪ ˈfɑːðər ɪz kaɪnd]',
+    'she is my sister': '[ʃiː ɪz maɪ ˈsɪstər]',
+    'we are a happy family': '[wiː ɑːr ə ˈhæpi ˈfæmɪli]',
+    'i love my mother': '[aɪ lʌv maɪ ˈmʌðər]',
+    'he is my brother': '[hiː ɪz maɪ ˈbrʌðər]',
+  }
+
   // Build session exercises with structured 4-step flow
   const buildSession = useCallback((currentUser: User) => {
     const activeLang = currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en'
@@ -310,6 +329,22 @@ export default function SessionPage() {
 
   const currentExercise = exercises[currentIdx]
 
+  // BUG-37: Generate explanation for incorrect answers
+  const getWhyWrongExplanation = (exercise: SessionExercise, userAnswer: string): string => {
+    if (exercise.type === 'grammar_qcm' || exercise.module === 'grammaire') {
+      const rule = exercise.data
+      return lang === 'fr'
+        ? `La bonne réponse est "${exercise.answer}". ${rule?.definition || rule?.definition_fr || 'Révisez cette règle dans le module Grammaire.'}`
+        : `The correct answer is "${exercise.answer}". ${rule?.definition || rule?.definition_en || 'Review this rule in the Grammar module.'}`
+    }
+    if (exercise.module === 'vocabulaire') {
+      return lang === 'fr'
+        ? `"${exercise.question}" se traduit par "${exercise.answer}". Votre réponse "${userAnswer}" n'est pas correcte.`
+        : `"${exercise.question}" translates to "${exercise.answer}". Your answer "${userAnswer}" is not correct.`
+    }
+    return lang === 'fr' ? `La réponse correcte est : ${exercise.answer}` : `The correct answer is: ${exercise.answer}`
+  }
+
   const handleSubmitAnswer = (answer?: string) => {
     if (!currentExercise) return
 
@@ -346,6 +381,7 @@ export default function SessionPage() {
     setHeardText('')
     setShowingComprehension(false)
     setWordDefinition(null)
+    setShowWhyWrong(false)
 
     if (currentIdx < exercises.length - 1) {
       setCurrentIdx(prev => prev + 1)
@@ -397,7 +433,7 @@ export default function SessionPage() {
     // BUG-24: Save vocabulary words seen to personal vocab
     for (const result of results) {
       if (result.exercise.module === 'vocabulaire' && result.exercise.data?.id) {
-        addToPersonalVocab(user.id, result.exercise.data.id)
+        addToPersonalVocab(user.id, result.exercise.data.id, result.correct ? 'learned' : 'to_review')
       }
     }
   }
@@ -458,8 +494,17 @@ export default function SessionPage() {
     }
   }
 
+  // BUG-35: Change reading speed function that restarts playback if audio is playing
+  const changeReadingSpeed = (speed: number, text?: string) => {
+    setReadingSpeed(speed)
+    if (isReadingAloud && text) {
+      window.speechSynthesis.cancel()
+      setTimeout(() => playReadingAloud(text, speed), 100)
+    }
+  }
+
   // BUG-33: TTS function with speed control and word highlighting
-  const playReadingAloud = (text: string) => {
+  const playReadingAloud = (text: string, speed?: number) => {
     if ('speechSynthesis' in window) {
       // Cancel any ongoing speech
       if (isReadingAloud) {
@@ -470,7 +515,7 @@ export default function SessionPage() {
       }
 
       const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = readingSpeed
+      utterance.rate = speed ?? readingSpeed
       utterance.lang = user?.activeLang === 'fr' ? 'fr-FR' : 'en-US'
 
       const words = text.split(/\s+/)
@@ -744,13 +789,12 @@ export default function SessionPage() {
                     {[0.5, 1, 1.5].map((speed) => (
                       <button
                         key={speed}
-                        onClick={() => setReadingSpeed(speed)}
+                        onClick={() => changeReadingSpeed(speed, currentExercise.readingText || '')}
                         className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                           readingSpeed === speed
                             ? 'bg-[#002844] text-white'
                             : 'bg-gray-200 text-[#002844] hover:bg-gray-300'
                         }`}
-                        disabled={isReadingAloud}
                       >
                         {speed}x
                       </button>
@@ -980,6 +1024,25 @@ export default function SessionPage() {
                     {lang === 'fr' ? 'Cible :' : 'Target:'}{' '}
                     <span className="font-semibold text-green-700">{currentExercise.answer}</span>
                   </p>
+                  {/* BUG-38: IPA phonetic guide */}
+                  {IPA_MAP[currentExercise.answer.toLowerCase()] && (
+                    <p className="text-sm text-[#555555] mt-1">
+                      <span className="font-mono text-[#7B1FA2]">{IPA_MAP[currentExercise.answer.toLowerCase()]}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* BUG-37: "Why am I wrong?" button */}
+              {!isCorrect && (
+                <button onClick={() => setShowWhyWrong(!showWhyWrong)}
+                  className="mt-3 flex items-center gap-1 text-sm font-semibold text-[#D9B438] hover:text-[#c9a530]">
+                  ✨ {lang === 'fr' ? 'Pourquoi ai-je faux ?' : 'Why am I wrong?'}
+                </button>
+              )}
+              {showWhyWrong && !isCorrect && (
+                <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm text-[#002844]">
+                  {getWhyWrongExplanation(currentExercise, results[results.length - 1]?.userAnswer || userInput)}
                 </div>
               )}
 

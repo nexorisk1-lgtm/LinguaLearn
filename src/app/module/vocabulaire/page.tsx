@@ -48,6 +48,7 @@ export default function VocabulairePage() {
   const [selectedTheme, setSelectedTheme] = useState<string>('all');
   const [vocabulary, setVocabulary] = useState<VocabWord[]>([]);
   const [personalVocab, setPersonalVocab] = useState<VocabWord[]>([]);
+  const [personalVocabStatus, setPersonalVocabStatus] = useState<Record<string, string>>({});
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
@@ -132,6 +133,11 @@ export default function VocabulairePage() {
       personal.some((pv) => pv.wordId === word.id)
     );
     setPersonalVocab(personalWords);
+
+    // Build status map for personal vocab
+    const statusMap: Record<string, string> = {};
+    personal.forEach(pv => { statusMap[pv.wordId] = pv.status || 'in_progress'; });
+    setPersonalVocabStatus(statusMap);
 
     // Get writing exercises
     const writing = getWritingExercises(activeLang, userThemes, userLevel);
@@ -788,7 +794,18 @@ export default function VocabulairePage() {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {personalVocab.map((word) => (
-                    <VocabCard key={word.id} word={word} isPersonal={true} />
+                    <div key={word.id} className="relative">
+                      <VocabCard word={word} isPersonal={true} />
+                      <span className={`absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full ${
+                        personalVocabStatus[word.id] === 'learned' ? 'bg-green-100 text-green-700' :
+                        personalVocabStatus[word.id] === 'to_review' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {personalVocabStatus[word.id] === 'learned' ? (interfaceLang === 'fr' ? 'Appris' : 'Learned') :
+                         personalVocabStatus[word.id] === 'to_review' ? (interfaceLang === 'fr' ? 'À revoir' : 'To review') :
+                         (interfaceLang === 'fr' ? 'En cours' : 'In progress')}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </>

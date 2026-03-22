@@ -91,6 +91,7 @@ export interface PersonalVocab {
   wordId: string;
   userId: string;
   addedAt: string;
+  status?: 'learned' | 'in_progress' | 'to_review';
 }
 
 // --- Mot proposé par un utilisateur ---
