@@ -63,8 +63,12 @@ export default function AuthPage() {
       return;
     }
 
-    // Redirect to onboarding (since we just need to check that it will redirect to dashboard if already completed)
-    router.push('/onboarding');
+    // AR-02 FIX: Redirect based on onboardingCompleted status
+    if (result.user?.onboardingCompleted) {
+      router.push('/dashboard');
+    } else {
+      router.push('/onboarding');
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {

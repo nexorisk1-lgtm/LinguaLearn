@@ -55,6 +55,11 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!loading && !user) router.push('/auth');
     if (!loading && user) {
+      // AR-02 FIX: If onboarding already completed, go to dashboard
+      if (user.onboardingCompleted) {
+        router.push('/dashboard');
+        return;
+      }
       // NAV-LANG FIX: Initialize with existing languages
       if (user.settings.learningLangs && user.settings.learningLangs.length > 0) {
         setLearningLangs(user.settings.learningLangs);
