@@ -110,6 +110,7 @@ export interface LanguageConfig {
   objectives: LearningObjective[];
   themes: string[];
   hasGrcThemes: boolean;
+  learningPath?: LearningPath | LearningPath[]; // A, B, C or combination (A+C, B+C)
 }
 
 // --- User Settings (stockage) ---
@@ -121,6 +122,42 @@ export interface LanguageSchedule {
 
 // --- Goal type for onboarding step 2 ---
 export type GoalType = 'personal' | 'professional' | 'both';
+
+// --- Learning Path (Curriculum V1.0) ---
+export type LearningPath = 'A' | 'B' | 'C';
+
+export const LEARNING_PATHS: { id: LearningPath; nameFr: string; nameEn: string; descFr: string; descEn: string; icon: string; certFr: string; certEn: string }[] = [
+  {
+    id: 'A',
+    nameFr: 'Apprentissage complet',
+    nameEn: 'Complete Learning',
+    descFr: 'Maîtrise complète de la langue : grammaire, vocabulaire, lecture, écrit et oral. Progression A1→C2.',
+    descEn: 'Full language mastery: grammar, vocabulary, reading, writing and speaking. Progression A1→C2.',
+    icon: '📘',
+    certFr: 'Certification CECRL',
+    certEn: 'CECRL Certification',
+  },
+  {
+    id: 'B',
+    nameFr: 'Parler & Comprendre',
+    nameEn: 'Speak & Understand',
+    descFr: 'Communication orale prioritaire : voyages, restaurant, rencontres, travail courant. Pas d\'écrit long.',
+    descEn: 'Oral communication priority: travel, restaurant, social, everyday work. No long writing.',
+    icon: '🎙️',
+    certFr: 'Badges de compétence',
+    certEn: 'Skill Badges',
+  },
+  {
+    id: 'C',
+    nameFr: 'Professionnel GRC',
+    nameEn: 'Professional GRC',
+    descFr: 'Anglais professionnel GRC : audit, risk, compliance, governance, cybersécurité. Complémentaire à A ou B.',
+    descEn: 'Professional GRC English: audit, risk, compliance, governance, cybersecurity. Complementary to A or B.',
+    icon: '💼',
+    certFr: 'Certification GRC 4 niveaux',
+    certEn: 'GRC Certification 4 levels',
+  },
+];
 
 // --- Theme categories for grouped display ---
 export const THEME_CATEGORIES: { id: string; nameFr: string; nameEn: string; icon: string; themes: string[] }[] = [

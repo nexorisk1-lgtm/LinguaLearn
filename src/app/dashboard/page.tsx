@@ -301,6 +301,25 @@ export default function DashboardPage() {
           </div>
         </a>
 
+        {/* BLOC-04b: CTA — Parcours A1 → page cours carrousel */}
+        <a href="/module/cours"
+          className="block mb-4 rounded-2xl bg-white border border-gray-200 p-4 shadow-sm active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-xl">
+              📘
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-[#002844]">
+                {lang === 'fr' ? 'Mon parcours A1' : 'My A1 Path'}
+              </p>
+              <p className="text-xs text-[#555555] mt-0.5">
+                {lang === 'fr' ? '25 cours · 5 blocs · Étoiles et progression' : '25 courses · 5 blocks · Stars and progress'}
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-[#002844] flex-shrink-0" />
+          </div>
+        </a>
+
         {/* BLOC-05: 5 OBJECTIVE BLOCKS — filtered by user objectives */}
         {(() => {
           // Filter blocks: always show grammaire and vocabulaire, plus user's specific objectives

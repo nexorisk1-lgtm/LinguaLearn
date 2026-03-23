@@ -28,7 +28,6 @@ import {
   XCircle,
   BookOpen,
   Play,
-  Lock,
 } from 'lucide-react'
 
 type TabType = 'rules' | 'exercises' | 'irregularVerbs'
@@ -59,7 +58,8 @@ export default function GrammairePage() {
   const [irregularVerbs, setIrregularVerbs] = useState<IrregularVerb[]>([])
   const [verbGroupFilter, setVerbGroupFilter] = useState<string>('all')
   const [verbAssessment, setVerbAssessment] = useState<Record<string, string>>({})
-  const [grammarProgress, setGrammarProgress] = useState<Record<string, { stars: number; bestScore: number }>>({})
+  // grammarProgress kept for future use in exercise scoring display
+  const [, setGrammarProgress] = useState<Record<string, { stars: number; bestScore: number }>>({})
 
   const [exerciseState, setExerciseState] = useState<ExerciseState>({
     currentIndex: 0,
@@ -157,14 +157,6 @@ export default function GrammairePage() {
   const filteredRules = grammarRules.filter(
     (rule) => rule.language === activeLang && rule.level === userLevel
   )
-
-  // BUG-32: Check if a rule is unlocked (first rule always unlocked, next needs ≥1 star on previous)
-  const isRuleUnlocked = (ruleIndex: number): boolean => {
-    if (ruleIndex === 0) return true
-    const prevRule = filteredRules[ruleIndex - 1]
-    if (!prevRule) return false
-    return (grammarProgress[prevRule.id]?.stars || 0) >= 1
-  }
 
   // Get current exercise
   const currentExercise =
@@ -381,27 +373,22 @@ export default function GrammairePage() {
                   <h2 style={{ color: '#002844' }} className="text-lg font-bold">
                     {interfaceLang === 'fr' ? 'Détails des règles' : 'Rule details'}
                   </h2>
-                  {filteredRules.map((rule, ruleIdx) => {
-                    const unlocked = isRuleUnlocked(ruleIdx)
+                  {filteredRules.map((rule) => {
                     return (
                 <div
                   key={rule.id}
-                  className={`rounded-lg shadow-sm border overflow-hidden ${unlocked ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-200 opacity-60'}`}
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
                 >
                   <button
-                    onClick={() => {
-                      if (!unlocked) return
+                    onClick={() =>
                       setExpandedRuleId(
                         expandedRuleId === rule.id ? null : rule.id
                       )
-                    }}
-                    className={`w-full px-6 py-4 flex items-center justify-between transition ${unlocked ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed'}`}
-                    disabled={!unlocked}
+                    }
+                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
                   >
                     <div className="flex items-center gap-4">
-                      {!unlocked ? (
-                        <Lock className="w-5 h-5 text-gray-400" />
-                      ) : expandedRuleId === rule.id ? (
+                      {expandedRuleId === rule.id ? (
                         <ChevronUp
                           className="w-5 h-5"
                           style={{ color: '#D9B438' }}

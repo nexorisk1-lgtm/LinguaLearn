@@ -1,11 +1,11 @@
 'use client'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Play, CheckCircle, XCircle, ArrowRight, Trophy, Flame,
-  BookOpen, PenTool, Mic, Volume2, Pencil, Home, Volume,
+  BookOpen, PenTool, Mic, Volume2, Pencil, Home, Volume, Star,
 } from 'lucide-react'
 import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningObjective } from '@/types'
@@ -182,8 +182,31 @@ function generateWritingExercises(exercises: WritingExercise[], count: number): 
 // COMPONENT
 // ==========================================
 
-export default function SessionPage() {
+// Star system (Curriculum §1.1)
+function getStarsFromScore(pct: number): number {
+  if (pct >= 90) return 3;
+  if (pct >= 70) return 2;
+  if (pct >= 60) return 1;
+  return 0;
+}
+
+function getStarLabel(stars: number, lang: string): string {
+  if (lang === 'fr') {
+    if (stars === 3) return 'Maîtrisé';
+    if (stars === 2) return 'Bien';
+    if (stars === 1) return 'À retravailler';
+    return 'Bloqué';
+  }
+  if (stars === 3) return 'Mastered';
+  if (stars === 2) return 'Good';
+  if (stars === 1) return 'Needs work';
+  return 'Blocked';
+}
+
+function SessionContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const courseId = searchParams.get('courseId')
   const [user, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
@@ -216,7 +239,8 @@ export default function SessionPage() {
   // BUG-34: text spacing + truncation
   const [readingExpanded, setReadingExpanded] = useState(false)
 
-  // BUG-37: "Why am I wrong?" explanation
+  // BUG-37: explanation (now always shown per P0-4)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showWhyWrong, setShowWhyWrong] = useState(false)
 
   // BUG-38: IPA phonetic transcriptions for common words
@@ -541,7 +565,6 @@ export default function SessionPage() {
     const lastDate = currentProgress?.lastActivityDate
     let newStreak = currentProgress?.streak || 0
     if (lastDate !== todayStr) {
-      // Check if yesterday
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       const yesterdayStr = yesterday.toISOString().split('T')[0]
@@ -572,6 +595,30 @@ export default function SessionPage() {
       if (result.exercise.module === 'vocabulaire' && result.exercise.data?.id) {
         addToPersonalVocab(user.id, result.exercise.data.id, result.correct ? 'learned' : 'to_review')
       }
+    }
+
+    // P0-3: Save course score if this is a course session
+    if (courseId) {
+      const correctCount = results.filter(r => r.correct).length
+      const totalResults = results.length
+      const scorePct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0
+      const stars = getStarsFromScore(scorePct)
+
+      try {
+        const key = `lingualearn_course_scores_${user.id}_${activeLang}`
+        const stored = localStorage.getItem(key)
+        const allScores = stored ? JSON.parse(stored) : {}
+        // Only save if better than previous score
+        const prev = allScores[courseId]
+        if (!prev || scorePct > prev.score) {
+          allScores[courseId] = {
+            score: scorePct,
+            stars,
+            completedAt: new Date().toISOString(),
+          }
+          localStorage.setItem(key, JSON.stringify(allScores))
+        }
+      } catch { /* ignore storage errors */ }
     }
   }
 
@@ -853,6 +900,13 @@ export default function SessionPage() {
     const correctCount = results.filter(r => r.correct).length
     const totalCount = results.length
     const pct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0
+    const stars = getStarsFromScore(pct)
+    const starLabel = getStarLabel(stars, lang)
+
+    // Unlock status for course sessions
+    const unlockNextCourse = pct >= 60
+    const unlockCheckpoint = pct >= 70
+    const unlockCertification = pct >= 75
 
     return (
       <div className="min-h-screen bg-[#F0F0F0] px-4 py-8">
@@ -872,19 +926,60 @@ export default function SessionPage() {
             </p>
           </div>
 
-          {/* Score visual */}
-          <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Score' : 'Score'}</span>
-              <span className="text-2xl font-bold text-[#D9B438]">{pct}%</span>
+          {/* Stars display */}
+          <div className="rounded-2xl bg-white p-6 shadow-sm mb-6 text-center">
+            <div className="flex justify-center gap-2 mb-3">
+              {[1, 2, 3].map(i => (
+                <Star key={i} className={`h-10 w-10 transition-all ${
+                  i <= stars
+                    ? 'text-[#D9B438] fill-[#D9B438] scale-110'
+                    : 'text-gray-200'
+                }`} />
+              ))}
             </div>
-            <div className="h-3 w-full rounded-full bg-gray-100">
+            <p className={`text-lg font-bold ${
+              stars >= 3 ? 'text-green-600' : stars >= 2 ? 'text-[#D9B438]' : stars >= 1 ? 'text-orange-500' : 'text-red-500'
+            }`}>
+              {starLabel}
+            </p>
+            <p className="text-3xl font-bold text-[#002844] mt-2">{pct}%</p>
+            <div className="h-3 w-full rounded-full bg-gray-100 mt-3">
               <div className="h-full rounded-full transition-all"
                 style={{
                   width: `${pct}%`,
-                  backgroundColor: pct >= 80 ? '#2E7D32' : pct >= 50 ? '#D9B438' : '#E65100',
+                  backgroundColor: stars >= 3 ? '#2E7D32' : stars >= 2 ? '#D9B438' : stars >= 1 ? '#E65100' : '#E53935',
                 }} />
             </div>
+
+            {/* Unlock indicators (for course sessions) */}
+            {courseId && (
+              <div className="mt-4 space-y-1.5 text-left">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${unlockNextCourse ? 'text-green-600' : 'text-red-500'}`}>
+                    {unlockNextCourse ? '✅' : '❌'}
+                  </span>
+                  <span className="text-xs text-[#555555]">
+                    {lang === 'fr' ? 'Cours suivant (60% min)' : 'Next course (60% min)'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${unlockCheckpoint ? 'text-green-600' : 'text-red-500'}`}>
+                    {unlockCheckpoint ? '✅' : '❌'}
+                  </span>
+                  <span className="text-xs text-[#555555]">
+                    {lang === 'fr' ? 'Checkpoint (70% min)' : 'Checkpoint (70% min)'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${unlockCertification ? 'text-green-600' : 'text-red-500'}`}>
+                    {unlockCertification ? '✅' : '❌'}
+                  </span>
+                  <span className="text-xs text-[#555555]">
+                    {lang === 'fr' ? 'Certification (75% min)' : 'Certification (75% min)'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Results detail */}
@@ -925,11 +1020,18 @@ export default function SessionPage() {
 
           {/* Actions */}
           <div className="space-y-3">
-            <a href="/dashboard"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
-              <Home className="h-4 w-4" />
-              {lang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
-            </a>
+            {courseId ? (
+              <a href="/module/cours"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
+                {lang === 'fr' ? 'Retour au parcours' : 'Back to path'}
+              </a>
+            ) : (
+              <a href="/dashboard"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
+                <Home className="h-4 w-4" />
+                {lang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
+              </a>
+            )}
             <button onClick={() => {
               setPhase('intro')
               setIntroCountdown(5)
@@ -1246,52 +1348,40 @@ export default function SessionPage() {
                 </span>
               </div>
 
-              {/* BUG-25: Show user's answer alongside correct answer */}
-              {!isCorrect && currentExercise.type !== 'reading_comprehension' && (
-                <div className="space-y-2 mb-3">
+              {/* P0-4: Full feedback on EVERY answer (Curriculum §1.2 Étape 4) */}
+              {/* Always show: Ta réponse / Réponse correcte / Explication */}
+              <div className="space-y-2 mb-3">
+                {/* Ta réponse */}
+                {currentExercise.type !== 'reading_comprehension' && (
                   <p className="text-sm text-[#555555]">
                     {lang === 'fr' ? 'Ta réponse :' : 'Your answer:'}{' '}
-                    <span className="font-bold text-red-600">{results[results.length - 1]?.userAnswer || 'N/A'}</span>
+                    <span className={`font-bold ${isCorrect ? 'text-green-700' : 'text-red-600'}`}>
+                      {results[results.length - 1]?.userAnswer || 'N/A'}
+                    </span>
                   </p>
-                  <p className="text-sm text-[#555555]">
-                    {lang === 'fr' ? 'Réponse correcte :' : 'Correct answer:'}{' '}
-                    <span className="font-bold text-green-700">{currentExercise.answer}</span>
-                  </p>
-                </div>
-              )}
+                )}
 
-              {/* BUG-21: Special handling for speaking exercises */}
-              {!isCorrect && currentExercise.type === 'speaking_repeat' && (
-                <div className="space-y-2 mb-3">
-                  <p className="text-sm text-[#555555]">
-                    {lang === 'fr' ? 'Vous avez dit :' : 'You said:'}{' '}
-                    <span className="font-semibold text-[#002844]">{results[results.length - 1]?.userAnswer || 'N/A'}</span>
-                  </p>
-                  <p className="text-sm text-[#555555]">
-                    {lang === 'fr' ? 'Cible :' : 'Target:'}{' '}
-                    <span className="font-semibold text-green-700">{currentExercise.answer}</span>
-                  </p>
-                  {/* BUG-38: IPA phonetic guide */}
-                  {IPA_MAP[currentExercise.answer.toLowerCase()] && (
-                    <p className="text-sm text-[#555555] mt-1">
-                      <span className="font-mono text-[#7B1FA2]">{IPA_MAP[currentExercise.answer.toLowerCase()]}</span>
-                    </p>
-                  )}
-                </div>
-              )}
+                {/* Réponse correcte (always shown) */}
+                <p className="text-sm text-[#555555]">
+                  {lang === 'fr' ? 'Réponse correcte :' : 'Correct answer:'}{' '}
+                  <span className="font-bold text-green-700">{currentExercise.answer}</span>
+                </p>
 
-              {/* BUG-37: "Why am I wrong?" button */}
-              {!isCorrect && (
-                <button onClick={() => setShowWhyWrong(!showWhyWrong)}
-                  className="mt-3 flex items-center gap-1 text-sm font-semibold text-[#D9B438] hover:text-[#c9a530]">
-                  ✨ {lang === 'fr' ? 'Pourquoi ai-je faux ?' : 'Why am I wrong?'}
-                </button>
-              )}
-              {showWhyWrong && !isCorrect && (
-                <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm text-[#002844]">
-                  {getWhyWrongExplanation(currentExercise, results[results.length - 1]?.userAnswer || userInput)}
-                </div>
-              )}
+                {/* BUG-38: IPA phonetic guide for speaking */}
+                {currentExercise.type === 'speaking_repeat' && IPA_MAP[currentExercise.answer.toLowerCase()] && (
+                  <p className="text-sm text-[#555555]">
+                    <span className="font-mono text-[#7B1FA2]">{IPA_MAP[currentExercise.answer.toLowerCase()]}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* P0-4: Explication de la règle (always shown, both correct and incorrect) */}
+              <div className="p-3 bg-blue-50 rounded-lg text-sm text-[#002844]">
+                <p className="font-semibold text-xs text-blue-600 mb-1">
+                  {lang === 'fr' ? '💡 Explication' : '💡 Explanation'}
+                </p>
+                {getWhyWrongExplanation(currentExercise, results[results.length - 1]?.userAnswer || userInput)}
+              </div>
 
               <div className="flex gap-2">
                 {currentExercise.type === 'speaking_repeat' && !isCorrect && (
@@ -1320,5 +1410,18 @@ export default function SessionPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Wrap in Suspense for useSearchParams
+export default function SessionPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-[#F0F0F0]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#002844]" />
+      </div>
+    }>
+      <SessionContent />
+    </Suspense>
   )
 }

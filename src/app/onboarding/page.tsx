@@ -12,9 +12,11 @@ import {
   SESSION_DURATIONS,
   DAYS_OF_WEEK,
   THEME_CATEGORIES,
+  LEARNING_PATHS,
   InterfaceLanguage,
   LearningLanguage,
   LearningObjective,
+  LearningPath,
   DayOfWeek,
   SessionDuration,
   LanguageConfig,
@@ -38,7 +40,11 @@ export default function OnboardingPage() {
   const [interfaceLang, setInterfaceLang] = useState<InterfaceLanguage>('fr');
   const [learningLangs, setLearningLangs] = useState<LearningLanguage[]>([]);
 
-  // Step 2: Goal + themes PER LANGUAGE
+  // Step 2: Learning Path PER LANGUAGE (Curriculum V1.0)
+  const [langPaths, setLangPaths] = useState<Record<string, LearningPath[]>>({});
+  const [currentPathLangIndex, setCurrentPathLangIndex] = useState(0);
+
+  // Step 3: Goal + themes PER LANGUAGE
   const [langGoals, setLangGoals] = useState<Record<string, GoalType>>({});
   const [langThemes, setLangThemes] = useState<Record<string, string[]>>({});
   const [langObjectives, setLangObjectives] = useState<Record<string, LearningObjective[]>>({});
@@ -194,6 +200,13 @@ export default function OnboardingPage() {
       newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins une langue.' : 'Select at least one language.');
     }
     if (step === 2) {
+      const pathLang = learningLangs[currentPathLangIndex];
+      const paths = langPaths[pathLang] || [];
+      if (paths.length === 0) {
+        newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un parcours.' : 'Select at least one learning path.');
+      }
+    }
+    if (step === 3) {
       const goal = getGoal(currentLang);
       if (!goal) {
         newErrors.push(interfaceLang === 'fr' ? 'Choisissez un objectif de parcours.' : 'Choose a learning goal.');
@@ -205,7 +218,7 @@ export default function OnboardingPage() {
         newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un objectif.' : 'Select at least one objective.');
       }
     }
-    if (step === 3) {
+    if (step === 4) {
       const sched = getSchedule(scheduleLang);
       if (sched.days.length === 0) {
         newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un jour.' : 'Select at least one day.');
@@ -215,33 +228,42 @@ export default function OnboardingPage() {
     return newErrors.length === 0;
   };
 
-  // Navigation
+  // Navigation (5 steps: 1=Languages, 2=Path, 3=Goals+Themes, 4=Schedule, 5=Diagnostic)
   const handleNext = () => {
     if (!validateStep(currentStep)) return;
-    if (currentStep === 2 && currentLangIndex < learningLangs.length - 1) {
+    if (currentStep === 2 && currentPathLangIndex < learningLangs.length - 1) {
+      setCurrentPathLangIndex(currentPathLangIndex + 1);
+      setErrors([]);
+      return;
+    }
+    if (currentStep === 3 && currentLangIndex < learningLangs.length - 1) {
       setCurrentLangIndex(currentLangIndex + 1);
       setErrors([]);
       return;
     }
-    if (currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1) {
+    if (currentStep === 4 && currentScheduleLangIndex < learningLangs.length - 1) {
       setCurrentScheduleLangIndex(currentScheduleLangIndex + 1);
       setErrors([]);
       return;
     }
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
-      if (currentStep + 1 === 3) setCurrentScheduleLangIndex(0);
-      if (currentStep + 1 === 4) setCurrentDiagLangIndex(0);
+      if (currentStep + 1 === 2) setCurrentPathLangIndex(0);
+      if (currentStep + 1 === 3) setCurrentLangIndex(0);
+      if (currentStep + 1 === 4) setCurrentScheduleLangIndex(0);
+      if (currentStep + 1 === 5) setCurrentDiagLangIndex(0);
     }
   };
 
   const handlePrevious = () => {
-    if (currentStep === 2 && currentLangIndex > 0) { setCurrentLangIndex(currentLangIndex - 1); return; }
-    if (currentStep === 3 && currentScheduleLangIndex > 0) { setCurrentScheduleLangIndex(currentScheduleLangIndex - 1); return; }
+    if (currentStep === 2 && currentPathLangIndex > 0) { setCurrentPathLangIndex(currentPathLangIndex - 1); return; }
+    if (currentStep === 3 && currentLangIndex > 0) { setCurrentLangIndex(currentLangIndex - 1); return; }
+    if (currentStep === 4 && currentScheduleLangIndex > 0) { setCurrentScheduleLangIndex(currentScheduleLangIndex - 1); return; }
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
-      if (currentStep - 1 === 2) setCurrentLangIndex(learningLangs.length - 1);
-      if (currentStep - 1 === 3) setCurrentScheduleLangIndex(learningLangs.length - 1);
+      if (currentStep - 1 === 2) setCurrentPathLangIndex(learningLangs.length - 1);
+      if (currentStep - 1 === 3) setCurrentLangIndex(learningLangs.length - 1);
+      if (currentStep - 1 === 4) setCurrentScheduleLangIndex(learningLangs.length - 1);
     }
   };
 
@@ -253,10 +275,12 @@ export default function OnboardingPage() {
       const themes = getThemes(lang);
       const objectives = getObjectives(lang);
       const proIds = PROFESSIONAL_THEMES.map(p => p.id);
+      const paths = langPaths[lang] || ['A'];
       languageConfigs[lang] = {
         objectives: objectives.length > 0 ? objectives : ['grammaire', 'vocabulaire', 'lecture', 'ecrit', 'oral'],
         themes,
-        hasGrcThemes: themes.some(t => proIds.includes(t)),
+        hasGrcThemes: themes.some(t => proIds.includes(t)) || paths.includes('C'),
+        learningPath: paths.length === 1 ? paths[0] : paths,
       };
     }
 
@@ -319,17 +343,18 @@ export default function OnboardingPage() {
     <div className="w-full mb-4">
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-base font-bold text-[#002844]">
-          {interfaceLang === 'fr' ? 'Étape' : 'Step'} {currentStep}/4
+          {interfaceLang === 'fr' ? 'Étape' : 'Step'} {currentStep}/5
         </h1>
         <span className="text-xs text-[#555555]">
           {currentStep === 1 && (interfaceLang === 'fr' ? 'Paramétrage' : 'Setup')}
-          {currentStep === 2 && (interfaceLang === 'fr' ? 'Objectifs' : 'Goals')}
-          {currentStep === 3 && (interfaceLang === 'fr' ? 'Organisation' : 'Organization')}
-          {currentStep === 4 && (interfaceLang === 'fr' ? 'Première leçon' : 'First lesson')}
+          {currentStep === 2 && (interfaceLang === 'fr' ? 'Parcours' : 'Learning Path')}
+          {currentStep === 3 && (interfaceLang === 'fr' ? 'Objectifs' : 'Goals')}
+          {currentStep === 4 && (interfaceLang === 'fr' ? 'Organisation' : 'Organization')}
+          {currentStep === 5 && (interfaceLang === 'fr' ? 'Première leçon' : 'First lesson')}
         </span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-        <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${(currentStep / 4) * 100}%`, backgroundColor: '#D9B438' }} />
+        <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${(currentStep / 5) * 100}%`, backgroundColor: '#D9B438' }} />
       </div>
     </div>
   );
@@ -379,8 +404,105 @@ export default function OnboardingPage() {
     </div>
   );
 
-  // ==================== SCREEN 2: GOAL + THEMES ====================
+  // ==================== SCREEN 2: LEARNING PATH A/B/C ====================
   const Screen2 = () => {
+    const pathLang = learningLangs[currentPathLangIndex];
+    const pathLangInfo = LEARNING_LANGUAGES.find(l => l.code === pathLang);
+    const selectedPaths = langPaths[pathLang] || [];
+
+    const togglePath = (pathId: LearningPath) => {
+      const current = selectedPaths;
+      if (pathId === 'C') {
+        // C is combinable — toggle independently
+        const newPaths: LearningPath[] = current.includes('C')
+          ? (current.filter(p => p !== 'C') as LearningPath[])
+          : [...current, 'C'];
+        setLangPaths(prev => ({ ...prev, [pathLang]: newPaths }));
+      } else {
+        // A and B are mutually exclusive, but keep C if present
+        const isAlreadySelected = current.includes(pathId);
+        if (isAlreadySelected) {
+          const newPaths: LearningPath[] = current.filter(p => p !== pathId) as LearningPath[];
+          setLangPaths(prev => ({ ...prev, [pathLang]: newPaths }));
+        } else {
+          const other: LearningPath = pathId === 'A' ? 'B' : 'A';
+          const newPaths: LearningPath[] = current.filter(p => p !== other) as LearningPath[];
+          if (!newPaths.includes(pathId)) newPaths.push(pathId);
+          setLangPaths(prev => ({ ...prev, [pathLang]: newPaths }));
+        }
+      }
+    };
+
+    return (
+      <div className="space-y-5">
+        <LangIndicator info={pathLangInfo} index={currentPathLangIndex} total={learningLangs.length} />
+
+        <div>
+          <h2 className="text-xl font-bold text-[#002844] mb-2">
+            {interfaceLang === 'fr' ? 'Choisis ton parcours' : 'Choose your path'}
+          </h2>
+          <p className="text-sm text-[#555555] mb-4">
+            {interfaceLang === 'fr'
+              ? 'A et B sont exclusifs. C est complémentaire (activable en parallèle).'
+              : 'A and B are exclusive. C is complementary (can be combined).'}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {LEARNING_PATHS.map((path) => {
+            const isSelected = selectedPaths.includes(path.id);
+            return (
+              <button
+                key={path.id}
+                onClick={() => togglePath(path.id)}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                  isSelected
+                    ? 'border-[#D9B438] bg-[#D9B438]/10'
+                    : 'border-gray-200 bg-white hover:border-[#002844]/30'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-3xl">{path.icon}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-[#002844]">
+                        {interfaceLang === 'fr'
+                          ? `Parcours ${path.id} — ${path.nameFr}`
+                          : `Path ${path.id} — ${path.nameEn}`}
+                      </h3>
+                      {isSelected && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#D9B438] text-[#002844]">
+                          {interfaceLang === 'fr' ? 'Sélectionné' : 'Selected'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-[#555555] mt-1">
+                      {interfaceLang === 'fr' ? path.descFr : path.descEn}
+                    </p>
+                    <p className="text-xs font-semibold text-[#D9B438] mt-2">
+                      {interfaceLang === 'fr' ? path.certFr : path.certEn}
+                    </p>
+                    {path.id === 'C' && (
+                      <p className="text-xs text-[#555555] mt-1 italic">
+                        {interfaceLang === 'fr'
+                          ? 'Combinable avec A ou B en parallèle'
+                          : 'Can be combined with A or B'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
+      </div>
+    );
+  };
+
+  // ==================== SCREEN 3: GOAL + THEMES ====================
+  const Screen3 = () => {
     const goal = getGoal(currentLang);
     const themes = getThemes(currentLang);
     const showPersonal = goal === 'personal' || goal === 'both';
@@ -570,7 +692,7 @@ export default function OnboardingPage() {
   };
 
   // ==================== SCREEN 3: ORGANISATION ====================
-  const Screen3 = () => {
+  const Screen4 = () => {
     const sched = getSchedule(scheduleLang);
     return (
       <div className="space-y-6">
@@ -627,7 +749,7 @@ export default function OnboardingPage() {
   };
 
   // ==================== SCREEN 4: MINI-LESSON / LEVEL ====================
-  const Screen4 = () => {
+  const Screen5 = () => {
     const diag = getDiag(diagLang);
     const langName = interfaceLang === 'fr' ? diagLangInfo?.nameFr : diagLangInfo?.nameEn;
 
@@ -777,9 +899,10 @@ export default function OnboardingPage() {
           {currentStep === 2 && <Screen2 />}
           {currentStep === 3 && <Screen3 />}
           {currentStep === 4 && <Screen4 />}
+          {currentStep === 5 && <Screen5 />}
         </div>
 
-        {currentStep < 4 && (
+        {currentStep < 5 && (
           <div className="flex gap-3 justify-between">
             <button onClick={handlePrevious}
               disabled={currentStep === 1 && currentLangIndex === 0}
@@ -791,8 +914,9 @@ export default function OnboardingPage() {
             <button onClick={handleNext}
               className="px-6 py-2.5 rounded-lg font-semibold transition-all hover:shadow-md"
               style={{ backgroundColor: '#D9B438', color: '#002844' }}>
-              {(currentStep === 2 && currentLangIndex < learningLangs.length - 1) ||
-               (currentStep === 3 && currentScheduleLangIndex < learningLangs.length - 1)
+              {(currentStep === 2 && currentPathLangIndex < learningLangs.length - 1) ||
+               (currentStep === 3 && currentLangIndex < learningLangs.length - 1) ||
+               (currentStep === 4 && currentScheduleLangIndex < learningLangs.length - 1)
                 ? (interfaceLang === 'fr' ? 'Langue suivante →' : 'Next language →')
                 : (interfaceLang === 'fr' ? 'Suivant' : 'Next')}
             </button>
