@@ -49,6 +49,7 @@ export default function OnboardingPage() {
   const [langThemes, setLangThemes] = useState<Record<string, string[]>>({});
   const [langObjectives, setLangObjectives] = useState<Record<string, LearningObjective[]>>({});
   const [currentLangIndex, setCurrentLangIndex] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [expandedThemeCategories, setExpandedThemeCategories] = useState<Record<string, boolean>>({});
 
   // Step 3: Schedule PER LANGUAGE
@@ -122,7 +123,8 @@ export default function OnboardingPage() {
   const diagLang = learningLangs[currentDiagLangIndex];
   const diagLangInfo = LEARNING_LANGUAGES.find(l => l.code === diagLang);
 
-  // State helpers
+  // State helpers (some used only in validation, not JSX)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getGoal = (lang: string): GoalType | undefined => langGoals[lang];
   const getThemes = (lang: string): string[] => langThemes[lang] || [];
   const getSchedule = (lang: string) => langSchedules[lang] || { days: [], duration: 20 as SessionDuration, wordsPerDay: 8 };
@@ -139,6 +141,7 @@ export default function OnboardingPage() {
     setLearningLangs(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setGoal = (goal: GoalType) => {
     setLangGoals(prev => ({ ...prev, [currentLang]: goal }));
     // Reset themes when changing goal type
@@ -157,12 +160,14 @@ export default function OnboardingPage() {
     setExpandedThemeCategories(expanded);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleTheme = (themeId: string) => {
     const themes = getThemes(currentLang);
     const newThemes = themes.includes(themeId) ? themes.filter(t => t !== themeId) : [...themes, themeId];
     setLangThemes(prev => ({ ...prev, [currentLang]: newThemes }));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const selectAllInCategory = (catThemes: string[]) => {
     const themes = getThemes(currentLang);
     const allSelected = catThemes.every(t => themes.includes(t));
@@ -207,27 +212,29 @@ export default function OnboardingPage() {
       }
     }
     if (step === 3) {
-      // BUG-46/47/48: Parcours A = all-inclusive, auto-pass validation
+      // V3.7 Option A: Auto-configure themes/objectives for ALL paths (no manual selection)
       const paths = langPaths[currentLang] || [];
-      const isAOnly = paths.includes('A') && !paths.includes('C');
-      if (isAOnly) {
-        // Auto-set all themes and objectives for Parcours A
-        const allThemeIds = [...PERSONAL_THEMES.map(t => t.id)];
+      const isPathB = paths.includes('B') && !paths.includes('A');
+      const allThemeIds = [...PERSONAL_THEMES.map(t => t.id)];
+
+      if (isPathB) {
+        // Parcours B: oral + écoute uniquement, all personal themes
+        setLangThemes(prev => ({ ...prev, [currentLang]: allThemeIds }));
+        setLangGoals(prev => ({ ...prev, [currentLang]: 'personal' }));
+        setLangObjectives(prev => ({ ...prev, [currentLang]: ['grammaire', 'vocabulaire', 'oral', 'lecture'] }));
+      } else if (paths.includes('C')) {
+        // Parcours C: all modules + GRC themes
+        const grcThemeIds = [...PROFESSIONAL_THEMES.map(t => t.id)];
+        setLangThemes(prev => ({ ...prev, [currentLang]: [...allThemeIds, ...grcThemeIds] }));
+        setLangGoals(prev => ({ ...prev, [currentLang]: 'both' }));
+        setLangObjectives(prev => ({ ...prev, [currentLang]: ['grammaire', 'vocabulaire', 'oral', 'lecture', 'ecrit'] }));
+      } else {
+        // Parcours A: all modules, all personal themes
         setLangThemes(prev => ({ ...prev, [currentLang]: allThemeIds }));
         setLangGoals(prev => ({ ...prev, [currentLang]: 'personal' }));
         setLangObjectives(prev => ({ ...prev, [currentLang]: ['grammaire', 'vocabulaire', 'oral', 'lecture', 'ecrit'] }));
-      } else {
-        const goal = getGoal(currentLang);
-        if (!goal) {
-          newErrors.push(interfaceLang === 'fr' ? 'Choisissez un objectif de parcours.' : 'Choose a learning goal.');
-        }
-        if (getThemes(currentLang).length === 0) {
-          newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un thème.' : 'Select at least one theme.');
-        }
-        if (getObjectives(currentLang).length === 0) {
-          newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un objectif.' : 'Select at least one objective.');
-        }
       }
+      // Always auto-pass validation (no user selection needed)
     }
     if (step === 4) {
       const sched = getSchedule(scheduleLang);
@@ -514,217 +521,73 @@ export default function OnboardingPage() {
 
   // ==================== SCREEN 3: GOAL + THEMES ====================
   const Screen3 = () => {
-    const goal = getGoal(currentLang);
-    const themes = getThemes(currentLang);
-    const showPersonal = goal === 'personal' || goal === 'both';
-    const showPro = goal === 'professional' || goal === 'both';
-
-    // BUG-46/47/48: Determine path context for this language
+    // BUG-46+47+48 (V3.7 Option A): Remove theme selection and intentions for ALL paths.
+    // Objectives are auto-derived from the chosen path.
     const selectedPaths = langPaths[currentLang] || [];
+    const isPathB = selectedPaths.includes('B') && !selectedPaths.includes('A');
     const hasC = selectedPaths.includes('C');
-    const isPathAOnly = selectedPaths.includes('A') && !hasC;
-    const isPathBOnly = selectedPaths.includes('B') && !hasC;
+
+    // Path summary config
+    const pathSummary = (() => {
+      if (isPathB) return {
+        icon: '🗣️', titleFr: 'Parcours B — Parler & Comprendre', titleEn: 'Path B — Speak & Understand',
+        descFr: 'Oral, écoute, QCM visuel et prononciation. 6 blocs thématiques avec badges.',
+        descEn: 'Speaking, listening, visual QCM and pronunciation. 6 thematic blocks with badges.',
+        modulesFr: 'Oral + Écoute + Vocabulaire + Grammaire simplifiée',
+        modulesEn: 'Speaking + Listening + Vocabulary + Simplified Grammar',
+        bg: 'bg-purple-50', border: 'border-purple-200',
+      };
+      if (hasC) return {
+        icon: '💼', titleFr: 'Parcours C — Professionnel GRC', titleEn: 'Path C — Professional GRC',
+        descFr: 'Tous les modules avec focus sur le vocabulaire professionnel GRC.',
+        descEn: 'All modules with focus on professional GRC vocabulary.',
+        modulesFr: 'Grammaire + Vocabulaire + Lecture + Écrit + Oral + GRC',
+        modulesEn: 'Grammar + Vocabulary + Reading + Writing + Speaking + GRC',
+        bg: 'bg-amber-50', border: 'border-amber-200',
+      };
+      return {
+        icon: '📘', titleFr: 'Parcours A — Apprentissage complet A1→C2', titleEn: 'Path A — Complete learning A1→C2',
+        descFr: 'Tous les modules et thèmes sont inclus automatiquement. Grammaire, vocabulaire, lecture, écrit, oral — tout est couvert.',
+        descEn: 'All modules and themes are automatically included. Grammar, vocabulary, reading, writing, speaking — everything is covered.',
+        modulesFr: 'Grammaire + Vocabulaire + Lecture + Écrit + Oral',
+        modulesEn: 'Grammar + Vocabulary + Reading + Writing + Speaking',
+        bg: 'bg-blue-50', border: 'border-blue-200',
+      };
+    })();
 
     return (
       <div className="space-y-5">
         <LangIndicator info={currentLangInfo} index={currentLangIndex} total={learningLangs.length} />
 
-        {/* BUG-46/47/48: Parcours A → all-inclusive, no goal/theme selection needed */}
-        {isPathAOnly && (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <p className="font-bold text-[#002844] text-sm mb-1">📘 {interfaceLang === 'fr' ? 'Parcours complet A1→C2' : 'Complete path A1→C2'}</p>
-            <p className="text-xs text-[#555555]">
-              {interfaceLang === 'fr'
-                ? 'Tous les modules et thèmes sont inclus automatiquement. Grammaire, vocabulaire, lecture, écrit, oral — tout est couvert par le parcours complet.'
-                : 'All modules and themes are automatically included. Grammar, vocabulary, reading, writing, speaking — everything is covered by the complete path.'}
+        {/* Path summary card */}
+        <div className={`p-5 ${pathSummary.bg} ${pathSummary.border} border rounded-xl`}>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-3xl">{pathSummary.icon}</span>
+            <h3 className="font-bold text-[#002844] text-base">
+              {interfaceLang === 'fr' ? pathSummary.titleFr : pathSummary.titleEn}
+            </h3>
+          </div>
+          <p className="text-sm text-[#555555] mb-4">
+            {interfaceLang === 'fr' ? pathSummary.descFr : pathSummary.descEn}
+          </p>
+          <div className="p-3 bg-white/60 rounded-lg">
+            <p className="text-xs font-semibold text-[#002844] mb-1">
+              {interfaceLang === 'fr' ? 'Modules actifs :' : 'Active modules:'}
+            </p>
+            <p className="text-sm font-bold text-[#002844]">
+              {interfaceLang === 'fr' ? pathSummary.modulesFr : pathSummary.modulesEn}
             </p>
           </div>
-        )}
-
-        {/* BUG-46: Goal type selection — hidden for Parcours A only */}
-        {!isPathAOnly && (
-        <div>
-          <label className="block text-sm font-semibold mb-3 text-[#002844]">
-            {interfaceLang === 'fr' ? 'Quel est ton objectif ?' : 'What is your goal?'}
-          </label>
-          <div className="grid gap-3">
-            {([
-              { type: 'personal' as GoalType, icon: '🎯', labelFr: 'Personnel', labelEn: 'Personal', descFr: 'Voyage, culture, quotidien...', descEn: 'Travel, culture, daily life...' },
-              { type: 'professional' as GoalType, icon: '💼', labelFr: 'Professionnel', labelEn: 'Professional', descFr: 'GRC, business, métier...', descEn: 'GRC, business, career...' },
-              { type: 'both' as GoalType, icon: '🎯💼', labelFr: 'Les deux', labelEn: 'Both', descFr: 'Personnel + Professionnel', descEn: 'Personal + Professional' },
-            ])
-            // BUG-46: Hide GRC options if path B only (no C)
-            .filter(item => {
-              if (isPathBOnly) return item.type === 'personal';
-              return true;
-            })
-            .map(item => (
-              <button key={item.type} onClick={() => setGoal(item.type)}
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-                  goal === item.type ? 'border-[#D9B438] bg-[#D9B438]/10' : 'border-gray-200 hover:border-[#002844]/30'
-                }`}>
-                <span className="text-3xl">{item.icon}</span>
-                <div>
-                  <p className="font-bold text-[#002844]">{interfaceLang === 'fr' ? item.labelFr : item.labelEn}</p>
-                  <p className="text-xs text-[#555555]">{interfaceLang === 'fr' ? item.descFr : item.descEn}</p>
-                </div>
-                {goal === item.type && <span className="ml-auto text-[#D9B438] text-xl">✓</span>}
-              </button>
-            ))}
-          </div>
         </div>
-        )}
 
-        {/* Personal themes — category buttons with collapsible details */}
-        {/* BUG-47: Hidden for Parcours A (all themes included) */}
-        {showPersonal && !isPathAOnly && (
-          <div>
-            <label className="block text-sm font-semibold mb-3 text-[#002844]">
-              {interfaceLang === 'fr' ? 'Thèmes personnels' : 'Personal themes'}
-            </label>
-            <div className="space-y-3">
-              {THEME_CATEGORIES.map(cat => {
-                const catThemeIds = cat.themes;
-                const selectedCount = catThemeIds.filter(t => themes.includes(t)).length;
-                const allSelected = selectedCount === catThemeIds.length;
-                const isExpanded = expandedThemeCategories[cat.id] === true;
-
-                return (
-                  <div key={cat.id}>
-                    {/* Category button */}
-                    <button onClick={() => selectAllInCategory(catThemeIds)}
-                      className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                        allSelected
-                          ? 'bg-[#D9B438]/10 border-[#D9B438] text-[#002844]'
-                          : 'bg-white border-gray-200 text-[#002844] hover:border-[#002844]/30'
-                      }`}>
-                      <span className="text-2xl">{cat.icon}</span>
-                      <div className="text-left flex-1">
-                        <p className="font-bold">{interfaceLang === 'fr' ? cat.nameFr : cat.nameEn}</p>
-                      </div>
-                      {selectedCount > 0 && selectedCount < catThemeIds.length && (
-                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-[#D9B438]/20 text-[#002844]">
-                          {selectedCount}/{catThemeIds.length}
-                        </span>
-                      )}
-                      {allSelected && <span className="text-[#D9B438] text-xl">✓</span>}
-                    </button>
-
-                    {/* Expandable detail section - only show if selected */}
-                    {selectedCount > 0 && (
-                      <button onClick={() => setExpandedThemeCategories(prev => ({ ...prev, [cat.id]: !isExpanded }))}
-                        className="text-xs font-semibold text-[#D9B438] hover:underline mt-1 ml-1">
-                        {isExpanded
-                          ? (interfaceLang === 'fr' ? '▼ Personnaliser' : '▼ Customize')
-                          : (interfaceLang === 'fr' ? '▶ Personnaliser' : '▶ Customize')}
-                      </button>
-                    )}
-
-                    {/* Individual themes - only show if expanded */}
-                    {isExpanded && selectedCount > 0 && (
-                      <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-2 ml-2">
-                        <div className="flex flex-wrap gap-2">
-                          {catThemeIds.map(themeId => {
-                            const theme = PERSONAL_THEMES.find(t => t.id === themeId);
-                            if (!theme) return null;
-                            const selected = themes.includes(themeId);
-                            return (
-                              <button key={themeId} onClick={() => toggleTheme(themeId)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                                  selected ? 'text-white' : 'bg-white border border-gray-300 text-[#002844] hover:bg-gray-200'
-                                }`}
-                                style={selected ? { backgroundColor: '#002844' } : {}}>
-                                {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Professional GRC themes */}
-        {showPro && (
-          <div>
-            <label className="block text-sm font-semibold mb-3 text-[#002844]">
-              <span className="mr-2">💼</span>
-              {interfaceLang === 'fr' ? 'Thèmes professionnels GRC' : 'Professional GRC themes'}
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {PROFESSIONAL_THEMES.map(theme => {
-                const selected = themes.includes(theme.id);
-                return (
-                  <button key={theme.id} onClick={() => toggleTheme(theme.id)}
-                    className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                      selected ? 'text-white' : 'bg-white border border-gray-200 text-[#002844] hover:border-[#002844]'
-                    }`}
-                    style={selected ? { backgroundColor: '#002844', borderColor: '#002844' } : {}}>
-                    {interfaceLang === 'fr' ? theme.nameFr : theme.nameEn}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* BUG-48: Learning intentions — hidden for Parcours A (all modules included) */}
-        {!isPathAOnly && (
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-[#002844]">
-            {interfaceLang === 'fr' ? 'Qu\'est-ce que tu veux faire ?' : 'What do you want to do?'}
-          </label>
-          <p className="text-xs text-[#555555] mb-3">
+        {/* Info message */}
+        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-xs text-[#555555]">
             {interfaceLang === 'fr'
-              ? 'Grammaire et Vocabulaire sont toujours inclus dans ta session.'
-              : 'Grammar and Vocabulary are always included in your session.'}
+              ? 'Les thèmes et modules sont configurés automatiquement selon ton parcours. Tu pourras ajuster dans les réglages plus tard.'
+              : 'Themes and modules are automatically configured based on your path. You can adjust in settings later.'}
           </p>
-          <div className="space-y-2">
-            {[
-              { intentions: ['oral'] as LearningObjective[], icon: '🗣️', labelFr: 'Apprendre à parler', labelEn: 'Learn to speak' },
-              { intentions: ['ecrit', 'grammaire'] as LearningObjective[], icon: '✍️', labelFr: 'Apprendre à écrire', labelEn: 'Learn to write' },
-              { intentions: ['lecture'] as LearningObjective[], icon: '📖', labelFr: 'Apprendre à comprendre', labelEn: 'Learn to understand' },
-            ].map(intent => {
-              const currentObjectives = getObjectives(currentLang);
-              // Check if this intention is selected: at least one of its objectives is in the list (beyond the always-active ones)
-              const selected = intent.intentions.some(i => currentObjectives.includes(i) && i !== 'grammaire' && i !== 'vocabulaire')
-                || (intent.intentions.includes('oral') && currentObjectives.includes('oral'))
-                || (intent.intentions.includes('lecture') && currentObjectives.includes('lecture'))
-                || (intent.intentions.includes('ecrit') && currentObjectives.includes('ecrit'));
-              return (
-                <button key={intent.icon} onClick={() => {
-                  // Toggle this intention: add/remove its objectives
-                  const current = getObjectives(currentLang);
-                  const alwaysActive: LearningObjective[] = ['grammaire', 'vocabulaire'];
-                  if (selected) {
-                    // Remove this intention's specific objectives (keep always-active)
-                    const toRemove = intent.intentions.filter(i => !alwaysActive.includes(i));
-                    const newObjs = current.filter(o => !toRemove.includes(o));
-                    setLangObjectives(prev => ({ ...prev, [currentLang]: newObjs.length > 0 ? newObjs : alwaysActive }));
-                  } else {
-                    // Add this intention's objectives + ensure always-active
-                    const merged = Array.from(new Set([...current, ...intent.intentions, ...alwaysActive]));
-                    setLangObjectives(prev => ({ ...prev, [currentLang]: merged }));
-                  }
-                }}
-                  className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl border-2 font-semibold text-sm transition-all ${
-                    selected
-                      ? 'border-[#D9B438] bg-[#D9B438]/10 text-[#002844]'
-                      : 'border-gray-200 text-[#002844] hover:border-[#002844]/30'
-                  }`}>
-                  <span className="text-2xl">{intent.icon}</span>
-                  <span className="flex-1 text-left">{interfaceLang === 'fr' ? intent.labelFr : intent.labelEn}</span>
-                  {selected && <span className="text-[#D9B438] text-lg">✓</span>}
-                </button>
-              );
-            })}
-          </div>
         </div>
-        )}
 
         {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
       </div>

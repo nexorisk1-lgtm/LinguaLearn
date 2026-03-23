@@ -57,29 +57,38 @@ interface SessionResult {
 // EXERCISE GENERATORS
 // ==========================================
 
-function generateVocabExercises(words: VocabWord[], count: number): SessionExercise[] {
+function generateVocabExercises(words: VocabWord[], count: number, pathB: boolean = false): SessionExercise[] {
   const shuffled = [...words].sort(() => Math.random() - 0.5).slice(0, count)
   return shuffled.map((w, i) => {
-    if (i % 2 === 0) {
-      // Translate FR → Target
+    const isFrToTarget = i % 2 === 0
+    const question = isFrToTarget ? w.word_fr : w.word_target
+    const answer = isFrToTarget ? w.word_target : w.word_fr
+
+    // BUG-57: For Parcours B, convert vocab_translate to QCM (no text input)
+    if (pathB) {
+      const pool = isFrToTarget
+        ? words.filter(x => x.word_target !== answer).map(x => x.word_target)
+        : words.filter(x => x.word_fr !== answer).map(x => x.word_fr)
+      const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3)
+      const options = [answer, ...distractors].sort(() => Math.random() - 0.5)
       return {
-        type: 'vocab_translate',
+        type: 'grammar_qcm' as const, // Reuse QCM type for clickable options
         module: 'vocabulaire',
         data: w,
-        question: w.word_fr,
-        answer: w.word_target,
+        question,
+        answer,
         hint: w.definition_en,
+        options: options.length >= 2 ? options : [answer, isFrToTarget ? 'unknown' : 'inconnu'],
       }
-    } else {
-      // Translate Target → FR
-      return {
-        type: 'vocab_translate',
-        module: 'vocabulaire',
-        data: w,
-        question: w.word_target,
-        answer: w.word_fr,
-        hint: w.definition_en,
-      }
+    }
+
+    return {
+      type: 'vocab_translate' as const,
+      module: 'vocabulaire',
+      data: w,
+      question,
+      answer,
+      hint: w.definition_en,
     }
   })
 }
@@ -119,26 +128,35 @@ function generateReadingExercise(texts: ReadingText[], interfaceLang: string): S
   let comprehensionAnswer = ''
   let comprehensionOptions: string[] = []
 
+  // BUG-53 (V3.7): Questions AND options in interface language
   switch (text.title) {
     case 'My Family':
       comprehensionQuestion = fr ? "Que fait la mère d'Emma ?" : "What does Emma's mother do?"
-      comprehensionAnswer = 'She is a teacher'
-      comprehensionOptions = ['She is a teacher', 'She is a doctor', 'She cooks Italian food']
+      comprehensionAnswer = fr ? 'Elle est professeur' : 'She is a teacher'
+      comprehensionOptions = fr
+        ? ['Elle est professeur', 'Elle est médecin', 'Elle cuisine des plats italiens']
+        : ['She is a teacher', 'She is a doctor', 'She cooks Italian food']
       break
     case 'A Family Dinner':
       comprehensionQuestion = fr ? 'Que prépare la grand-mère ?' : 'What does Grandma make?'
-      comprehensionAnswer = 'Pasta and salad'
-      comprehensionOptions = ['Pasta and salad', 'Pizza and soup', 'Rice and chicken']
+      comprehensionAnswer = fr ? 'Des pâtes et une salade' : 'Pasta and salad'
+      comprehensionOptions = fr
+        ? ['Des pâtes et une salade', 'De la pizza et de la soupe', 'Du riz et du poulet']
+        : ['Pasta and salad', 'Pizza and soup', 'Rice and chicken']
       break
     case 'My Grandparents':
       comprehensionQuestion = fr ? 'Où vivent les grands-parents ?' : 'Where do the grandparents live?'
-      comprehensionAnswer = 'Near a small lake'
-      comprehensionOptions = ['In the city', 'Near a river', 'Near a small lake']
+      comprehensionAnswer = fr ? 'Près d\'un petit lac' : 'Near a small lake'
+      comprehensionOptions = fr
+        ? ['En ville', 'Près d\'une rivière', 'Près d\'un petit lac']
+        : ['In the city', 'Near a river', 'Near a small lake']
       break
     default:
       comprehensionQuestion = fr ? 'Quel est le sujet principal de ce texte ?' : 'What is the main topic of this text?'
-      comprehensionAnswer = text.theme || 'General'
-      comprehensionOptions = [text.theme || 'General', fr ? 'Autre sujet 1' : 'Other topic 1', fr ? 'Autre sujet 2' : 'Other topic 2']
+      comprehensionAnswer = text.theme || (fr ? 'Général' : 'General')
+      comprehensionOptions = fr
+        ? [text.theme || 'Général', 'Autre sujet', 'Sujet différent']
+        : [text.theme || 'General', 'Other topic 1', 'Other topic 2']
       break
   }
 
@@ -226,6 +244,8 @@ function SessionContent() {
   const [showingComprehension, setShowingComprehension] = useState(false)
   const [wordDefinition, setWordDefinition] = useState<{ word: string; definition: string } | null>(null)
   const [defPosition, setDefPosition] = useState<{ x: number; y: number } | null>(null)
+  // BUG-58: Quit/Pause confirmation
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false)
 
   // Speech recognition refs
   const recognitionRef = useRef<any>(null)
@@ -269,6 +289,11 @@ function SessionContent() {
     const userLevel = currentUser.progress?.[activeLang]?.levelCecrl || 'A1'
     const userThemes = langConfig?.themes || ['travel']
     const objectives = langConfig?.objectives || ['vocabulaire', 'grammaire']
+    // BUG-57: Detect Parcours B to filter out written exercises
+    const learningPaths = langConfig?.learningPath
+      ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
+      : []
+    const isPathB = learningPaths.includes('B') && !learningPaths.includes('A')
     const allExercises: SessionExercise[] = []
     const usedModules: string[] = []
     const userId = currentUser.id
@@ -283,7 +308,7 @@ function SessionContent() {
       if (words.length > 0) {
         // Generate vocab presentation + matching exercises
         const dailyWords = words.slice(0, wordsPerDay)
-        allExercises.push(...generateVocabExercises(dailyWords, Math.min(3, wordsPerDay)))
+        allExercises.push(...generateVocabExercises(dailyWords, Math.min(3, wordsPerDay), isPathB))
         usedModules.push('vocabulaire')
       }
       // Mark chest as opened
@@ -322,11 +347,20 @@ function SessionContent() {
         usedModules.push('lecture')
       }
     }
-    if (objectiveSet.has('ecrit')) {
+    // BUG-57: Parcours B = NO written exercises, replace with oral/listening
+    if (objectiveSet.has('ecrit') && !isPathB) {
       const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
       if (writeExercises.length > 0) {
         allExercises.push(...generateWritingExercises(writeExercises, 2))
         usedModules.push('ecrit')
+      }
+    }
+    // BUG-57: For Parcours B, add extra oral exercises instead of writing
+    if (isPathB && !usedModules.includes('oral')) {
+      const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
+      if (speakExercises.length > 0) {
+        allExercises.push(...generateSpeakingExercises(speakExercises, 2))
+        usedModules.push('oral')
       }
     }
 
@@ -334,7 +368,7 @@ function SessionContent() {
     if (!objectiveSet.has('oral') && !objectiveSet.has('lecture') && !objectiveSet.has('ecrit')) {
       const words = getVocabulary(activeLang, userThemes, userLevel)
       if (words.length > 0) {
-        allExercises.push(...generateVocabExercises(words, 3))
+        allExercises.push(...generateVocabExercises(words, 3, isPathB))
         if (!usedModules.includes('vocabulaire')) {
           usedModules.push('vocabulaire')
         }
@@ -509,22 +543,35 @@ function SessionContent() {
         ? `"${exercise.question}" se traduit par "${exercise.answer}"${extra}.`
         : `"${exercise.question}" translates to "${exercise.answer}".`
     }
-    // BUG-50: Enhanced oral feedback with phonetic tips
+    // BUG-50 (V3.7): Use phonetic_tip field for real advice, never generic "Le mot cible est..."
     if (exercise.type === 'speaking_repeat') {
-      const answerLower = exercise.answer.toLowerCase()
+      const answerLower = exercise.answer.toLowerCase().trim()
+      // 1. Exact match in PHONETIC_TIPS
       const tip = PHONETIC_TIPS[answerLower]
-      const ipa = IPA_MAP[answerLower]
-      if (tip) {
-        return lang === 'fr' ? tip.fr : tip.en
+      if (tip) return lang === 'fr' ? tip.fr : tip.en
+
+      // 2. Search individual words in the phrase for tips
+      const words = answerLower.replace(/[.,!?;:]/g, '').split(/\s+/)
+      const wordTips: string[] = []
+      for (const w of words) {
+        if (PHONETIC_TIPS[w]) {
+          wordTips.push(lang === 'fr' ? PHONETIC_TIPS[w].fr : PHONETIC_TIPS[w].en)
+        }
       }
+      if (wordTips.length > 0) return wordTips.join('\n')
+
+      // 3. IPA map fallback
+      const ipa = IPA_MAP[answerLower]
       if (ipa) {
         return lang === 'fr'
-          ? `Prononciation : ${exercise.answer} ${ipa}. Écoutez la cible et comparez avec votre prononciation.`
-          : `Pronunciation: ${exercise.answer} ${ipa}. Listen to the target and compare with your pronunciation.`
+          ? `Prononciation : ${exercise.answer} ${ipa}. Écoutez la cible et comparez.`
+          : `Pronunciation: ${exercise.answer} ${ipa}. Listen and compare.`
       }
+
+      // 4. Generic but useful advice (never just repeat the target)
       return lang === 'fr'
-        ? `Le mot/phrase cible est "${exercise.answer}". Écoutez la prononciation cible et réessayez en articulant clairement.`
-        : `The target word/phrase is "${exercise.answer}". Listen to the target pronunciation and try again, articulating clearly.`
+        ? `Écoutez attentivement la prononciation cible en cliquant "Écouter la cible", puis réessayez en articulant lentement chaque syllabe.`
+        : `Listen carefully to the target pronunciation by clicking "Listen to target", then try again, articulating each syllable slowly.`
     }
     return lang === 'fr' ? `La réponse correcte est : ${exercise.answer}` : `The correct answer is: ${exercise.answer}`
   }
@@ -551,13 +598,34 @@ function SessionContent() {
       const maxDist = Math.max(1, Math.floor(currentExercise.answer.length * 0.2))
       correct = isCloseEnough(userAnswer, currentExercise.answer, maxDist)
     } else {
-      // BUG-45: Vocab/writing tolerance = 15% of word length, minimum 1
-      // "hello" (5 chars) → max 0 errors (floor(5*0.15)=0, min 1 → 1 BUT only for words >6 chars)
-      // Short words (<= 6 chars): exact match required (tolerance 0)
-      // Longer words: floor(length * 0.15)
-      const answerLen = currentExercise.answer.length
+      // BUG-45 (V3.7): For fill_blank (completion) exercises, extract the MISSING WORD from the answer
+      // The prompt contains "___" and the answer is the full sentence.
+      // Compare user input against the missing word only, not the full sentence.
+      let expectedAnswer = currentExercise.answer
+      if (currentExercise.type === 'writing_fill' && currentExercise.question && currentExercise.question.includes('___')) {
+        // Extract missing word: find the word(s) in the answer that replace the blank
+        const promptParts = currentExercise.question.split(/_{2,}/).map(p => p.trim().toLowerCase())
+        const fullAnswer = currentExercise.answer.toLowerCase().trim()
+        if (promptParts.length === 2) {
+          // Remove the parts before and after the blank to get the missing word
+          let missingWord = fullAnswer
+          const before = promptParts[0]
+          const after = promptParts[1]
+          if (before && missingWord.startsWith(before)) {
+            missingWord = missingWord.slice(before.length).trim()
+          }
+          if (after && missingWord.endsWith(after)) {
+            missingWord = missingWord.slice(0, missingWord.length - after.length).trim()
+          }
+          // Remove trailing punctuation from extracted word
+          missingWord = missingWord.replace(/[.,!?;:]+$/, '').trim()
+          if (missingWord) expectedAnswer = missingWord
+        }
+      }
+      // Tolerance: short words (<=6) exact, longer words 15% Levenshtein
+      const answerLen = expectedAnswer.length
       const tolerance = answerLen <= 6 ? 0 : Math.floor(answerLen * 0.15)
-      correct = isCloseEnough(userAnswer, currentExercise.answer, tolerance)
+      correct = isCloseEnough(userAnswer, expectedAnswer, tolerance)
     }
 
     setIsCorrect(correct)
@@ -683,6 +751,14 @@ function SessionContent() {
         }
       } catch { /* ignore storage errors */ }
     }
+  }
+
+  // BUG-58: Quit session with partial progress save
+  const handleQuitSession = () => {
+    if (results.length > 0) {
+      finishSession() // Save whatever progress was made
+    }
+    router.push('/dashboard')
   }
 
   // BUG-49: Store user's recorded audio for playback
@@ -1188,23 +1264,57 @@ function SessionContent() {
   return (
     <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
       <div className="max-w-lg mx-auto">
-        {/* Lesson indicator */}
-        {lessons[currentLessonIdx] && (
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-lg">{lessons[currentLessonIdx].icon}</span>
-            <span className="text-xs font-bold text-[#002844]">
-              {lang === 'fr'
-                ? `Leçon ${currentLessonIdx + 1} — ${lessons[currentLessonIdx].title.fr}`
-                : `Lesson ${currentLessonIdx + 1} — ${lessons[currentLessonIdx].title.en}`}
-            </span>
-            <button
-              onClick={() => setPhase('lessonMap')}
-              className="ml-auto text-xs text-[#D9B438] font-semibold hover:underline"
-            >
-              {lang === 'fr' ? 'Voir parcours' : 'View path'}
-            </button>
+        {/* BUG-58: Quit confirmation overlay */}
+        {showQuitConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+              <h3 className="text-lg font-bold text-[#002844] mb-2">
+                {lang === 'fr' ? 'Quitter la session ?' : 'Leave session?'}
+              </h3>
+              <p className="text-sm text-[#555555] mb-5">
+                {lang === 'fr'
+                  ? 'Ta progression dans ce cours sera sauvegardée.'
+                  : 'Your progress in this course will be saved.'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowQuitConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-[#002844] font-bold text-sm hover:bg-gray-50">
+                  {lang === 'fr' ? 'Continuer' : 'Continue'}
+                </button>
+                <button onClick={handleQuitSession}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700">
+                  {lang === 'fr' ? 'Quitter' : 'Leave'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* BUG-58: Quit button + Lesson indicator */}
+        <div className="mb-3 flex items-center gap-2">
+          {lessons[currentLessonIdx] && (
+            <>
+              <span className="text-lg">{lessons[currentLessonIdx].icon}</span>
+              <span className="text-xs font-bold text-[#002844]">
+                {lang === 'fr'
+                  ? `Leçon ${currentLessonIdx + 1} — ${lessons[currentLessonIdx].title.fr}`
+                  : `Lesson ${currentLessonIdx + 1} — ${lessons[currentLessonIdx].title.en}`}
+              </span>
+            </>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {lessons[currentLessonIdx] && (
+              <button onClick={() => setPhase('lessonMap')}
+                className="text-xs text-[#D9B438] font-semibold hover:underline">
+                {lang === 'fr' ? 'Voir parcours' : 'View path'}
+              </button>
+            )}
+            <button onClick={() => setShowQuitConfirm(true)}
+              className="px-3 py-1.5 rounded-lg bg-gray-200 text-[#002844] text-xs font-bold hover:bg-gray-300 transition-colors">
+              {lang === 'fr' ? '✕ Quitter' : '✕ Leave'}
+            </button>
+          </div>
+        </div>
 
         {/* Progress bar */}
         <div className="mb-6">
