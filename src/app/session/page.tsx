@@ -238,7 +238,6 @@ function SessionContent() {
   const [isReadingAloud, setIsReadingAloud] = useState(false)
 
   // BUG-34: text spacing + truncation
-  const [readingExpanded, setReadingExpanded] = useState(false)
   // BUG-35: Track current reading position for speed change continuity
   const readingCharIndexRef = useRef(0)
   const readingFullTextRef = useRef('')
@@ -474,6 +473,25 @@ function SessionContent() {
     'thank': { fr: 'thank [θæŋk] — Le "th" est sourd (langue entre les dents, sans vibration).', en: 'thank [θæŋk] — Voiceless "th", tongue between teeth.' },
     'the': { fr: 'the [ðə] — Le "th" est sonore (langue entre les dents avec vibration).', en: 'the [ðə] — Voiced "th".' },
     'water': { fr: 'water [ˈwɔːtər] — Le "w" se prononce en arrondissant les lèvres. Pas de "v" !', en: 'water [ˈwɔːtər] — Round your lips for "w".' },
+    'hotel': { fr: 'hotel [hoʊˈtɛl] — L\'accent est sur la 2e syllabe. Le "h" est aspiré, le "o" se dit "oh".', en: 'hotel [hoʊˈtɛl] — Stress on second syllable, aspirated "h".' },
+    'restaurant': { fr: 'restaurant [ˈrɛstərɒnt] — En anglais, 3 syllabes : "REST-runt". Le "au" disparaît.', en: 'restaurant [ˈrɛstərɒnt] — Three syllables, stress on first.' },
+    'ticket': { fr: 'ticket [ˈtɪkɪt] — Le "i" est court. Deux syllabes égales.', en: 'ticket [ˈtɪkɪt] — Short "i" sounds, stress on first syllable.' },
+    'coffee': { fr: 'coffee [ˈkɒfi] — Le "o" est ouvert (comme "co" français). Le "ee" final est un "i" court.', en: 'coffee [ˈkɒfi] — Open "o", stress on first syllable.' },
+    'breakfast': { fr: 'breakfast [ˈbrɛkfəst] — Se prononce "BREK-fust", pas "break-fast".', en: 'breakfast [ˈbrɛkfəst] — Two syllables, not "break-fast".' },
+    'weather': { fr: 'weather [ˈwɛðər] — Le "th" est sonore (langue entre les dents). Le "ea" = "è".', en: 'weather [ˈwɛðər] — Voiced "th", "ea" as in "bed".' },
+    'friend': { fr: 'friend [frɛnd] — Le "ie" se prononce "è". Une seule syllabe.', en: 'friend [frɛnd] — One syllable, "ie" as in "end".' },
+    'teacher': { fr: 'teacher [ˈtiːtʃər] — Le "ea" est long "ii". Le "ch" = "tch".', en: 'teacher [ˈtiːtʃər] — Long "ee", "ch" as in "church".' },
+    'school': { fr: 'school [skuːl] — Le "ch" se prononce "k". Le "oo" est long.', en: 'school [skuːl] — "ch" sounds like "k", long "oo".' },
+    'children': { fr: 'children [ˈtʃɪldrən] — Le "ch" = "tch". Le "i" est court.', en: 'children [ˈtʃɪldrən] — "ch" as in "church", short "i".' },
+    'beautiful': { fr: 'beautiful [ˈbjuːtɪfəl] — 3 syllabes : "BIOU-ti-ful". Le "eau" = "iou".', en: 'beautiful [ˈbjuːtɪfəl] — Three syllables, stress on first.' },
+    'because': { fr: 'because [bɪˈkɒz] — L\'accent est sur la 2e syllabe. Le "au" = "o" ouvert.', en: 'because [bɪˈkɒz] — Stress on second syllable.' },
+    'question': { fr: 'question [ˈkwɛstʃən] — Le "qu" = "kw". Le "tion" = "tchenn".', en: 'question [ˈkwɛstʃən] — "qu" as "kw", "tion" as "chun".' },
+    'chocolate': { fr: 'chocolate [ˈtʃɒklət] — 3 syllabes en anglais, pas 4 : "TCHOK-lut".', en: 'chocolate [ˈtʃɒklət] — Three syllables, stress on first.' },
+    'comfortable': { fr: 'comfortable [ˈkʌmftəbəl] — 3 syllabes : "KUMF-ter-bul". Le "or" disparaît.', en: 'comfortable [ˈkʌmftəbəl] — Three syllables, not four.' },
+    'clothes': { fr: 'clothes [kloʊðz] — Une seule syllabe ! Le "th" est très léger, presque "klohz".', en: 'clothes [kloʊðz] — One syllable, "th" is very soft.' },
+    'listen': { fr: 'listen [ˈlɪsən] — Le "t" est muet ! Se prononce "LIS-en".', en: 'listen [ˈlɪsən] — Silent "t".' },
+    'Wednesday': { fr: 'Wednesday [ˈwɛnzdeɪ] — Le 1er "d" est muet : "WENZ-day".', en: 'Wednesday [ˈwɛnzdeɪ] — Silent first "d".' },
+    'often': { fr: 'often [ˈɒfən] — Le "t" peut être muet. "OF-en" ou "OF-ten".', en: 'often [ˈɒfən] — "t" can be silent.' },
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1255,50 +1273,35 @@ function SessionContent() {
                     ))}
                   </div>
 
-                  {/* Reading text with word highlighting */}
-                  <div className="text-sm text-[#555555] leading-[1.8] mb-4 p-6 bg-blue-50 rounded-lg border border-blue-200 relative">
+                  {/* BUG-56: Reading text with auto-scroll and dynamic height */}
+                  <div className="text-sm text-[#555555] leading-[1.8] mb-4 p-6 bg-blue-50 rounded-lg border border-blue-200 relative max-h-[50vh] overflow-y-auto scroll-smooth" id="reading-text-container">
                     {(() => {
                       const fullText = currentExercise.readingText || ''
                       const words = fullText.split(/\s+/)
-                      const wordLimit = 100
-                      const isLongText = words.length > wordLimit
-                      const displayWords = readingExpanded ? words : words.slice(0, wordLimit)
 
                       return (
                         <>
-                          {displayWords.map((word, idx) => (
+                          {words.map((word, idx) => (
                             <span
                               key={idx}
+                              id={`reading-word-${idx}`}
                               onClick={(e) => fetchWordDefinition(word.replace(/[.,!?;:]/g, ''), e)}
                               className={`cursor-help hover:underline hover:text-blue-700 transition-colors ${
                                 idx === highlightWordIndex ? 'bg-[#D9B438] text-white rounded px-0.5' : ''
                               }`}
+                              ref={(el) => {
+                                if (idx === highlightWordIndex && el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                }
+                              }}
                             >
                               {word}{' '}
                             </span>
                           ))}
-                          {!readingExpanded && isLongText && <span>...</span>}
                         </>
                       )
                     })()}
                   </div>
-
-                  {/* Expand button for truncated text */}
-                  {(() => {
-                    const fullText = currentExercise.readingText || ''
-                    const words = fullText.split(/\s+/)
-                    const isLongText = words.length > 100
-                    return (
-                      isLongText && !readingExpanded && (
-                        <button
-                          onClick={() => setReadingExpanded(true)}
-                          className="text-sm font-semibold text-[#D9B438] hover:text-yellow-400 mb-3"
-                        >
-                          {lang === 'fr' ? 'Lire la suite' : 'Read more'}
-                        </button>
-                      )
-                    )
-                  })()}
 
                   {wordDefinition && defPosition && (
                     <div
@@ -1488,8 +1491,8 @@ function SessionContent() {
                 {getWhyWrongExplanation(currentExercise, results[results.length - 1]?.userAnswer || userInput)}
               </div>
 
-              {/* BUG-49: Audio comparison buttons for speaking exercises */}
-              {currentExercise.type === 'speaking_repeat' && (
+              {/* BUG-49: Audio comparison buttons for ALL oral exercises */}
+              {(currentExercise.type === 'speaking_repeat' || currentExercise.module === 'oral' || userAudioUrl) && (
                 <div className="flex gap-2 mb-3">
                   <button onClick={() => speakText(currentExercise.answer, user?.activeLang || 'en')}
                     className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors">

@@ -149,6 +149,50 @@ export default function DashboardPage() {
   })()
   const sessionDuration = user.settings.schedules?.[activeLang]?.duration || user.settings.schedule?.duration || 10
 
+  // §5: Find next uncompleted course for "Commencer ma session"
+  const nextCourseUrl = (() => {
+    try {
+      const key = `lingualearn_course_scores_${user.id}_${activeLang}`
+      const stored = localStorage.getItem(key)
+      const scores: Record<string, { score: number }> = stored ? JSON.parse(stored) : {}
+
+      // Determine path
+      const paths = langConfig?.learningPath
+        ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
+        : []
+      const isPathB = paths.includes('B') && !paths.includes('A')
+
+      // A1 course IDs in order (simplified flat list)
+      const a1Ids = ['a1_c1','a1_c2','a1_c3','a1_c4','a1_c5','a1_d1','a1_cp1','a1_c6','a1_c7','a1_c8','a1_c9','a1_c10','a1_d2','a1_cp2','a1_c11','a1_c12','a1_c13','a1_c14','a1_c15','a1_d3','a1_cp3','a1_c16','a1_c17','a1_c18','a1_c19','a1_c20','a1_d4','a1_cp4','a1_c21','a1_c22','a1_c23','a1_c24','a1_c25','a1_d5','a1_cert']
+      const bIds = ['b_b1_c1','b_b1_c2','b_b1_c3','b_b1_d','b_b1_cp','b_b2_c1','b_b2_c2','b_b2_c3','b_b2_d','b_b2_cp','b_b3_c1','b_b3_c2','b_b3_c3','b_b3_d','b_b3_cp','b_b4_c1','b_b4_c2','b_b4_c3','b_b4_d','b_b4_cp','b_b5_c1','b_b5_c2','b_b5_c3','b_b5_d','b_b5_cp','b_b6_c1','b_b6_c2','b_b6_c3','b_b6_d','b_b6_cp']
+      const courseIds = isPathB ? bIds : a1Ids
+
+      // Find first course with no score or score < 60%
+      const nextId = courseIds.find(id => !scores[id] || scores[id].score < 60)
+      return nextId ? `/session?courseId=${nextId}` : `/session?courseId=${courseIds[0]}`
+    } catch {
+      return '/session'
+    }
+  })()
+
+  // §5: Path-aware label for "Mon parcours"
+  const parcoursLabel = (() => {
+    const paths = langConfig?.learningPath
+      ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
+      : []
+    const isPathB = paths.includes('B') && !paths.includes('A')
+    if (isPathB) return lang === 'fr' ? 'Mon parcours B' : 'My Path B'
+    return lang === 'fr' ? 'Mon parcours A1' : 'My A1 Path'
+  })()
+  const parcoursSubtitle = (() => {
+    const paths = langConfig?.learningPath
+      ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
+      : []
+    const isPathB = paths.includes('B') && !paths.includes('A')
+    if (isPathB) return lang === 'fr' ? '6 blocs thématiques · Badges et progression' : '6 thematic blocks · Badges and progress'
+    return lang === 'fr' ? '25 cours · 5 blocs · Étoiles et progression' : '25 courses · 5 blocks · Stars and progress'
+  })()
+
   // Bottom nav items
   const bottomNav = [
     { id: 'home', label: lang === 'fr' ? 'Accueil' : 'Home', icon: Home, href: '/dashboard', active: true },
@@ -289,8 +333,8 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC-03: CTA — Bouton session du jour → page session guidée */}
-        <a href="/session"
+        {/* BLOC-03: CTA — §5: auto-launch next uncompleted course */}
+        <a href={nextCourseUrl}
           className="block mb-4 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-4 shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
@@ -317,10 +361,10 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-base font-bold text-[#002844]">
-                {lang === 'fr' ? 'Mon parcours A1' : 'My A1 Path'}
+                {parcoursLabel}
               </p>
               <p className="text-xs text-[#555555] mt-0.5">
-                {lang === 'fr' ? '25 cours · 5 blocs · Étoiles et progression' : '25 courses · 5 blocks · Stars and progress'}
+                {parcoursSubtitle}
               </p>
             </div>
             <ChevronRight className="h-5 w-5 text-[#002844] flex-shrink-0" />

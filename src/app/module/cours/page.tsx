@@ -108,8 +108,93 @@ const A1_BLOCKS: BlockData[] = [
   },
 ];
 
+// ==========================================
+// PARCOURS B — Blocs thématiques (Curriculum §4.2)
+// ==========================================
+const B_BLOCKS: BlockData[] = [
+  {
+    id: 1,
+    titleFr: 'B1 — Se présenter & saluer',
+    titleEn: 'B1 — Introducing & greeting',
+    icon: '👋',
+    courses: [
+      { id: 'b_b1_c1', number: 1, type: 'vocabulary', titleFr: 'Salutations et présentations', titleEn: 'Greetings and introductions', subtitleFr: 'Hello, my name is...', subtitleEn: 'Hello, my name is...', icon: '📚', blockId: 1 },
+      { id: 'b_b1_c2', number: 2, type: 'grammar', titleFr: 'To be + Pronoms sujets', titleEn: 'To be + Subject pronouns', subtitleFr: 'Grammaire simplifiée', subtitleEn: 'Simplified grammar', icon: '📐', blockId: 1 },
+      { id: 'b_b1_c3', number: 3, type: 'grammar', titleFr: 'Adjectifs possessifs', titleEn: 'Possessive adjectives', subtitleFr: 'my, your, his, her', subtitleEn: 'my, your, his, her', icon: '📐', blockId: 1 },
+      { id: 'b_b1_d', number: 0, type: 'dialogue', titleFr: 'Dialogue : Première rencontre', titleEn: 'Dialogue: First meeting', subtitleFr: 'Jeu de rôle oral', subtitleEn: 'Oral role play', icon: '🗣️', blockId: 1 },
+      { id: 'b_b1_cp', number: 0, type: 'checkpoint', titleFr: 'Badge : Je sais me présenter', titleEn: 'Badge: I can introduce myself', subtitleFr: '70% minimum', subtitleEn: '70% minimum', icon: '✅', blockId: 1 },
+    ],
+  },
+  {
+    id: 2,
+    titleFr: 'B2 — Ma famille & mes amis',
+    titleEn: 'B2 — My family & friends',
+    icon: '👨‍👩‍👧‍👦',
+    courses: [
+      { id: 'b_b2_c1', number: 1, type: 'vocabulary', titleFr: 'Famille et relations', titleEn: 'Family and relationships', subtitleFr: 'mother, father, friend...', subtitleEn: 'mother, father, friend...', icon: '📚', blockId: 2 },
+      { id: 'b_b2_c2', number: 2, type: 'grammar', titleFr: 'Have got + Pluriel', titleEn: 'Have got + Plurals', subtitleFr: 'Grammaire simplifiée', subtitleEn: 'Simplified grammar', icon: '📐', blockId: 2 },
+      { id: 'b_b2_c3', number: 3, type: 'grammar', titleFr: 'Questions simples', titleEn: 'Simple questions', subtitleFr: 'Have you got...? / Is she...?', subtitleEn: 'Have you got...? / Is she...?', icon: '📐', blockId: 2 },
+      { id: 'b_b2_d', number: 0, type: 'dialogue', titleFr: 'Dialogue : Parler de sa famille', titleEn: 'Dialogue: Talking about family', subtitleFr: 'Écoute + oral', subtitleEn: 'Listening + speaking', icon: '🗣️', blockId: 2 },
+      { id: 'b_b2_cp', number: 0, type: 'checkpoint', titleFr: 'Badge : Je parle de ma famille', titleEn: 'Badge: I talk about my family', subtitleFr: '70% minimum', subtitleEn: '70% minimum', icon: '✅', blockId: 2 },
+    ],
+  },
+  {
+    id: 3,
+    titleFr: 'B3 — Commander & manger',
+    titleEn: 'B3 — Ordering & eating',
+    icon: '🍽️',
+    courses: [
+      { id: 'b_b3_c1', number: 1, type: 'vocabulary', titleFr: 'Nourriture et boissons', titleEn: 'Food and drinks', subtitleFr: 'coffee, bread, water...', subtitleEn: 'coffee, bread, water...', icon: '📚', blockId: 3 },
+      { id: 'b_b3_c2', number: 2, type: 'grammar', titleFr: 'Can + Impératifs', titleEn: 'Can + Imperatives', subtitleFr: 'Can I have...? / Please...', subtitleEn: 'Can I have...? / Please...', icon: '📐', blockId: 3 },
+      { id: 'b_b3_c3', number: 3, type: 'grammar', titleFr: 'Articles a/an/the', titleEn: 'Articles a/an/the', subtitleFr: 'En contexte restaurant', subtitleEn: 'In restaurant context', icon: '📐', blockId: 3 },
+      { id: 'b_b3_d', number: 0, type: 'dialogue', titleFr: 'Dialogue : Au restaurant', titleEn: 'Dialogue: At the restaurant', subtitleFr: 'Commander un repas', subtitleEn: 'Ordering a meal', icon: '🗣️', blockId: 3 },
+      { id: 'b_b3_cp', number: 0, type: 'checkpoint', titleFr: 'Badge : Je commande au restaurant', titleEn: 'Badge: I order at a restaurant', subtitleFr: '70% minimum', subtitleEn: '70% minimum', icon: '✅', blockId: 3 },
+    ],
+  },
+  {
+    id: 4,
+    titleFr: 'B4 — Voyager & demander sa route',
+    titleEn: 'B4 — Traveling & asking directions',
+    icon: '🗺️',
+    courses: [
+      { id: 'b_b4_c1', number: 1, type: 'vocabulary', titleFr: 'Voyage et transport', titleEn: 'Travel and transport', subtitleFr: 'airport, ticket, hotel...', subtitleEn: 'airport, ticket, hotel...', icon: '📚', blockId: 4 },
+      { id: 'b_b4_c2', number: 2, type: 'grammar', titleFr: 'Prépositions + Impératifs', titleEn: 'Prepositions + Imperatives', subtitleFr: 'Turn left, go straight', subtitleEn: 'Turn left, go straight', icon: '📐', blockId: 4 },
+      { id: 'b_b4_c3', number: 3, type: 'grammar', titleFr: 'Questions avec Where/How', titleEn: 'Questions with Where/How', subtitleFr: 'Where is...? / How do I...?', subtitleEn: 'Where is...? / How do I...?', icon: '📐', blockId: 4 },
+      { id: 'b_b4_d', number: 0, type: 'dialogue', titleFr: 'Dialogue : Demander son chemin', titleEn: 'Dialogue: Asking for directions', subtitleFr: 'Écoute + oral', subtitleEn: 'Listening + speaking', icon: '🗣️', blockId: 4 },
+      { id: 'b_b4_cp', number: 0, type: 'checkpoint', titleFr: 'Badge : Je me débrouille en voyage', titleEn: 'Badge: I manage when traveling', subtitleFr: '70% minimum', subtitleEn: '70% minimum', icon: '✅', blockId: 4 },
+    ],
+  },
+  {
+    id: 5,
+    titleFr: 'B5 — Shopping & transactions',
+    titleEn: 'B5 — Shopping & transactions',
+    icon: '🛍️',
+    courses: [
+      { id: 'b_b5_c1', number: 1, type: 'vocabulary', titleFr: 'Vêtements et prix', titleEn: 'Clothes and prices', subtitleFr: 'shirt, shoes, How much...?', subtitleEn: 'shirt, shoes, How much...?', icon: '📚', blockId: 5 },
+      { id: 'b_b5_c2', number: 2, type: 'grammar', titleFr: 'Nombres + Adjectifs', titleEn: 'Numbers + Adjectives', subtitleFr: 'Adjectif AVANT le nom', subtitleEn: 'Adjective BEFORE the noun', icon: '📐', blockId: 5 },
+      { id: 'b_b5_c3', number: 3, type: 'grammar', titleFr: 'Have got + How much/many', titleEn: 'Have got + How much/many', subtitleFr: 'Questions de quantité', subtitleEn: 'Quantity questions', icon: '📐', blockId: 5 },
+      { id: 'b_b5_d', number: 0, type: 'dialogue', titleFr: 'Dialogue : Dans un magasin', titleEn: 'Dialogue: In a shop', subtitleFr: 'Acheter des vêtements', subtitleEn: 'Buying clothes', icon: '🗣️', blockId: 5 },
+      { id: 'b_b5_cp', number: 0, type: 'checkpoint', titleFr: 'Badge : Je fais du shopping', titleEn: 'Badge: I go shopping', subtitleFr: '70% minimum', subtitleEn: '70% minimum', icon: '✅', blockId: 5 },
+    ],
+  },
+  {
+    id: 6,
+    titleFr: 'B6 — Décrire ce qui se passe',
+    titleEn: 'B6 — Describing what\'s happening',
+    icon: '👀',
+    courses: [
+      { id: 'b_b6_c1', number: 1, type: 'vocabulary', titleFr: 'Actions et situations', titleEn: 'Actions and situations', subtitleFr: 'running, eating, watching...', subtitleEn: 'running, eating, watching...', icon: '📚', blockId: 6 },
+      { id: 'b_b6_c2', number: 2, type: 'grammar', titleFr: 'Present Progressive', titleEn: 'Present Progressive', subtitleFr: 'I am + verbe-ing', subtitleEn: 'I am + verb-ing', icon: '📐', blockId: 6 },
+      { id: 'b_b6_c3', number: 3, type: 'grammar', titleFr: 'Adverbes de temps', titleEn: 'Time adverbs', subtitleFr: 'now, at the moment, currently', subtitleEn: 'now, at the moment, currently', icon: '📐', blockId: 6 },
+      { id: 'b_b6_d', number: 0, type: 'dialogue', titleFr: 'Dialogue : Que se passe-t-il ?', titleEn: 'Dialogue: What\'s happening?', subtitleFr: 'Décrire des scènes', subtitleEn: 'Describing scenes', icon: '🗣️', blockId: 6 },
+      { id: 'b_b6_cp', number: 0, type: 'checkpoint', titleFr: 'Badge : Je décris des situations', titleEn: 'Badge: I describe situations', subtitleFr: '70% minimum', subtitleEn: '70% minimum', icon: '✅', blockId: 6 },
+    ],
+  },
+];
+
 // Flatten all courses for sequential access
-const ALL_COURSES = A1_BLOCKS.flatMap(b => b.courses);
+const ALL_A_COURSES = A1_BLOCKS.flatMap(b => b.courses);
+const ALL_B_COURSES = B_BLOCKS.flatMap(b => b.courses);
 
 // ==========================================
 // STAR SYSTEM (Curriculum §1.1)
@@ -152,17 +237,17 @@ function getCourseScores(userId: string, lang: string): Record<string, CourseSco
   } catch { return {}; }
 }
 
-function isCourseUnlocked(courseId: string, scores: Record<string, CourseScore>): boolean {
-  const idx = ALL_COURSES.findIndex(c => c.id === courseId);
+function isCourseUnlocked(courseId: string, scores: Record<string, CourseScore>, allCourses: CourseItem[]): boolean {
+  const idx = allCourses.findIndex(c => c.id === courseId);
   if (idx === 0) return true; // First course always unlocked
 
-  const prevCourse = ALL_COURSES[idx - 1];
+  const prevCourse = allCourses[idx - 1];
   if (!prevCourse) return false;
 
   const prevScore = scores[prevCourse.id];
   if (!prevScore) return false;
 
-  // Checkpoints need 70%, certification needs 75%, courses need 60%
+  // Checkpoints/badges need 70%, certification needs 75%, courses need 60%
   if (prevCourse.type === 'checkpoint') return prevScore.score >= 70;
   if (prevCourse.type === 'certification') return prevScore.score >= 75;
   return prevScore.score >= 60;
@@ -201,10 +286,19 @@ export default function CoursPage() {
     );
   }
 
+  // BUG-54: Select blocks and courses based on learning path
+  const isPathB = (() => {
+    if (!learningPath) return false;
+    const paths = Array.isArray(learningPath) ? learningPath : [learningPath];
+    return paths.includes('B') && !paths.includes('A');
+  })();
+  const activeBlocks = isPathB ? B_BLOCKS : A1_BLOCKS;
+  const allCourses = isPathB ? ALL_B_COURSES : ALL_A_COURSES;
+
   // Calculate total stats
-  const completedCourses = ALL_COURSES.filter(c => scores[c.id]);
+  const completedCourses = allCourses.filter(c => scores[c.id]);
   const totalStars = completedCourses.reduce((sum, c) => sum + (scores[c.id]?.stars || 0), 0);
-  const maxStars = ALL_COURSES.length * 3;
+  const maxStars = allCourses.length * 3;
 
   // Determine path label
   const pathLabel = (() => {
@@ -233,7 +327,7 @@ export default function CoursPage() {
   };
 
   const handleCourseClick = (course: CourseItem) => {
-    const unlocked = isCourseUnlocked(course.id, scores);
+    const unlocked = isCourseUnlocked(course.id, scores, allCourses);
     if (!unlocked) return;
     setSelectedCourse(course);
   };
@@ -249,7 +343,7 @@ export default function CoursPage() {
   // ==========================================
   if (selectedCourse) {
     const score = scores[selectedCourse.id];
-    const unlocked = isCourseUnlocked(selectedCourse.id, scores);
+    const unlocked = isCourseUnlocked(selectedCourse.id, scores, allCourses);
 
     return (
       <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
@@ -370,7 +464,9 @@ export default function CoursPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {lang === 'fr' ? 'Parcours A1' : 'A1 Path'}
+                {isPathB
+                  ? (lang === 'fr' ? 'Parcours B' : 'Path B')
+                  : (lang === 'fr' ? 'Parcours A1' : 'A1 Path')}
               </h1>
               {pathLabel && (
                 <p className="text-xs text-[#D9B438] font-semibold mt-1">{pathLabel}</p>
@@ -382,7 +478,7 @@ export default function CoursPage() {
                 <span className="text-sm font-bold">{totalStars}/{maxStars}</span>
               </div>
               <p className="text-xs text-white/50 mt-0.5">
-                {completedCourses.length}/{ALL_COURSES.length} {lang === 'fr' ? 'cours' : 'courses'}
+                {completedCourses.length}/{allCourses.length} {lang === 'fr' ? 'cours' : 'courses'}
               </p>
             </div>
           </div>
@@ -392,10 +488,10 @@ export default function CoursPage() {
       {/* Course blocks */}
       <div className="px-4 pb-12">
         <div className="max-w-lg mx-auto space-y-8">
-          {A1_BLOCKS.map((block) => {
+          {activeBlocks.map((block) => {
             // Check if block is accessible (first course must be unlocked)
             const firstCourse = block.courses[0];
-            const blockUnlocked = isCourseUnlocked(firstCourse.id, scores);
+            const blockUnlocked = isCourseUnlocked(firstCourse.id, scores, allCourses);
             const blockCompleted = block.courses.every(c => scores[c.id] && scores[c.id].score >= 60);
 
             return (
@@ -422,10 +518,10 @@ export default function CoursPage() {
                   {/* Connecting line */}
                   <div className="absolute left-[2.75rem] top-0 bottom-0 w-0.5 bg-white/10" />
 
-                  <div className="space-y-3">
+                  <div className="space-y-5">
                     {block.courses.map((course, idx) => {
                       const score = scores[course.id];
-                      const unlocked = course.id === ALL_COURSES[0].id || isCourseUnlocked(course.id, scores);
+                      const unlocked = course.id === allCourses[0].id || isCourseUnlocked(course.id, scores, allCourses);
                       const completed = !!score;
                       const stars = score?.stars || 0;
                       const isCheckpoint = course.type === 'checkpoint' || course.type === 'certification';
@@ -472,7 +568,7 @@ export default function CoursPage() {
                           <button
                             onClick={() => handleCourseClick(course)}
                             disabled={!unlocked}
-                            className={`relative z-10 flex-shrink-0 ${bubbleSize} rounded-full ${bubbleBg} border-2 ${bubbleBorder} flex items-center justify-center transition-all ${
+                            className={`relative z-10 flex-shrink-0 ${bubbleSize} rounded-full ${bubbleBg} border-2 ${bubbleBorder} flex items-center justify-center overflow-visible transition-all ${
                               unlocked ? 'hover:scale-110 cursor-pointer active:scale-95' : 'cursor-not-allowed'
                             } ${unlocked && !completed ? 'animate-pulse' : ''}`}
                           >
@@ -484,12 +580,12 @@ export default function CoursPage() {
                               </span>
                             )}
 
-                            {/* Stars below bubble */}
+                            {/* Stars below bubble - BUG-55: visible outside bubble */}
                             {completed && (
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-                                <div className="flex gap-px">
+                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
+                                <div className="flex gap-0.5 bg-[#002844]/80 rounded-full px-1.5 py-0.5">
                                   {[1, 2, 3].map(i => (
-                                    <Star key={i} className={`h-2.5 w-2.5 ${i <= stars ? 'text-[#D9B438] fill-[#D9B438]' : 'text-white/20'}`} />
+                                    <Star key={i} className={`h-3 w-3 ${i <= stars ? 'text-[#D9B438] fill-[#D9B438]' : 'text-white/30'}`} />
                                   ))}
                                 </div>
                               </div>
