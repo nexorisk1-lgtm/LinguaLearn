@@ -207,15 +207,26 @@ export default function OnboardingPage() {
       }
     }
     if (step === 3) {
-      const goal = getGoal(currentLang);
-      if (!goal) {
-        newErrors.push(interfaceLang === 'fr' ? 'Choisissez un objectif de parcours.' : 'Choose a learning goal.');
-      }
-      if (getThemes(currentLang).length === 0) {
-        newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un thème.' : 'Select at least one theme.');
-      }
-      if (getObjectives(currentLang).length === 0) {
-        newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un objectif.' : 'Select at least one objective.');
+      // BUG-46/47/48: Parcours A = all-inclusive, auto-pass validation
+      const paths = langPaths[currentLang] || [];
+      const isAOnly = paths.includes('A') && !paths.includes('C');
+      if (isAOnly) {
+        // Auto-set all themes and objectives for Parcours A
+        const allThemeIds = [...PERSONAL_THEMES.map(t => t.id)];
+        setLangThemes(prev => ({ ...prev, [currentLang]: allThemeIds }));
+        setLangGoals(prev => ({ ...prev, [currentLang]: 'personal' }));
+        setLangObjectives(prev => ({ ...prev, [currentLang]: ['grammaire', 'vocabulaire', 'oral', 'lecture', 'ecrit'] }));
+      } else {
+        const goal = getGoal(currentLang);
+        if (!goal) {
+          newErrors.push(interfaceLang === 'fr' ? 'Choisissez un objectif de parcours.' : 'Choose a learning goal.');
+        }
+        if (getThemes(currentLang).length === 0) {
+          newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un thème.' : 'Select at least one theme.');
+        }
+        if (getObjectives(currentLang).length === 0) {
+          newErrors.push(interfaceLang === 'fr' ? 'Sélectionnez au moins un objectif.' : 'Select at least one objective.');
+        }
       }
     }
     if (step === 4) {
@@ -508,11 +519,30 @@ export default function OnboardingPage() {
     const showPersonal = goal === 'personal' || goal === 'both';
     const showPro = goal === 'professional' || goal === 'both';
 
+    // BUG-46/47/48: Determine path context for this language
+    const selectedPaths = langPaths[currentLang] || [];
+    const hasC = selectedPaths.includes('C');
+    const isPathAOnly = selectedPaths.includes('A') && !hasC;
+    const isPathBOnly = selectedPaths.includes('B') && !hasC;
+
     return (
       <div className="space-y-5">
         <LangIndicator info={currentLangInfo} index={currentLangIndex} total={learningLangs.length} />
 
-        {/* Goal type selection */}
+        {/* BUG-46/47/48: Parcours A → all-inclusive, no goal/theme selection needed */}
+        {isPathAOnly && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="font-bold text-[#002844] text-sm mb-1">📘 {interfaceLang === 'fr' ? 'Parcours complet A1→C2' : 'Complete path A1→C2'}</p>
+            <p className="text-xs text-[#555555]">
+              {interfaceLang === 'fr'
+                ? 'Tous les modules et thèmes sont inclus automatiquement. Grammaire, vocabulaire, lecture, écrit, oral — tout est couvert par le parcours complet.'
+                : 'All modules and themes are automatically included. Grammar, vocabulary, reading, writing, speaking — everything is covered by the complete path.'}
+            </p>
+          </div>
+        )}
+
+        {/* BUG-46: Goal type selection — hidden for Parcours A only */}
+        {!isPathAOnly && (
         <div>
           <label className="block text-sm font-semibold mb-3 text-[#002844]">
             {interfaceLang === 'fr' ? 'Quel est ton objectif ?' : 'What is your goal?'}
@@ -522,7 +552,13 @@ export default function OnboardingPage() {
               { type: 'personal' as GoalType, icon: '🎯', labelFr: 'Personnel', labelEn: 'Personal', descFr: 'Voyage, culture, quotidien...', descEn: 'Travel, culture, daily life...' },
               { type: 'professional' as GoalType, icon: '💼', labelFr: 'Professionnel', labelEn: 'Professional', descFr: 'GRC, business, métier...', descEn: 'GRC, business, career...' },
               { type: 'both' as GoalType, icon: '🎯💼', labelFr: 'Les deux', labelEn: 'Both', descFr: 'Personnel + Professionnel', descEn: 'Personal + Professional' },
-            ]).map(item => (
+            ])
+            // BUG-46: Hide GRC options if path B only (no C)
+            .filter(item => {
+              if (isPathBOnly) return item.type === 'personal';
+              return true;
+            })
+            .map(item => (
               <button key={item.type} onClick={() => setGoal(item.type)}
                 className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
                   goal === item.type ? 'border-[#D9B438] bg-[#D9B438]/10' : 'border-gray-200 hover:border-[#002844]/30'
@@ -537,9 +573,11 @@ export default function OnboardingPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Personal themes — category buttons with collapsible details */}
-        {showPersonal && (
+        {/* BUG-47: Hidden for Parcours A (all themes included) */}
+        {showPersonal && !isPathAOnly && (
           <div>
             <label className="block text-sm font-semibold mb-3 text-[#002844]">
               {interfaceLang === 'fr' ? 'Thèmes personnels' : 'Personal themes'}
@@ -634,7 +672,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Learning intentions - 3 choices (Grammaire + Vocabulaire always active) */}
+        {/* BUG-48: Learning intentions — hidden for Parcours A (all modules included) */}
+        {!isPathAOnly && (
         <div>
           <label className="block text-sm font-semibold mb-2 text-[#002844]">
             {interfaceLang === 'fr' ? 'Qu\'est-ce que tu veux faire ?' : 'What do you want to do?'}
@@ -685,6 +724,7 @@ export default function OnboardingPage() {
             })}
           </div>
         </div>
+        )}
 
         {errors.length > 0 && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
       </div>

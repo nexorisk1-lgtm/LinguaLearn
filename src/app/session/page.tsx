@@ -109,35 +109,36 @@ function generateGrammarExercises(exercises: GrammarExercise[], count: number): 
   })
 }
 
-function generateReadingExercise(texts: ReadingText[]): SessionExercise | null {
+function generateReadingExercise(texts: ReadingText[], interfaceLang: string): SessionExercise | null {
   if (texts.length === 0) return null
   const text = texts[Math.floor(Math.random() * texts.length)]
+  const fr = interfaceLang === 'fr'
 
-  // Generate comprehension questions based on text title
+  // BUG-53: Generate comprehension questions in interface language
   let comprehensionQuestion = ''
   let comprehensionAnswer = ''
   let comprehensionOptions: string[] = []
 
   switch (text.title) {
     case 'My Family':
-      comprehensionQuestion = "What does Emma's mother do?"
+      comprehensionQuestion = fr ? "Que fait la mère d'Emma ?" : "What does Emma's mother do?"
       comprehensionAnswer = 'She is a teacher'
       comprehensionOptions = ['She is a teacher', 'She is a doctor', 'She cooks Italian food']
       break
     case 'A Family Dinner':
-      comprehensionQuestion = 'What does Grandma make?'
+      comprehensionQuestion = fr ? 'Que prépare la grand-mère ?' : 'What does Grandma make?'
       comprehensionAnswer = 'Pasta and salad'
       comprehensionOptions = ['Pasta and salad', 'Pizza and soup', 'Rice and chicken']
       break
     case 'My Grandparents':
-      comprehensionQuestion = 'Where do the grandparents live?'
+      comprehensionQuestion = fr ? 'Où vivent les grands-parents ?' : 'Where do the grandparents live?'
       comprehensionAnswer = 'Near a small lake'
       comprehensionOptions = ['In the city', 'Near a river', 'Near a small lake']
       break
     default:
-      comprehensionQuestion = 'What is the main topic of this text?'
+      comprehensionQuestion = fr ? 'Quel est le sujet principal de ce texte ?' : 'What is the main topic of this text?'
       comprehensionAnswer = text.theme || 'General'
-      comprehensionOptions = [text.theme || 'General', 'Other topic 1', 'Other topic 2']
+      comprehensionOptions = [text.theme || 'General', fr ? 'Autre sujet 1' : 'Other topic 1', fr ? 'Autre sujet 2' : 'Other topic 2']
       break
   }
 
@@ -238,6 +239,9 @@ function SessionContent() {
 
   // BUG-34: text spacing + truncation
   const [readingExpanded, setReadingExpanded] = useState(false)
+  // BUG-35: Track current reading position for speed change continuity
+  const readingCharIndexRef = useRef(0)
+  const readingFullTextRef = useRef('')
 
   // BUG-37: explanation (now always shown per P0-4)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -313,7 +317,7 @@ function SessionContent() {
     }
     if (objectiveSet.has('lecture')) {
       const texts = getReadingTexts(activeLang, userThemes, userLevel)
-      const readEx = generateReadingExercise(texts)
+      const readEx = generateReadingExercise(texts, currentUser.settings.interfaceLang || 'fr')
       if (readEx) {
         allExercises.push(readEx)
         usedModules.push('lecture')
@@ -457,8 +461,23 @@ function SessionContent() {
 
   const currentExercise = exercises[currentIdx]
 
-  // BUG-37: Generate explanation for incorrect answers
-  const getWhyWrongExplanation = (exercise: SessionExercise, userAnswer: string): string => {
+  // BUG-37/50: Generate pedagogical explanation for all exercise types
+  // BUG-50: Phonetic tips for common words (francophone learners)
+  const PHONETIC_TIPS: Record<string, { fr: string; en: string }> = {
+    'airport': { fr: 'airport [ˈɛərpɔːrt] — Le "r" est léger, prononcez "air-port" avec le "ai" comme dans "air".', en: 'airport [ˈɛərpɔːrt] — Stress on first syllable, "air" like the word "air".' },
+    'father': { fr: 'father [ˈfɑːðər] — Le "th" se prononce en plaçant la langue entre les dents. Le "a" est long.', en: 'father [ˈfɑːðər] — The "th" is voiced, tongue between teeth.' },
+    'mother': { fr: 'mother [ˈmʌðər] — Le "th" comme dans "father". Le "o" se prononce "eu" court.', en: 'mother [ˈmʌðər] — Short "u" sound, voiced "th".' },
+    'brother': { fr: 'brother [ˈbrʌðər] — Attention au "th" et au "r" anglais (pas roulé).', en: 'brother [ˈbrʌðər] — Voiced "th", short "u" sound.' },
+    'sister': { fr: 'sister [ˈsɪstər] — Le "i" est court comme dans "sit". Le "r" final est léger.', en: 'sister [ˈsɪstər] — Short "i" as in "sit".' },
+    'family': { fr: 'family [ˈfæmɪli] — Le "a" se prononce comme le "a" de "cat". 3 syllabes.', en: 'family [ˈfæmɪli] — "a" as in "cat", three syllables.' },
+    'hello': { fr: 'hello [həˈloʊ] — L\'accent est sur la 2e syllabe. Le "h" est aspiré.', en: 'hello [həˈloʊ] — Stress on second syllable, aspirated "h".' },
+    'thank': { fr: 'thank [θæŋk] — Le "th" est sourd (langue entre les dents, sans vibration).', en: 'thank [θæŋk] — Voiceless "th", tongue between teeth.' },
+    'the': { fr: 'the [ðə] — Le "th" est sonore (langue entre les dents avec vibration).', en: 'the [ðə] — Voiced "th".' },
+    'water': { fr: 'water [ˈwɔːtər] — Le "w" se prononce en arrondissant les lèvres. Pas de "v" !', en: 'water [ˈwɔːtər] — Round your lips for "w".' },
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getWhyWrongExplanation = (exercise: SessionExercise, _userAnswer: string): string => {
     if (exercise.type === 'grammar_qcm' || exercise.module === 'grammaire') {
       const rule = exercise.data
       return lang === 'fr'
@@ -466,9 +485,28 @@ function SessionContent() {
         : `The correct answer is "${exercise.answer}". ${rule?.definition || rule?.definition_en || 'Review this rule in the Grammar module.'}`
     }
     if (exercise.module === 'vocabulaire') {
+      const data = exercise.data
+      const extra = data?.definition_fr ? ` (${data.definition_fr})` : ''
       return lang === 'fr'
-        ? `"${exercise.question}" se traduit par "${exercise.answer}". Votre réponse "${userAnswer}" n'est pas correcte.`
-        : `"${exercise.question}" translates to "${exercise.answer}". Your answer "${userAnswer}" is not correct.`
+        ? `"${exercise.question}" se traduit par "${exercise.answer}"${extra}.`
+        : `"${exercise.question}" translates to "${exercise.answer}".`
+    }
+    // BUG-50: Enhanced oral feedback with phonetic tips
+    if (exercise.type === 'speaking_repeat') {
+      const answerLower = exercise.answer.toLowerCase()
+      const tip = PHONETIC_TIPS[answerLower]
+      const ipa = IPA_MAP[answerLower]
+      if (tip) {
+        return lang === 'fr' ? tip.fr : tip.en
+      }
+      if (ipa) {
+        return lang === 'fr'
+          ? `Prononciation : ${exercise.answer} ${ipa}. Écoutez la cible et comparez avec votre prononciation.`
+          : `Pronunciation: ${exercise.answer} ${ipa}. Listen to the target and compare with your pronunciation.`
+      }
+      return lang === 'fr'
+        ? `Le mot/phrase cible est "${exercise.answer}". Écoutez la prononciation cible et réessayez en articulant clairement.`
+        : `The target word/phrase is "${exercise.answer}". Listen to the target pronunciation and try again, articulating clearly.`
     }
     return lang === 'fr' ? `La réponse correcte est : ${exercise.answer}` : `The correct answer is: ${exercise.answer}`
   }
@@ -491,10 +529,17 @@ function SessionContent() {
       // For comprehension, check against comprehensionAnswer
       correct = userAnswer === currentExercise.comprehensionAnswer
     } else if (currentExercise.type === 'speaking_repeat') {
+      // Oral: 20% tolerance (speech recognition is less precise)
       const maxDist = Math.max(1, Math.floor(currentExercise.answer.length * 0.2))
       correct = isCloseEnough(userAnswer, currentExercise.answer, maxDist)
     } else {
-      correct = isCloseEnough(userAnswer, currentExercise.answer, 2)
+      // BUG-45: Vocab/writing tolerance = 15% of word length, minimum 1
+      // "hello" (5 chars) → max 0 errors (floor(5*0.15)=0, min 1 → 1 BUT only for words >6 chars)
+      // Short words (<= 6 chars): exact match required (tolerance 0)
+      // Longer words: floor(length * 0.15)
+      const answerLen = currentExercise.answer.length
+      const tolerance = answerLen <= 6 ? 0 : Math.floor(answerLen * 0.15)
+      correct = isCloseEnough(userAnswer, currentExercise.answer, tolerance)
     }
 
     setIsCorrect(correct)
@@ -622,15 +667,40 @@ function SessionContent() {
     }
   }
 
+  // BUG-49: Store user's recorded audio for playback
+  const mediaRecorderRef = useRef<any>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const [userAudioUrl, setUserAudioUrl] = useState<string | null>(null)
+
   // Speech recognition for oral exercises
   const startRecording = async () => {
     if (!recognitionRef.current) return
+    let stream: MediaStream
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch { return }
 
     setIsRecording(true)
     setHeardText('')
+    setUserAudioUrl(null)
+
+    // BUG-49: Start MediaRecorder to capture audio blob
+    try {
+      audioChunksRef.current = []
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+      recorder.ondataavailable = (e: any) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const url = URL.createObjectURL(blob)
+        setUserAudioUrl(url)
+        stream.getTracks().forEach(t => t.stop())
+      }
+      recorder.start()
+    } catch { /* MediaRecorder not supported, proceed without */ }
+
     const recognition = recognitionRef.current
     const activeLang = user?.activeLang || 'en'
     const langMap: Record<string, string> = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE' }
@@ -644,12 +714,30 @@ function SessionContent() {
       }
       setHeardText(transcript)
       setIsRecording(false)
+      // Stop MediaRecorder
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop()
+      }
       handleSubmitAnswer(transcript)
     }
 
-    recognition.onerror = () => setIsRecording(false)
-    recognition.onend = () => setIsRecording(false)
+    recognition.onerror = () => {
+      setIsRecording(false)
+      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+    }
+    recognition.onend = () => {
+      setIsRecording(false)
+      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+    }
     try { recognition.start() } catch { setIsRecording(false) }
+  }
+
+  // BUG-49: Play back user's recorded pronunciation
+  const playUserAudio = () => {
+    if (userAudioUrl) {
+      const audio = new Audio(userAudioUrl)
+      audio.play()
+    }
   }
 
   const skipIntro = () => {
@@ -678,40 +766,56 @@ function SessionContent() {
     }
   }
 
-  // BUG-35: Change reading speed function that restarts playback if audio is playing
-  const changeReadingSpeed = (speed: number, text?: string) => {
+  // BUG-35: Change reading speed — resume from current position, not restart
+  const changeReadingSpeed = (speed: number) => {
     setReadingSpeed(speed)
-    if (isReadingAloud && text) {
+    if (isReadingAloud && readingFullTextRef.current) {
       window.speechSynthesis.cancel()
-      setTimeout(() => playReadingAloud(text, speed), 100)
+      // Resume from current character position
+      const remainingText = readingFullTextRef.current.slice(readingCharIndexRef.current)
+      if (remainingText.trim()) {
+        setTimeout(() => playReadingAloud(remainingText, speed, readingCharIndexRef.current), 100)
+      }
     }
   }
 
   // BUG-33: TTS function with speed control and word highlighting
-  const playReadingAloud = (text: string, speed?: number) => {
+  // BUG-35: charOffset tracks position in the full text for speed change continuity
+  const playReadingAloud = (text: string, speed?: number, charOffset: number = 0) => {
     if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech
-      if (isReadingAloud) {
+      // Cancel any ongoing speech (toggle off)
+      if (isReadingAloud && charOffset === 0) {
         window.speechSynthesis.cancel()
         setIsReadingAloud(false)
         setHighlightWordIndex(null)
+        readingCharIndexRef.current = 0
         return
+      }
+
+      // Store full text reference (only on fresh play, not resume)
+      if (charOffset === 0) {
+        readingFullTextRef.current = text
+        readingCharIndexRef.current = 0
       }
 
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.rate = speed ?? readingSpeed
       utterance.lang = user?.activeLang === 'fr' ? 'fr-FR' : 'en-US'
 
-      const words = text.split(/\s+/)
+      // For word highlighting, use the full text's words
+      const fullWords = readingFullTextRef.current.split(/\s+/)
 
       utterance.onboundary = (event: any) => {
         if (event.name === 'word') {
-          const charIndex = event.charIndex
+          // BUG-35: Track absolute position in full text
+          const absoluteCharIdx = charOffset + event.charIndex
+          readingCharIndexRef.current = absoluteCharIdx
+          // Find word index in full text
           let wordIdx = 0
           let charCount = 0
-          for (let i = 0; i < words.length; i++) {
-            charCount += words[i].length + 1 // +1 for space
-            if (charCount > charIndex) {
+          for (let i = 0; i < fullWords.length; i++) {
+            charCount += fullWords[i].length + 1
+            if (charCount > absoluteCharIdx) {
               wordIdx = i
               break
             }
@@ -723,6 +827,7 @@ function SessionContent() {
       utterance.onend = () => {
         setIsReadingAloud(false)
         setHighlightWordIndex(null)
+        readingCharIndexRef.current = 0
       }
 
       utterance.onerror = () => {
@@ -1138,7 +1243,7 @@ function SessionContent() {
                     {[0.5, 1, 1.5].map((speed) => (
                       <button
                         key={speed}
-                        onClick={() => changeReadingSpeed(speed, currentExercise.readingText || '')}
+                        onClick={() => changeReadingSpeed(speed)}
                         className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                           readingSpeed === speed
                             ? 'bg-[#002844] text-white'
@@ -1383,6 +1488,24 @@ function SessionContent() {
                 {getWhyWrongExplanation(currentExercise, results[results.length - 1]?.userAnswer || userInput)}
               </div>
 
+              {/* BUG-49: Audio comparison buttons for speaking exercises */}
+              {currentExercise.type === 'speaking_repeat' && (
+                <div className="flex gap-2 mb-3">
+                  <button onClick={() => speakText(currentExercise.answer, user?.activeLang || 'en')}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors">
+                    <Volume2 className="h-3.5 w-3.5" />
+                    {lang === 'fr' ? 'Écouter la cible' : 'Listen to target'}
+                  </button>
+                  {userAudioUrl && (
+                    <button onClick={playUserAudio}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-purple-50 text-purple-700 text-xs font-semibold hover:bg-purple-100 transition-colors">
+                      <Mic className="h-3.5 w-3.5" />
+                      {lang === 'fr' ? 'Ma prononciation' : 'My pronunciation'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2">
                 {currentExercise.type === 'speaking_repeat' && !isCorrect && (
                   <button onClick={() => {
@@ -1391,6 +1514,7 @@ function SessionContent() {
                     setSelectedOption(null)
                     setHeardText('')
                     setShowingComprehension(false)
+                    setUserAudioUrl(null)
                   }}
                     className="flex-1 py-2.5 rounded-xl bg-[#D9B438] text-[#002844] font-bold text-sm hover:bg-[#c9a530] transition-colors">
                     {lang === 'fr' ? 'Réessayer' : 'Try again'}

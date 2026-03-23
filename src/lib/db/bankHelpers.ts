@@ -245,8 +245,13 @@ export function levenshteinDistance(a: string, b: string): number {
   return matrix[bStr.length][aStr.length];
 }
 
-export function isCloseEnough(input: string, expected: string, tolerance: number = 2): boolean {
-  const distance = levenshteinDistance(input, expected);
+export function isCloseEnough(input: string, expected: string, tolerance: number = 0): boolean {
+  // BUG-45: Always normalize to lowercase + trim before comparing
+  const normalizedInput = input.trim().toLowerCase();
+  const normalizedExpected = expected.trim().toLowerCase();
+  if (normalizedInput === normalizedExpected) return true;
+  if (tolerance === 0) return false;
+  const distance = levenshteinDistance(normalizedInput, normalizedExpected);
   return distance <= tolerance;
 }
 

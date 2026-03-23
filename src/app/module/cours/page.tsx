@@ -364,7 +364,7 @@ export default function CoursPage() {
           <button onClick={() => router.push('/dashboard')}
             className="flex items-center gap-2 text-white/70 text-sm mb-4 hover:text-white transition-colors">
             <ChevronLeft className="h-4 w-4" />
-            {lang === 'fr' ? 'Dashboard' : 'Dashboard'}
+            {lang === 'fr' ? 'Retour à l\'accueil' : 'Back to home'}
           </button>
 
           <div className="flex items-center justify-between">

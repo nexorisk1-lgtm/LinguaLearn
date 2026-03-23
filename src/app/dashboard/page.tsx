@@ -204,9 +204,12 @@ export default function DashboardPage() {
           const dailyWords = progress?.dailyWordsCompleted || 0
           const dailyExercises = progress?.dailyExercisesCompleted || 0
           const wordsTarget = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
-          const dailyTotal = dailyWords + dailyExercises
+          const dailyTotalRaw = dailyWords + dailyExercises
           const dailyTarget = wordsTarget + 4 // words + exercises
-          const dailyPct = Math.min(100, Math.round((dailyTotal / dailyTarget) * 100))
+          // BUG-52: Cap display at target max
+          const dailyTotal = Math.min(dailyTotalRaw, dailyTarget)
+          const dailyPct = Math.min(100, Math.round((dailyTotalRaw / dailyTarget) * 100))
+          const objectiveReached = dailyTotalRaw >= dailyTarget
           const displayName = user.firstName && !user.firstName.includes('@') ? user.firstName : user.firstName?.split('@')[0] || (lang === 'fr' ? 'apprenant' : 'learner')
           return (
             <>
@@ -230,7 +233,11 @@ export default function DashboardPage() {
                   <span className="text-xs font-bold text-[#002844]">
                     {lang === 'fr' ? "Objectif du jour" : "Today's goal"}
                   </span>
-                  <span className="text-xs font-bold text-[#D9B438]">{dailyTotal}/{dailyTarget}</span>
+                  <span className={`text-xs font-bold ${objectiveReached ? 'text-green-600' : 'text-[#D9B438]'}`}>
+                    {objectiveReached
+                      ? (lang === 'fr' ? `${dailyTarget}/${dailyTarget} ✓ Objectif atteint !` : `${dailyTarget}/${dailyTarget} ✓ Goal reached!`)
+                      : `${dailyTotal}/${dailyTarget}`}
+                  </span>
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-gray-100">
                   <div className="h-full rounded-full bg-gradient-to-r from-[#D9B438] to-[#f0c84a] transition-all" style={{ width: `${dailyPct}%` }} />
