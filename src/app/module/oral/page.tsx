@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import PageHeader from '@/components/PageHeader'
 import {
   ArrowLeft,
   Mic,
@@ -16,6 +17,7 @@ import {
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { InterfaceLanguage } from '@/types'
 import { t } from '@/lib/i18n'
+import BottomNav from '@/components/BottomNav'
 import { getSpeakingExercises, speakText, isCloseEnough } from '@/lib/db/bankHelpers'
 import { SpeakingExercise } from '@/lib/db/bankTypes'
 
@@ -295,23 +297,10 @@ export default function OralModule() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen pb-20 bg-gradient-to-b from-blue-50 to-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 text-[#002844] hover:text-[#D9B438] mb-4 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span>{t('module.back', interfaceLang)}</span>
-            </Link>
-            <h1 className="text-4xl font-bold text-[#002844]">
-              {t('oral.title', interfaceLang)}
-            </h1>
-          </div>
-        </div>
+        <PageHeader title={interfaceLang === 'fr' ? 'Oral' : 'Speaking'} backHref="/dashboard" />
 
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -502,6 +491,7 @@ export default function OralModule() {
           </div>
         )}
       </div>
+      <BottomNav lang={interfaceLang} />
     </div>
   )
 }

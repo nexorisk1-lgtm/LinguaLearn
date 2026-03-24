@@ -2,9 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import PageHeader from '@/components/PageHeader';
 import {
-  ArrowLeft,
   Volume2,
   Heart,
   Send,
@@ -18,6 +17,7 @@ import {
 import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage';
 import { User, ALL_THEMES } from '@/types';
 import { t, getThemeName } from '@/lib/i18n';
+import BottomNav from '@/components/BottomNav';
 import {
   getVocabulary,
   speakText,
@@ -637,32 +637,18 @@ export default function VocabulairePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen pb-20 bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
-      <header
-        className="px-4 md:px-8 py-6 md:py-8"
-        style={{
-          backgroundColor: '#002844',
-          color: '#ffffff',
-        }}
-      >
-        <div className="flex items-center gap-4 mb-4">
-          <Link href="/dashboard">
-            <button
-              className="p-2 rounded-lg hover:opacity-80 transition-opacity"
-              style={{ backgroundColor: '#D9B438' }}
-              aria-label={t('module.back', interfaceLang)}
-            >
-              <ArrowLeft className="w-5 h-5" style={{ color: '#002844' }} />
-            </button>
-          </Link>
-          <h1 className="text-3xl md:text-4xl font-bold">
-            {t('vocab.title', interfaceLang)}
-          </h1>
-        </div>
+      <PageHeader title={interfaceLang === 'fr' ? 'Vocabulaire' : 'Vocabulary'} backHref="/dashboard" />
 
-        {/* Filter bar - only show on discovery tab */}
-        {activeTab === 'discovery' && (
+      {/* Filter bar - only show on discovery tab */}
+      {activeTab === 'discovery' && (
+        <div className="px-4 md:px-8 py-4"
+          style={{
+            backgroundColor: '#002844',
+            color: '#ffffff',
+          }}
+        >
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
             <label className="text-sm font-semibold">
               {t('module.filter.theme', interfaceLang)}
@@ -688,8 +674,8 @@ export default function VocabulairePage() {
               })}
             </select>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* Tabs - scrollable on mobile */}
       <div
@@ -1550,6 +1536,7 @@ export default function VocabulairePage() {
           </div>
         )}
       </main>
+      <BottomNav lang={interfaceLang} />
     </div>
   );
 }

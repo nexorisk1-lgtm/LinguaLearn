@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningObjective } from '@/types'
+import BottomNav from '@/components/BottomNav'
 import {
   getVocabulary, getGrammarRules, getExercisesForRule,
   getReadingTexts, getSpeakingExercises, getWritingExercises,
@@ -1318,7 +1319,7 @@ function SessionContent() {
   const ModIcon = moduleIcons[currentExercise.module] || BookOpen
 
   return (
-    <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
+    <div className="min-h-screen pb-20 bg-[#F0F0F0] px-4 py-6">
       <div className="max-w-lg mx-auto">
         {/* BUG-58: Quit confirmation overlay */}
         {showQuitConfirm && (
@@ -1702,6 +1703,7 @@ function SessionContent() {
           )}
         </div>
       </div>
+      <BottomNav lang={lang} />
     </div>
   )
 }

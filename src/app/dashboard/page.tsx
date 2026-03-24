@@ -8,7 +8,7 @@ import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
-  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut, Search, Bot,
+  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -288,8 +288,9 @@ export default function DashboardPage() {
           const dailyWords = progress?.dailyWordsCompleted || 0
           const dailyExercises = progress?.dailyExercisesCompleted || 0
           const wordsTarget = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
+          // BUG-61 V3.9: dailyTarget = wordsPerDay from profile, no hardcoded addition
           const dailyTotalRaw = dailyWords + dailyExercises
-          const dailyTarget = wordsTarget + 4 // words + exercises
+          const dailyTarget = wordsTarget
           // BUG-52: Cap display at target max
           const dailyTotal = Math.min(dailyTotalRaw, dailyTarget)
           const dailyPct = Math.min(100, Math.round((dailyTotalRaw / dailyTarget) * 100))
@@ -573,29 +574,16 @@ export default function DashboardPage() {
               )
             })()}
 
-            {/* ARCHI-02 V3.9: "Explorer" — 3 direct icons, no accordion */}
+            {/* ARCHI-03 V3.9: "Explorer" — Entraînement uniquement (Dictionnaire/Coach IA déjà dans nav bas) */}
             <div className="rounded-2xl bg-white shadow-sm p-4">
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              <div className="flex justify-around">
-                <a href="/module/entrainement" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#F0F0F0] transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-[#E65100]/10 flex items-center justify-center">
-                    <Dumbbell className="h-5 w-5 text-[#E65100]" />
-                  </div>
-                  <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? 'Entraînement' : 'Training'}</span>
-                </a>
-                <a href="/module/dictionnaire" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#F0F0F0] transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-[#1976D2]/10 flex items-center justify-center">
-                    <Search className="h-5 w-5 text-[#1976D2]" />
-                  </div>
-                  <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? 'Dictionnaire' : 'Dictionary'}</span>
-                </a>
-                <a href="/module/entrainement?mode=coach" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#F0F0F0] transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-[#7B1FA2]/10 flex items-center justify-center">
-                    <Bot className="h-5 w-5 text-[#7B1FA2]" />
-                  </div>
-                  <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? 'Coach IA' : 'AI Coach'}</span>
-                </a>
-              </div>
+              <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
+                <div className="w-10 h-10 rounded-full bg-[#E65100]/10 flex items-center justify-center">
+                  <Dumbbell className="h-5 w-5 text-[#E65100]" />
+                </div>
+                <span className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Entraînement' : 'Training'}</span>
+                <ChevronRight className="h-4 w-4 text-[#555555] ml-auto" />
+              </a>
             </div>
 
           </div>

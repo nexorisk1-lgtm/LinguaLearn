@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage'
 import { InterfaceLanguage, User } from '@/types'
 import { t } from '@/lib/i18n'
+import PageHeader from '@/components/PageHeader'
+import BottomNav from '@/components/BottomNav'
 import {
   getGrammarRules,
   getExercisesForRule,
@@ -20,7 +22,6 @@ import {
 import { VerbExercise } from '@/lib/db/bankGrammar'
 // GrammarCarousel removed from module — now only in session
 import {
-  ArrowLeft,
   Volume2,
   ChevronDown,
   ChevronUp,
@@ -268,27 +269,9 @@ export default function GrammairePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+    <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-50 to-white">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
-              aria-label={t('module.back', interfaceLang)}
-            >
-              <ArrowLeft className="w-5 h-5" style={{ color: '#002844' }} />
-            </button>
-            <h1 className="text-3xl font-bold" style={{ color: '#002844' }}>
-              {t('grammar.title', interfaceLang)}
-            </h1>
-          </div>
-          <span className="px-3 py-1 bg-blue-100 rounded-full text-sm font-medium" style={{ color: '#002844' }}>
-            {activeLang.toUpperCase()} • {userLevel}
-          </span>
-        </div>
-      </header>
+      <PageHeader title={interfaceLang === 'fr' ? 'Grammaire' : 'Grammar'} backHref="/dashboard" />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Tabs */}
@@ -1158,6 +1141,7 @@ export default function GrammairePage() {
           </div>
         )}
       </main>
+      <BottomNav lang={interfaceLang} />
     </div>
   )
 }

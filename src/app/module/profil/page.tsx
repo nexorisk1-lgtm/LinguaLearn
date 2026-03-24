@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser, logoutUser, updateUserSettings, setActiveLang } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LEARNING_LANGUAGES, ALL_THEMES, DAYS_OF_WEEK, SESSION_DURATIONS, THEME_CATEGORIES, PERSONAL_THEMES, PROFESSIONAL_THEMES, LearningLanguage, DayOfWeek, SessionDuration } from '@/types'
 import { getThemeName } from '@/lib/i18n'
+import BottomNav from '@/components/BottomNav'
 import {
   User as UserIcon, Globe, Calendar,
   GraduationCap, Shield, LogOut, ChevronRight, Volume2, Mic, Edit2, Check, ArrowLeft,
@@ -637,6 +638,7 @@ export default function ProfilPage() {
           </button>
         </div>
       </main>
+      <BottomNav lang={lang} />
     </div>
   )
 }

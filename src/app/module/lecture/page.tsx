@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PageHeader from '@/components/PageHeader';
 import {
-  ArrowLeft,
   Volume2,
   VolumeX,
   BookOpen,
@@ -17,6 +17,7 @@ import {
 import { getCurrentUser } from '@/lib/db/localStorage';
 import { User, ALL_THEMES } from '@/types';
 import { t, getThemeName } from '@/lib/i18n';
+import BottomNav from '@/components/BottomNav';
 import {
   getReadingTexts,
   getVocabulary,
@@ -740,30 +741,9 @@ export default function LecturePage() {
   const dictModes = getDictModes();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen pb-20 bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
-      <header
-        className="px-4 md:px-8 py-6 md:py-8"
-        style={{
-          backgroundColor: '#002844',
-          color: '#ffffff',
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <button
-              className="p-2 rounded-lg hover:opacity-80 transition-opacity"
-              style={{ backgroundColor: '#D9B438' }}
-              aria-label={t('module.back', interfaceLang)}
-            >
-              <ArrowLeft className="w-5 h-5" style={{ color: '#002844' }} />
-            </button>
-          </Link>
-          <h1 className="text-3xl md:text-4xl font-bold">
-            {t('reading.title', interfaceLang)}
-          </h1>
-        </div>
-      </header>
+      <PageHeader title={interfaceLang === 'fr' ? 'Lecture' : 'Reading'} backHref="/dashboard" />
 
       {/* Tabs */}
       <div
@@ -962,6 +942,7 @@ export default function LecturePage() {
 
       {/* Word Lookup Popup */}
       <WordLookupPopup />
+      <BottomNav lang={interfaceLang} />
     </div>
   );
 }

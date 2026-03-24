@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, RotateCcw, Volume2, Check, Trophy, Dumbbell, Zap, Brain } from 'lucide-react'
-import Link from 'next/link'
+import { RotateCcw, Volume2, Check, Trophy, Zap, Brain } from 'lucide-react'
+import PageHeader from '@/components/PageHeader'
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { User } from '@/types'
+import BottomNav from '@/components/BottomNav'
 import { getVocabulary, speakText, isCloseEnough } from '@/lib/db/bankHelpers'
 import { VocabWord } from '@/lib/db/bankTypes'
 
@@ -127,17 +128,7 @@ export default function EntrainementPage() {
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
       {/* Header */}
-      <header className="bg-[#002844] px-4 py-5">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard">
-            <button className="p-2 rounded-lg bg-[#D9B438]"><ArrowLeft className="w-5 h-5 text-[#002844]" /></button>
-          </Link>
-          <h1 className="text-2xl font-bold text-white">
-            <Dumbbell className="inline-block w-6 h-6 mr-2" />
-            {lang === 'fr' ? 'Entraînement' : 'Training'}
-          </h1>
-        </div>
-      </header>
+      <PageHeader title={lang === 'fr' ? 'Entraînement' : 'Training'} backHref="/dashboard" />
 
       {/* Tabs */}
       <div className="flex gap-1 px-4 pt-3 pb-2 bg-white border-b">
@@ -279,6 +270,7 @@ export default function EntrainementPage() {
           </div>
         )}
       </main>
+      <BottomNav lang={lang} />
     </div>
   )
 }

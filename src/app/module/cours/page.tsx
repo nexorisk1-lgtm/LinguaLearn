@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/db/localStorage';
 import { User, InterfaceLanguage, LearningLanguage, LearningPath } from '@/types';
-import { Lock, Star, ChevronLeft, Trophy, MessageCircle } from 'lucide-react';
+import { Lock, Star, Trophy, MessageCircle } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import BottomNav from '@/components/BottomNav';
 
 // ==========================================
 // A1 CURRICULUM DATA (from Curriculum V1.0)
@@ -362,11 +364,9 @@ export default function CoursPage() {
       <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
         <div className="max-w-lg mx-auto">
           {/* Back */}
-          <button onClick={() => setSelectedCourse(null)}
-            className="flex items-center gap-2 text-[#002844] font-bold text-sm mb-6 hover:text-[#D9B438] transition-colors">
-            <ChevronLeft className="h-4 w-4" />
-            {lang === 'fr' ? 'Retour au parcours' : 'Back to path'}
-          </button>
+          <div onClick={() => setSelectedCourse(null)} className="mb-6">
+            <PageHeader title={lang === 'fr' ? 'Retour au parcours' : 'Back to path'} variant="light" />
+          </div>
 
           {/* Course card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
@@ -466,15 +466,11 @@ export default function CoursPage() {
   // MAIN CAROUSEL VIEW
   // ==========================================
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#002844] via-[#003a5c] to-[#004d73]">
+    <div className="min-h-screen pb-20 bg-gradient-to-b from-[#002844] via-[#003a5c] to-[#004d73]">
       {/* Header */}
-      <div className="px-4 pt-6 pb-4">
+      <PageHeader title={lang === 'fr' ? 'Mon parcours' : 'My path'} backHref="/dashboard" />
+      <div className="px-4 pt-2 pb-4">
         <div className="max-w-lg mx-auto">
-          <button onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 text-white/70 text-sm mb-4 hover:text-white transition-colors">
-            <ChevronLeft className="h-4 w-4" />
-            {lang === 'fr' ? 'Retour à l\'accueil' : 'Back to home'}
-          </button>
 
           <div className="flex items-center justify-between">
             <div>
@@ -646,6 +642,7 @@ export default function CoursPage() {
           })}
         </div>
       </div>
+      <BottomNav lang={lang} />
     </div>
   );
 }

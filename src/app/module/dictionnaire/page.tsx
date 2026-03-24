@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Volume2, Search, BookOpen, Plus, Loader2, ArrowLeft } from 'lucide-react'
+import { Volume2, Search, BookOpen, Plus, Loader2 } from 'lucide-react'
+import PageHeader from '@/components/PageHeader'
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { User } from '@/types'
+import BottomNav from '@/components/BottomNav'
 import { speakText } from '@/lib/db/bankHelpers'
 
 // Types for Free Dictionary API response
@@ -165,19 +167,8 @@ export default function DictionnairePage() {
   return (
     <div className="pb-20 px-4 pt-4">
       {/* Back button header */}
-      <div className="flex items-center gap-3 mb-6">
-        <a href="/dashboard" className="p-2 rounded-lg" style={{ backgroundColor: '#D9B438' }}>
-          <ArrowLeft className="h-5 w-5" style={{ color: '#002844' }} />
-        </a>
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#002844' }}>
-            {interfaceLang === 'fr' ? 'Dictionnaire' : 'Dictionary'}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: '#555555' }}>
-            {interfaceLang === 'fr' ? 'Recherchez n\'importe quel mot' : 'Search any word'}
-          </p>
-        </div>
-      </div>
+      <PageHeader title={interfaceLang === 'fr' ? 'Dictionnaire' : 'Dictionary'} backHref="/dashboard" />
+      <div className="mb-6"></div>
 
       {/* Mode Selection - pills */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -407,6 +398,7 @@ export default function DictionnairePage() {
           </p>
         </div>
       )}
+      <BottomNav lang={interfaceLang} />
     </div>
   )
 }

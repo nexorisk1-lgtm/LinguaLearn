@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Volume2, Mic, MicOff, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
 import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage';
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
+import BottomNav from '@/components/BottomNav';
 import { getVocabulary, speakText, isCloseEnough, addToPersonalVocab } from '@/lib/db/bankHelpers';
 import { VocabWord } from '@/lib/db/bankTypes';
 
@@ -264,7 +265,7 @@ export default function CoffrePage() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#F0F0F0]">
+    <div className="min-h-screen pb-20 bg-[#F0F0F0]">
       {/* Header */}
       <div className="bg-[#002844] px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center gap-3">
@@ -465,6 +466,7 @@ export default function CoffrePage() {
 
         </div>
       </div>
+      <BottomNav lang={lang} />
     </div>
   );
 }
