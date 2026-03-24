@@ -468,6 +468,28 @@ function SessionContent() {
     setLang(currentUser.settings.interfaceLang || 'fr')
     buildSession(currentUser)
 
+    // BUG-58: Check for resume position
+    if (courseId) {
+      try {
+        const resumeKey = `lingualearn_resume_${currentUser.id}_${courseId}`
+        const resumeStr = localStorage.getItem(resumeKey)
+        if (resumeStr) {
+          const resume = JSON.parse(resumeStr)
+          // Only resume if saved less than 24h ago
+          const savedAt = new Date(resume.savedAt).getTime()
+          if (Date.now() - savedAt < 24 * 60 * 60 * 1000) {
+            setTimeout(() => {
+              setCurrentIdx(resume.exerciseIndex || 0)
+              setCurrentLessonIdx(resume.lessonIndex || 0)
+              setPhase('exercise')
+            }, 100)
+          }
+          // Clear resume data after loading
+          localStorage.removeItem(resumeKey)
+        }
+      } catch { /* ignore */ }
+    }
+
     // Init speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (SpeechRecognition) {
@@ -475,6 +497,7 @@ function SessionContent() {
     }
 
     setLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, buildSession])
 
   // Intro countdown
@@ -684,7 +707,7 @@ function SessionContent() {
     }
   }
 
-  const finishSession = () => {
+  const finishSession = (isPartialQuit: boolean = false) => {
     if (!user) return
     const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en'
     const todayStr = new Date().toISOString().split('T')[0]
@@ -702,12 +725,18 @@ function SessionContent() {
       newStreak = lastDate === yesterdayStr ? newStreak + 1 : 1
     }
 
-    // BUG-23: Update lecture progression for reading exercises
-    const correctReadingCount = results.filter(r => r.exercise.module === 'lecture' && r.correct).length
-    const currentLecturePct = currentProgress?.objectiveProgress?.lecture || 0
-    let newLecturePct = currentLecturePct
-    if (correctReadingCount > 0) {
-      newLecturePct = Math.min(100, currentLecturePct + correctReadingCount * 5)
+    // BUG-60: Update ALL module progression blocks based on session results
+    const currentObjProgress = currentProgress?.objectiveProgress || {}
+    const newObjProgress = { ...currentObjProgress }
+
+    // Calculate progress increment per module (5% per correct answer in that module)
+    const modules = ['vocabulaire', 'grammaire', 'oral', 'lecture', 'ecrit'] as const
+    for (const mod of modules) {
+      const correctInModule = results.filter(r => r.exercise.module === mod && r.correct).length
+      if (correctInModule > 0) {
+        const currentPct = newObjProgress[mod] || 0
+        newObjProgress[mod] = Math.min(100, currentPct + correctInModule * 5)
+      }
     }
 
     updateUserProgress(user.id, activeLang, {
@@ -715,10 +744,7 @@ function SessionContent() {
       lastActivityDate: todayStr,
       dailyExercisesCompleted: (currentProgress?.dailyExercisesCompleted || 0) + totalCount,
       dailyWordsCompleted: (currentProgress?.dailyWordsCompleted || 0) + results.filter(r => r.exercise.module === 'vocabulaire' && r.correct).length,
-      objectiveProgress: {
-        ...(currentProgress?.objectiveProgress || {}),
-        lecture: newLecturePct,
-      },
+      objectiveProgress: newObjProgress,
     })
 
     // BUG-24: Save vocabulary words seen to personal vocab
@@ -728,8 +754,9 @@ function SessionContent() {
       }
     }
 
-    // P0-3: Save course score if this is a course session
-    if (courseId) {
+    // BUG-59: Save course score ONLY if session is fully completed (not partial quit)
+    // A course is "completed" only when ALL questions have been answered and the summary screen shown.
+    if (courseId && !isPartialQuit) {
       const correctCount = results.filter(r => r.correct).length
       const totalResults = results.length
       const scorePct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0
@@ -753,10 +780,21 @@ function SessionContent() {
     }
   }
 
-  // BUG-58: Quit session with partial progress save
+  // BUG-58+59: Quit session — save streak/activity but NEVER mark course as completed
   const handleQuitSession = () => {
     if (results.length > 0) {
-      finishSession() // Save whatever progress was made
+      finishSession(true) // isPartialQuit = true → no course score saved
+    }
+    // BUG-58: Save resume position for this course
+    if (courseId && user) {
+      try {
+        const resumeKey = `lingualearn_resume_${user.id}_${courseId}`
+        localStorage.setItem(resumeKey, JSON.stringify({
+          lessonIndex: currentLessonIdx,
+          exerciseIndex: currentIdx,
+          savedAt: new Date().toISOString(),
+        }))
+      } catch { /* ignore */ }
     }
     router.push('/dashboard')
   }

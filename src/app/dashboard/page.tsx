@@ -126,7 +126,7 @@ export default function DashboardPage() {
     { id: 'ecrit', label: lang === 'fr' ? 'Écrit' : 'Writing', icon: Pencil, color: '#E65100', bgLight: '#FFF3E0', href: '/module/ecrit', objective: 'ecrit' },
   ]
 
-  // CTA — session du jour: prioritize user's selected objectives, then fill with lowest progression
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sessionModules = (() => {
     // First: modules matching user's objectives, sorted by lowest progression
     const objectiveModules = moduleBlocks
@@ -147,51 +147,79 @@ export default function DashboardPage() {
       })
     return [...objectiveModules, ...remaining].slice(0, 2)
   })()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sessionDuration = user.settings.schedules?.[activeLang]?.duration || user.settings.schedule?.duration || 10
 
-  // §5: Find next uncompleted course for "Commencer ma session"
-  const nextCourseUrl = (() => {
+  // §5 V3.8: Find next uncompleted course with full details
+  const nextCourseInfo = (() => {
     try {
       const key = `lingualearn_course_scores_${user.id}_${activeLang}`
       const stored = localStorage.getItem(key)
       const scores: Record<string, { score: number }> = stored ? JSON.parse(stored) : {}
 
-      // Determine path
       const paths = langConfig?.learningPath
         ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
         : []
       const isPathB = paths.includes('B') && !paths.includes('A')
 
-      // A1 course IDs in order (simplified flat list)
-      const a1Ids = ['a1_c1','a1_c2','a1_c3','a1_c4','a1_c5','a1_d1','a1_cp1','a1_c6','a1_c7','a1_c8','a1_c9','a1_c10','a1_d2','a1_cp2','a1_c11','a1_c12','a1_c13','a1_c14','a1_c15','a1_d3','a1_cp3','a1_c16','a1_c17','a1_c18','a1_c19','a1_c20','a1_d4','a1_cp4','a1_c21','a1_c22','a1_c23','a1_c24','a1_c25','a1_d5','a1_cert']
-      const bIds = ['b_b1_c1','b_b1_c2','b_b1_c3','b_b1_d','b_b1_cp','b_b2_c1','b_b2_c2','b_b2_c3','b_b2_d','b_b2_cp','b_b3_c1','b_b3_c2','b_b3_c3','b_b3_d','b_b3_cp','b_b4_c1','b_b4_c2','b_b4_c3','b_b4_d','b_b4_cp','b_b5_c1','b_b5_c2','b_b5_c3','b_b5_d','b_b5_cp','b_b6_c1','b_b6_c2','b_b6_c3','b_b6_d','b_b6_cp']
-      const courseIds = isPathB ? bIds : a1Ids
+      // Course catalog with names
+      const a1Courses = [
+        { id: 'a1_c1', n: 1, fr: 'Verbe To Be', en: 'Verb To Be' }, { id: 'a1_c2', n: 2, fr: 'Le pluriel des noms', en: 'Plural nouns' },
+        { id: 'a1_c3', n: 3, fr: 'To Be : interrogation', en: 'To Be: questions' }, { id: 'a1_c4', n: 4, fr: 'Articles A/An/The', en: 'Articles' },
+        { id: 'a1_c5', n: 5, fr: 'Adjectifs possessifs', en: 'Possessive adj.' }, { id: 'a1_d1', n: 0, fr: 'Dialogue 1', en: 'Dialogue 1' },
+        { id: 'a1_cp1', n: 0, fr: 'Checkpoint 1', en: 'Checkpoint 1' }, { id: 'a1_c6', n: 6, fr: 'Present Simple', en: 'Present Simple' },
+        { id: 'a1_c7', n: 7, fr: 'Present Simple : interrogation', en: 'Present Simple: questions' }, { id: 'a1_c8', n: 8, fr: 'Present Simple : négation', en: 'Present Simple: negation' },
+        { id: 'a1_c9', n: 9, fr: 'Mots interrogatifs', en: 'Question words' }, { id: 'a1_c10', n: 10, fr: 'Adverbes de fréquence', en: 'Frequency adverbs' },
+        { id: 'a1_d2', n: 0, fr: 'Dialogue 2', en: 'Dialogue 2' }, { id: 'a1_cp2', n: 0, fr: 'Checkpoint 2', en: 'Checkpoint 2' },
+        { id: 'a1_c11', n: 11, fr: 'Nombres 1 à 100', en: 'Numbers 1-100' }, { id: 'a1_c12', n: 12, fr: 'Couleurs et adjectifs', en: 'Colors & adjectives' },
+        { id: 'a1_c13', n: 13, fr: 'Have Got', en: 'Have Got' }, { id: 'a1_c14', n: 14, fr: 'Pronoms sujets/compléments', en: 'Subject/object pronouns' },
+        { id: 'a1_c15', n: 15, fr: 'Prépositions de lieu', en: 'Prepositions of place' }, { id: 'a1_d3', n: 0, fr: 'Dialogue 3', en: 'Dialogue 3' },
+        { id: 'a1_cp3', n: 0, fr: 'Checkpoint 3', en: 'Checkpoint 3' }, { id: 'a1_c16', n: 16, fr: "L'heure et les jours", en: 'Time and days' },
+        { id: 'a1_c17', n: 17, fr: 'Present Progressive', en: 'Present Progressive' }, { id: 'a1_c18', n: 18, fr: 'Simple vs Progressive', en: 'Simple vs Progressive' },
+        { id: 'a1_c19', n: 19, fr: 'Réponses courtes', en: 'Short answers' }, { id: 'a1_c20', n: 20, fr: 'Cas possessif', en: 'Possessive case' },
+        { id: 'a1_d4', n: 0, fr: 'Dialogue 4', en: 'Dialogue 4' }, { id: 'a1_cp4', n: 0, fr: 'Checkpoint 4', en: 'Checkpoint 4' },
+        { id: 'a1_c21', n: 21, fr: 'Mois et saisons', en: 'Months & seasons' }, { id: 'a1_c22', n: 22, fr: 'Météo', en: 'Weather' },
+        { id: 'a1_c23', n: 23, fr: 'Can / Can\'t', en: 'Can / Can\'t' }, { id: 'a1_c24', n: 24, fr: 'Les impératifs', en: 'Imperatives' },
+        { id: 'a1_c25', n: 25, fr: 'Révision A1', en: 'A1 Revision' }, { id: 'a1_d5', n: 0, fr: 'Dialogue 5', en: 'Dialogue 5' },
+        { id: 'a1_cert', n: 0, fr: 'Certification A1', en: 'A1 Certification' },
+      ]
+      const bCourses = [
+        { id: 'b_b1_c1', n: 1, fr: 'Salutations', en: 'Greetings' }, { id: 'b_b1_c2', n: 2, fr: 'To be + Pronoms', en: 'To be + Pronouns' },
+        { id: 'b_b1_c3', n: 3, fr: 'Adj. possessifs', en: 'Possessive adj.' }, { id: 'b_b1_d', n: 0, fr: 'Dialogue B1', en: 'Dialogue B1' },
+        { id: 'b_b1_cp', n: 0, fr: 'Badge B1', en: 'Badge B1' }, { id: 'b_b2_c1', n: 1, fr: 'Famille', en: 'Family' },
+        { id: 'b_b2_c2', n: 2, fr: 'Have got', en: 'Have got' }, { id: 'b_b2_c3', n: 3, fr: 'Questions simples', en: 'Simple questions' },
+        { id: 'b_b2_d', n: 0, fr: 'Dialogue B2', en: 'Dialogue B2' }, { id: 'b_b2_cp', n: 0, fr: 'Badge B2', en: 'Badge B2' },
+        { id: 'b_b3_c1', n: 1, fr: 'Nourriture', en: 'Food' }, { id: 'b_b3_c2', n: 2, fr: 'Can + Impératifs', en: 'Can + Imperatives' },
+        { id: 'b_b3_c3', n: 3, fr: 'Articles', en: 'Articles' }, { id: 'b_b3_d', n: 0, fr: 'Dialogue B3', en: 'Dialogue B3' },
+        { id: 'b_b3_cp', n: 0, fr: 'Badge B3', en: 'Badge B3' }, { id: 'b_b4_c1', n: 1, fr: 'Voyage', en: 'Travel' },
+        { id: 'b_b4_c2', n: 2, fr: 'Prépositions', en: 'Prepositions' }, { id: 'b_b4_c3', n: 3, fr: 'Where/How', en: 'Where/How' },
+        { id: 'b_b4_d', n: 0, fr: 'Dialogue B4', en: 'Dialogue B4' }, { id: 'b_b4_cp', n: 0, fr: 'Badge B4', en: 'Badge B4' },
+        { id: 'b_b5_c1', n: 1, fr: 'Vêtements', en: 'Clothes' }, { id: 'b_b5_c2', n: 2, fr: 'Nombres + Adj.', en: 'Numbers + Adj.' },
+        { id: 'b_b5_c3', n: 3, fr: 'How much/many', en: 'How much/many' }, { id: 'b_b5_d', n: 0, fr: 'Dialogue B5', en: 'Dialogue B5' },
+        { id: 'b_b5_cp', n: 0, fr: 'Badge B5', en: 'Badge B5' }, { id: 'b_b6_c1', n: 1, fr: 'Actions', en: 'Actions' },
+        { id: 'b_b6_c2', n: 2, fr: 'Present Progressive', en: 'Present Progressive' }, { id: 'b_b6_c3', n: 3, fr: 'Adverbes de temps', en: 'Time adverbs' },
+        { id: 'b_b6_d', n: 0, fr: 'Dialogue B6', en: 'Dialogue B6' }, { id: 'b_b6_cp', n: 0, fr: 'Badge B6', en: 'Badge B6' },
+      ]
+      const courses = isPathB ? bCourses : a1Courses
+      const next = courses.find(c => !scores[c.id] || scores[c.id].score < 60)
+      const course = next || courses[0]
+      const total = courses.length
+      const completedCount = courses.filter(c => scores[c.id] && scores[c.id].score >= 60).length
 
-      // Find first course with no score or score < 60%
-      const nextId = courseIds.find(id => !scores[id] || scores[id].score < 60)
-      return nextId ? `/session?courseId=${nextId}` : `/session?courseId=${courseIds[0]}`
+      return {
+        url: `/session?courseId=${course.id}`,
+        nameFr: course.n > 0 ? `Cours ${course.n} — ${course.fr}` : course.fr,
+        nameEn: course.n > 0 ? `Course ${course.n} — ${course.en}` : course.en,
+        progress: `${completedCount}/${total}`,
+        isPathB,
+      }
     } catch {
-      return '/session'
+      return { url: '/session', nameFr: 'Cours 1', nameEn: 'Course 1', progress: '0/35', isPathB: false }
     }
   })()
 
-  // §5: Path-aware label for "Mon parcours"
-  const parcoursLabel = (() => {
-    const paths = langConfig?.learningPath
-      ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
-      : []
-    const isPathB = paths.includes('B') && !paths.includes('A')
-    if (isPathB) return lang === 'fr' ? 'Mon parcours B' : 'My Path B'
-    return lang === 'fr' ? 'Mon parcours A1' : 'My A1 Path'
-  })()
-  const parcoursSubtitle = (() => {
-    const paths = langConfig?.learningPath
-      ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
-      : []
-    const isPathB = paths.includes('B') && !paths.includes('A')
-    if (isPathB) return lang === 'fr' ? '6 blocs thématiques · Badges et progression' : '6 thematic blocks · Badges and progress'
-    return lang === 'fr' ? '25 cours · 5 blocs · Étoiles et progression' : '25 courses · 5 blocks · Stars and progress'
-  })()
+  // Daily words count
+  const wordsPerDay = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
 
   // Bottom nav items
   const bottomNav = [
@@ -333,41 +361,55 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC-03: CTA — §5: auto-launch next uncompleted course */}
-        <a href={nextCourseUrl}
-          className="block mb-4 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-4 shadow-lg active:scale-[0.98] transition-transform">
+        {/* §5 V3.8: Single CTA — Continuer · Cours X → next uncompleted course */}
+        <a href={nextCourseInfo.url}
+          className="block mb-3 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-5 shadow-lg active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
-              <Play className="h-6 w-6 text-[#002844] ml-0.5" fill="#002844" />
+            <div className="w-14 h-14 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
+              <Play className="h-7 w-7 text-[#002844] ml-0.5" fill="#002844" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-base font-bold text-white">
-                {lang === 'fr' ? 'Commencer ma session' : 'Start my session'}
+              <p className="text-xs text-[#D9B438] font-semibold mb-0.5">
+                {lang === 'fr' ? 'Continuer' : 'Continue'} · {nextCourseInfo.progress}
               </p>
-              <p className="text-xs text-white/70 mt-0.5">
-                ~{sessionDuration} min · {sessionModules.map(m => m.label).join(' + ')}
+              <p className="text-base font-bold text-white truncate">
+                {lang === 'fr' ? nextCourseInfo.nameFr : nextCourseInfo.nameEn}
+              </p>
+            </div>
+            <ChevronRight className="h-6 w-6 text-[#D9B438] flex-shrink-0" />
+          </div>
+        </a>
+
+        {/* §5 V3.8: Daily words chest */}
+        <a href="/module/vocabulaire"
+          className="block mb-3 rounded-2xl bg-white border-2 border-[#D9B438]/30 p-4 shadow-sm active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#D9B438]/10 flex items-center justify-center flex-shrink-0 text-xl">
+              📦
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#002844]">
+                {lang === 'fr' ? `Tes ${wordsPerDay} mots du jour` : `Your ${wordsPerDay} daily words`}
+              </p>
+              <p className="text-xs text-[#555555]">
+                {lang === 'fr' ? 'Vocabulaire + audio + définitions' : 'Vocabulary + audio + definitions'}
               </p>
             </div>
             <ChevronRight className="h-5 w-5 text-[#D9B438] flex-shrink-0" />
           </div>
         </a>
 
-        {/* BLOC-04b: CTA — Parcours A1 → page cours carrousel */}
+        {/* §5 V3.8: See full path map — secondary link */}
         <a href="/module/cours"
-          className="block mb-4 rounded-2xl bg-white border border-gray-200 p-4 shadow-sm active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-xl">
-              📘
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-bold text-[#002844]">
-                {parcoursLabel}
-              </p>
-              <p className="text-xs text-[#555555] mt-0.5">
-                {parcoursSubtitle}
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-[#002844] flex-shrink-0" />
+          className="block mb-4 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">📘</span>
+            <p className="text-xs font-semibold text-[#002844] flex-1">
+              {lang === 'fr'
+                ? (nextCourseInfo.isPathB ? 'Voir tout le parcours B' : 'Voir tout le parcours A1')
+                : (nextCourseInfo.isPathB ? 'View full Path B' : 'View full A1 Path')}
+            </p>
+            <ChevronRight className="h-4 w-4 text-[#555555]" />
           </div>
         </a>
 
