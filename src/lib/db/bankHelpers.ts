@@ -245,14 +245,24 @@ export function levenshteinDistance(a: string, b: string): number {
   return matrix[bStr.length][aStr.length];
 }
 
-export function isCloseEnough(input: string, expected: string, tolerance: number = 0): boolean {
+// BUG-45b (V3.9): Auto-tolerance based on word length
+// 1-6 chars = exact, 7-10 chars = Levenshtein ≤ 1, 11+ chars = Levenshtein ≤ 2
+function getAutoTolerance(expectedLength: number): number {
+  if (expectedLength <= 6) return 0;
+  if (expectedLength <= 10) return 1;
+  return 2;
+}
+
+export function isCloseEnough(input: string, expected: string, tolerance?: number): boolean {
   // BUG-45: Always normalize to lowercase + trim before comparing
   const normalizedInput = input.trim().toLowerCase();
   const normalizedExpected = expected.trim().toLowerCase();
   if (normalizedInput === normalizedExpected) return true;
-  if (tolerance === 0) return false;
+  // BUG-45b: If no tolerance specified, use auto-tolerance based on expected word length
+  const effectiveTolerance = tolerance !== undefined ? tolerance : getAutoTolerance(normalizedExpected.length);
+  if (effectiveTolerance === 0) return false;
   const distance = levenshteinDistance(normalizedInput, normalizedExpected);
-  return distance <= tolerance;
+  return distance <= effectiveTolerance;
 }
 
 // ==========================================

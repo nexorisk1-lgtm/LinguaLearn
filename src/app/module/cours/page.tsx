@@ -332,6 +332,19 @@ export default function CoursPage() {
     setSelectedCourse(course);
   };
 
+  // BUG-58: Check if a resume exists for the selected course
+  const hasResume = (() => {
+    if (!selectedCourse || !user) return false;
+    try {
+      const resumeKey = `lingualearn_resume_${user.id}_${selectedCourse.id}`;
+      const resumeStr = localStorage.getItem(resumeKey);
+      if (!resumeStr) return false;
+      const resume = JSON.parse(resumeStr);
+      const savedAt = new Date(resume.savedAt).getTime();
+      return Date.now() - savedAt < 24 * 60 * 60 * 1000;
+    } catch { return false; }
+  })();
+
   const handleStartCourse = () => {
     if (!selectedCourse) return;
     // Navigate to session with course context
@@ -436,9 +449,11 @@ export default function CoursPage() {
             {unlocked && (
               <button onClick={handleStartCourse}
                 className="w-full py-3.5 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
-                {score
-                  ? (lang === 'fr' ? 'Refaire le cours' : 'Redo course')
-                  : (lang === 'fr' ? 'Commencer le cours' : 'Start course')}
+                {hasResume
+                  ? (lang === 'fr' ? 'Reprendre le cours' : 'Resume course')
+                  : score
+                    ? (lang === 'fr' ? 'Refaire le cours' : 'Redo course')
+                    : (lang === 'fr' ? 'Commencer le cours' : 'Start course')}
               </button>
             )}
           </div>

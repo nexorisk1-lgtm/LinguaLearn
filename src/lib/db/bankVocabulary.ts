@@ -341,3 +341,31 @@ export const BANK_VOCABULARY: VocabWord[] = [
   w('en','niece','nièce','The daughter of one\'s sibling','My niece is a talented musician.','family','A1','noun',false,'La fille d\'une tante ou d\'un oncle','Une nièce'),
   w('en','twin','jumeau','One of two children born together','The twins are identical.','family','A1','noun',false,'Un de deux enfants nés ensemble','Un jumeau'),
 ];
+
+// BUG-64 (V3.9): Add accepted_answers (synonymes valides) to words with multiple valid translations
+const SYNONYMS: Record<string, string[]> = {
+  'please': ["s'il vous plaît", "s'il te plaît", "s'il vous plait", "s'il te plait", "svp"],
+  'hello': ['bonjour', 'salut', 'coucou'],
+  'goodbye': ['au revoir', 'salut', 'à bientôt', 'a bientot'],
+  'thank you': ['merci', 'merci beaucoup'],
+  'sorry': ['pardon', 'désolé', 'desole', 'excusez-moi'],
+  'bathroom': ['salle de bain', 'toilettes', 'wc'],
+  'shop': ['magasin', 'boutique'],
+  'car': ['voiture', 'auto', 'automobile'],
+  'phone': ['téléphone', 'portable', 'telephone'],
+  'movie': ['film', 'cinéma'],
+  'happy': ['content', 'heureux', 'joyeux'],
+  'big': ['grand', 'gros'],
+  'small': ['petit', 'petite'],
+  'pretty': ['joli', 'jolie', 'beau', 'belle'],
+  'fast': ['rapide', 'vite'],
+  'nice': ['gentil', 'agréable', 'sympathique'],
+  'food': ['nourriture', 'repas', 'alimentation'],
+};
+
+for (const vocab of BANK_VOCABULARY) {
+  const key = vocab.word_target.toLowerCase();
+  if (SYNONYMS[key]) {
+    vocab.accepted_answers = [vocab.word_fr, ...SYNONYMS[key]];
+  }
+}

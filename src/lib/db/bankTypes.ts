@@ -19,6 +19,7 @@ export interface VocabWord {
   type?: string; // noun, verb, adj, adv...
   phonetic?: string;
   is_grc: boolean;
+  accepted_answers?: string[]; // BUG-64 (V3.9): Synonymes valides
 }
 
 // --- Grammaire ---

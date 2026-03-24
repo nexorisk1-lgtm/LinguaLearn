@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, setActiveLang, logoutUser } from '@/lib/db/localStorage'
+import { getCurrentUser, setActiveLang, logoutUser, getAllUsers } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
-  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut,
+  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut, Search, Bot,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [isPending, setIsPending] = useState(false)
   const [langSelectorOpen, setLangSelectorOpen] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tasksOpen, setTasksOpen] = useState(false)
 
   const loadUser = () => {
@@ -112,7 +113,18 @@ export default function DashboardPage() {
 
   const activeLang = user.activeLang || user.settings.learningLangs[0]
   const activeLangInfo = LEARNING_LANGUAGES.find(l => l.code === activeLang)
-  const progress = user.progress?.[activeLang]
+  const rawProgress = user.progress?.[activeLang]
+
+  // BUG-61 (V3.9): Reset daily counters if day has changed
+  const progress = (() => {
+    if (!rawProgress) return rawProgress
+    const todayStr = new Date().toISOString().split('T')[0]
+    const lastDay = rawProgress.lastActivityDate?.split('T')[0]
+    if (lastDay && lastDay !== todayStr) {
+      return { ...rawProgress, dailyWordsCompleted: 0, dailyExercisesCompleted: 0 }
+    }
+    return rawProgress
+  })()
   const langConfig = user.settings.languageConfigs?.[activeLang]
   const hasGrc = langConfig?.hasGrcThemes || false
   const objectives = langConfig?.objectives || []
@@ -361,27 +373,28 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* §5 V3.8: Single CTA — Continuer · Cours X → next uncompleted course */}
+        {/* §5 V3.8 + ARCHI-02 V3.9: Main CTA — 80px min, blue bg, golden text 18px bold */}
         <a href={nextCourseInfo.url}
-          className="block mb-3 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-5 shadow-lg active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-3">
+          className="block mb-3 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] shadow-lg active:scale-[0.98] transition-transform"
+          style={{ minHeight: '80px' }}>
+          <div className="flex items-center gap-4 px-5 py-4 h-full" style={{ minHeight: '80px' }}>
             <div className="w-14 h-14 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
               <Play className="h-7 w-7 text-[#002844] ml-0.5" fill="#002844" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-[#D9B438] font-semibold mb-0.5">
+              <p className="text-xs text-[#D9B438] font-semibold mb-1">
                 {lang === 'fr' ? 'Continuer' : 'Continue'} · {nextCourseInfo.progress}
               </p>
-              <p className="text-base font-bold text-white truncate">
+              <p className="font-bold text-[#D9B438] truncate" style={{ fontSize: '18px' }}>
                 {lang === 'fr' ? nextCourseInfo.nameFr : nextCourseInfo.nameEn}
               </p>
             </div>
-            <ChevronRight className="h-6 w-6 text-[#D9B438] flex-shrink-0" />
+            <ChevronRight className="h-7 w-7 text-[#D9B438] flex-shrink-0" />
           </div>
         </a>
 
-        {/* §5 V3.8: Daily words chest */}
-        <a href="/module/vocabulaire"
+        {/* §5 V3.8: Daily words chest — BUG-62 V3.9: redirect to pedagogical coffre */}
+        <a href="/module/coffre"
           className="block mb-3 rounded-2xl bg-white border-2 border-[#D9B438]/30 p-4 shadow-sm active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#D9B438]/10 flex items-center justify-center flex-shrink-0 text-xl">
@@ -560,56 +573,84 @@ export default function DashboardPage() {
               )
             })()}
 
-            {/* Accordéon — Tâches supplémentaires */}
-            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-              <button onClick={() => setTasksOpen(!tasksOpen)}
-                className="w-full flex items-center justify-between p-4">
-                <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Tâches supplémentaires' : 'Extra tasks'}</span>
-                <ChevronDown className={`h-4 w-4 text-[#555555] transition-transform ${tasksOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {tasksOpen && (
-                <div className="px-4 pb-4 space-y-2">
-                  <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                    <Dumbbell className="h-4 w-4 text-[#E65100]" />
-                    <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Entraînement (quiz, flashcards, jeux)' : 'Training (quiz, flashcards, games)'}</span>
-                  </a>
-                  <a href="/module/vocabulaire?tab=write" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                    <PenTool className="h-4 w-4 text-[#002844]" />
-                    <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Exercice de traduction' : 'Translation exercise'}</span>
-                  </a>
-                  <a href="/onboarding/diagnostic" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                    <GraduationCap className="h-4 w-4 text-[#002844]" />
-                    <span className="text-sm font-medium text-[#002844]">{lang === 'fr' ? 'Évaluation diagnostique' : 'Diagnostic assessment'}</span>
-                  </a>
-                </div>
-              )}
+            {/* ARCHI-02 V3.9: "Explorer" — 3 direct icons, no accordion */}
+            <div className="rounded-2xl bg-white shadow-sm p-4">
+              <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
+              <div className="flex justify-around">
+                <a href="/module/entrainement" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#F0F0F0] transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-[#E65100]/10 flex items-center justify-center">
+                    <Dumbbell className="h-5 w-5 text-[#E65100]" />
+                  </div>
+                  <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? 'Entraînement' : 'Training'}</span>
+                </a>
+                <a href="/module/dictionnaire" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#F0F0F0] transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-[#1976D2]/10 flex items-center justify-center">
+                    <Search className="h-5 w-5 text-[#1976D2]" />
+                  </div>
+                  <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? 'Dictionnaire' : 'Dictionary'}</span>
+                </a>
+                <a href="/module/entrainement?mode=coach" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#F0F0F0] transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-[#7B1FA2]/10 flex items-center justify-center">
+                    <Bot className="h-5 w-5 text-[#7B1FA2]" />
+                  </div>
+                  <span className="text-xs font-medium text-[#002844]">{lang === 'fr' ? 'Coach IA' : 'AI Coach'}</span>
+                </a>
+              </div>
             </div>
 
           </div>
 
-          {/* Right column (40%) */}
+          {/* Right column (40%) — BUG-63 V3.9: Multi-profile leaderboard */}
           <div className="md:col-span-2">
             {(() => {
-              const stk = progress?.streak || 0
-              const dw = progress?.dailyWordsCompleted || 0
-              const de = progress?.dailyExercisesCompleted || 0
-              const score = (stk * 10) + (dw * 2) + (de * 3)
+              // BUG-63: Read ALL users and compute weekly scores
+              const allUsers = getAllUsers()
+              const sevenDaysAgo = new Date()
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+              const sevenDaysStr = sevenDaysAgo.toISOString()
+
+              const rankings = allUsers
+                .map(u => {
+                  // Check all language progress
+                  let totalScore = 0
+                  let isActive = false
+                  for (const langKey of Object.keys(u.progress || {})) {
+                    const p = u.progress[langKey]
+                    if (p?.lastActivityDate && p.lastActivityDate >= sevenDaysStr) {
+                      isActive = true
+                      const stk = p.streak || 0
+                      const dw = p.dailyWordsCompleted || 0
+                      const de = p.dailyExercisesCompleted || 0
+                      totalScore += (stk * 10) + (dw * 2) + (de * 3)
+                    }
+                  }
+                  return { id: u.id, name: u.firstName || u.email?.split('@')[0] || '?', score: totalScore, isActive, isMe: u.id === user.id }
+                })
+                .filter(r => r.isActive && r.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 5)
+
               return (
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <Trophy className="h-4 w-4 text-[#D9B438]" />
                     <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Classement hebdo' : 'Weekly ranking'}</span>
                   </div>
-                  {score > 0 ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#D9B438]/20 flex items-center justify-center">
-                        <span className="text-lg font-bold text-[#D9B438]">1</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-[#002844]">{user.firstName}</p>
-                        <p className="text-xs text-[#555555]">{score} pts · {stk} {lang === 'fr' ? 'jours' : 'days'}</p>
-                      </div>
-                      <Trophy className="h-5 w-5 text-[#D9B438]" />
+                  {rankings.length > 0 ? (
+                    <div className="space-y-2">
+                      {rankings.map((r, idx) => (
+                        <div key={r.id} className={`flex items-center gap-3 p-2 rounded-lg ${r.isMe ? 'bg-[#D9B438]/10' : ''}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            idx === 0 ? 'bg-[#D9B438]/20' : idx === 1 ? 'bg-gray-200' : idx === 2 ? 'bg-orange-100' : 'bg-gray-100'
+                          }`}>
+                            <span className={`text-sm font-bold ${idx === 0 ? 'text-[#D9B438]' : 'text-[#555555]'}`}>{idx + 1}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold truncate ${r.isMe ? 'text-[#002844]' : 'text-[#555555]'}`}>{r.name}{r.isMe ? ' ⭐' : ''}</p>
+                          </div>
+                          <span className="text-xs font-bold text-[#002844]">{r.score} pts</span>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className="text-xs text-[#555555]">

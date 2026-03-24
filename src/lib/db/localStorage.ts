@@ -272,8 +272,17 @@ export function updateUserProgress(
     };
   }
 
+  // BUG-61 (V3.9): Reset daily counters if day has changed
+  const existingProgress = users[index].progress[language];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const lastDay = existingProgress?.lastActivityDate?.split('T')[0];
+  if (lastDay && lastDay !== todayStr) {
+    existingProgress.dailyWordsCompleted = 0;
+    existingProgress.dailyExercisesCompleted = 0;
+  }
+
   users[index].progress[language] = {
-    ...users[index].progress[language],
+    ...existingProgress,
     ...progress,
   };
 

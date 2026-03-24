@@ -468,26 +468,33 @@ function SessionContent() {
     setLang(currentUser.settings.interfaceLang || 'fr')
     buildSession(currentUser)
 
-    // BUG-58: Check for resume position
+    // BUG-58 V3.9: Robust resume — read saved position and apply immediately
+    let shouldResume = false
+    let resumeExIdx = 0
+    let resumeLessonIdx = 0
     if (courseId) {
       try {
         const resumeKey = `lingualearn_resume_${currentUser.id}_${courseId}`
         const resumeStr = localStorage.getItem(resumeKey)
         if (resumeStr) {
           const resume = JSON.parse(resumeStr)
-          // Only resume if saved less than 24h ago
           const savedAt = new Date(resume.savedAt).getTime()
           if (Date.now() - savedAt < 24 * 60 * 60 * 1000) {
-            setTimeout(() => {
-              setCurrentIdx(resume.exerciseIndex || 0)
-              setCurrentLessonIdx(resume.lessonIndex || 0)
-              setPhase('exercise')
-            }, 100)
+            shouldResume = true
+            resumeExIdx = resume.exerciseIndex || 0
+            resumeLessonIdx = resume.lessonIndex || 0
           }
           // Clear resume data after loading
           localStorage.removeItem(resumeKey)
         }
       } catch { /* ignore */ }
+    }
+
+    if (shouldResume) {
+      // Apply resume position synchronously, then skip intro
+      setCurrentIdx(resumeExIdx)
+      setCurrentLessonIdx(resumeLessonIdx)
+      setPhase('exercise')
     }
 
     // Init speech recognition
@@ -645,10 +652,21 @@ function SessionContent() {
           if (missingWord) expectedAnswer = missingWord
         }
       }
-      // Tolerance: short words (<=6) exact, longer words 15% Levenshtein
-      const answerLen = expectedAnswer.length
-      const tolerance = answerLen <= 6 ? 0 : Math.floor(answerLen * 0.15)
-      correct = isCloseEnough(userAnswer, expectedAnswer, tolerance)
+      // BUG-64 (V3.9): Check accepted_answers (synonymes valides) first
+      const acceptedAnswers: string[] = currentExercise.data?.accepted_answers || []
+      if (acceptedAnswers.length > 0) {
+        correct = acceptedAnswers.some(aa => isCloseEnough(userAnswer, aa))
+        if (!correct) {
+          // Also check the main expected answer
+          correct = isCloseEnough(userAnswer, expectedAnswer)
+        }
+      } else {
+        // BUG-45b (V3.9): Strict tolerance — no percentage, absolute values only
+        // 1-6 chars = exact match, 7-10 chars = Levenshtein ≤ 1, 11+ chars = Levenshtein ≤ 2
+        const answerLen = expectedAnswer.length
+        const tolerance = answerLen <= 6 ? 0 : answerLen <= 10 ? 1 : 2
+        correct = isCloseEnough(userAnswer, expectedAnswer, tolerance)
+      }
     }
 
     setIsCorrect(correct)
