@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
+import BottomNav from '@/components/BottomNav';
 import { updateUserSettings, updateUserProgress, completeOnboarding } from '@/lib/db/localStorage';
 import {
   LEARNING_LANGUAGES,
@@ -826,6 +827,8 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
+      {/* V3.10 Règle 1: Menu bas permanent sur toutes les pages */}
+      <BottomNav lang={interfaceLang} />
     </div>
   );
 }

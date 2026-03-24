@@ -7,6 +7,7 @@ import { getCurrentUser, updateUserProgress, completeOnboarding } from '@/lib/db
 import { getCECRLQuestions, getGRCQuestions, DiagnosticQuestion } from '@/lib/db/diagnosticBank'
 import { User, InterfaceLanguage, LearningLanguage, LearningObjective, LEARNING_LANGUAGES, LEARNING_OBJECTIVES, scoreToCECRL, scoreToGRC, LevelCECRL } from '@/types'
 import { CheckCircle, XCircle, ChevronRight, Volume2, Mic, MicOff, Sparkles, BookOpen, Star } from 'lucide-react'
+import BottomNav from '@/components/BottomNav'
 
 interface DiagPlanItem {
   lang: string
@@ -604,6 +605,8 @@ export default function DiagnosticPage() {
           </div>
         </div>
       </div>
+      {/* V3.10 Règle 1: Menu bas permanent */}
+      <BottomNav lang={lang} />
     </div>
   )
 }

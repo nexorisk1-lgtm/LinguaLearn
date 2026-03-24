@@ -22,6 +22,7 @@ import {
   ArrowLeft, Download, Upload, FileText, CheckCircle, XCircle, BarChart3, Lock,
   Users, Eye, EyeOff, UserPlus, Trash2, Shield,
 } from 'lucide-react'
+import BottomNav from '@/components/BottomNav'
 
 type ImportType = 'vocab' | 'grammarRules' | 'grammarExercises' | 'readingTexts' | 'irregularVerbs'
 
@@ -1388,6 +1389,8 @@ export default function AdminImportsPage() {
           </div>
         )}
       </main>
+      {/* V3.10 Règle 1: Menu bas permanent */}
+      <BottomNav lang={lang} />
     </div>
   )
 }

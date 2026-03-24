@@ -7,9 +7,10 @@ import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGE
 import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
 import {
-  Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Play, Calendar, Clock, RefreshCw,
-  BookOpen, PenTool, Languages, Mic, Pencil, Dumbbell, Home, MessageCircle, User as UserIcon, LogOut,
+  Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Calendar, Clock,
+  BookOpen, PenTool, Languages, Mic, Pencil, LogOut,
 } from 'lucide-react'
+import BottomNav from '@/components/BottomNav'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -233,14 +234,6 @@ export default function DashboardPage() {
   // Daily words count
   const wordsPerDay = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
 
-  // Bottom nav items
-  const bottomNav = [
-    { id: 'home', label: lang === 'fr' ? 'Accueil' : 'Home', icon: Home, href: '/dashboard', active: true },
-    { id: 'dict', label: lang === 'fr' ? 'Dictionnaire' : 'Dictionary', icon: BookOpen, href: '/module/dictionnaire', active: false },
-    { id: 'coach', label: 'Coach IA', icon: MessageCircle, href: '/module/coach', active: false },
-    { id: 'profil', label: lang === 'fr' ? 'Profil' : 'Profile', icon: UserIcon, href: '/module/profil', active: false },
-  ]
-
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
       {/* TOP BAR — compact: logo + lang selector + logout */}
@@ -336,27 +329,18 @@ export default function DashboardPage() {
           )
         })()}
 
-        {/* Level badges */}
-        <div className={`grid gap-2 mb-4 ${hasGrc ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <div className="flex items-center gap-2 rounded-xl bg-white p-3 shadow-sm">
-            <GraduationCap className="h-6 w-6 text-[#002844]" />
-            <div>
-              <p className="text-xs text-[#555555]">CECRL</p>
-              {progress?.diagnosticCompleted ? (
-                <span className="text-sm font-bold text-[#002844]">{progress.levelCecrl || 'A1'}</span>
-              ) : (
-                <span className="text-xs text-[#D9B438] font-semibold">{lang === 'fr' ? 'Non évalué' : 'Not assessed'}</span>
-              )}
-            </div>
-          </div>
+        {/* BLOC 2 — V3.10: Niveau / Certification (1 ligne) */}
+        <div className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm mb-4">
+          <GraduationCap className="h-5 w-5 text-[#002844] flex-shrink-0" />
+          <span className="text-sm font-bold text-[#002844]">
+            CECRL : {progress?.diagnosticCompleted ? (progress.levelCecrl || 'A1') : (lang === 'fr' ? 'Non évalué' : 'N/A')}
+          </span>
           {hasGrc && (
-            <div className="flex items-center gap-2 rounded-xl bg-white p-3 shadow-sm">
-              <Trophy className="h-6 w-6 text-[#D9B438]" />
-              <div>
-                <p className="text-xs text-[#555555]">GRC</p>
-                <span className="text-sm font-bold text-[#002844]">{progress?.levelGrc || 'Junior'}</span>
-              </div>
-            </div>
+            <>
+              <span className="text-[#555555]">|</span>
+              <Trophy className="h-5 w-5 text-[#D9B438] flex-shrink-0" />
+              <span className="text-sm font-bold text-[#002844]">GRC : {progress?.levelGrc || 'Junior'}</span>
+            </>
           )}
         </div>
 
@@ -374,58 +358,61 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* §5 V3.8 + ARCHI-02 V3.9: Main CTA — 80px min, blue bg, golden text 18px bold */}
-        <a href={nextCourseInfo.url}
-          className="block mb-3 rounded-2xl bg-gradient-to-r from-[#002844] to-[#003a5c] shadow-lg active:scale-[0.98] transition-transform"
-          style={{ minHeight: '80px' }}>
-          <div className="flex items-center gap-4 px-5 py-4 h-full" style={{ minHeight: '80px' }}>
-            <div className="w-14 h-14 rounded-full bg-[#D9B438] flex items-center justify-center flex-shrink-0">
-              <Play className="h-7 w-7 text-[#002844] ml-0.5" fill="#002844" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-[#D9B438] font-semibold mb-1">
-                {lang === 'fr' ? 'Continuer' : 'Continue'} · {nextCourseInfo.progress}
-              </p>
-              <p className="font-bold text-[#D9B438] truncate" style={{ fontSize: '18px' }}>
-                {lang === 'fr' ? nextCourseInfo.nameFr : nextCourseInfo.nameEn}
-              </p>
-            </div>
-            <ChevronRight className="h-7 w-7 text-[#D9B438] flex-shrink-0" />
+        {/* BLOC 3 — V3.10: Pavé "Explorer" (5 entrées cliquables) */}
+        <div className="rounded-2xl bg-white shadow-sm p-4 mb-4">
+          <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
+          <div className="space-y-2">
+            {/* 📦 Mes nouveaux mots → coffre du jour */}
+            <a href="/module/coffre" className="flex items-center gap-3 p-3 rounded-xl bg-[#FFF8E1] hover:bg-[#FFECB3] transition-colors active:scale-[0.98]">
+              <span className="text-xl flex-shrink-0">📦</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Mes nouveaux mots' : 'My new words'}</p>
+                <p className="text-[10px] text-[#555555]">{lang === 'fr' ? `${wordsPerDay} mots à découvrir aujourd'hui` : `${wordsPerDay} words to discover today`}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#D9B438] flex-shrink-0" />
+            </a>
+            {/* 🔄 Mes révisions → mots à retravailler */}
+            <a href="/module/vocabulaire" className="flex items-center gap-3 p-3 rounded-xl bg-[#F3E5F5] hover:bg-[#E1BEE7] transition-colors active:scale-[0.98]">
+              <span className="text-xl flex-shrink-0">🔄</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Mes révisions' : 'My reviews'}</p>
+                <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'Mots à retravailler' : 'Words to review'}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#7B1FA2] flex-shrink-0" />
+            </a>
+            {/* ▶️ Continuer mon cours → cours suivant non terminé */}
+            <a href={nextCourseInfo.url} className="flex items-center gap-3 p-3 rounded-xl bg-[#E3F2FD] hover:bg-[#BBDEFB] transition-colors active:scale-[0.98]">
+              <span className="text-xl flex-shrink-0">▶️</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Continuer mon cours' : 'Continue my course'}</p>
+                <p className="text-[10px] text-[#555555] truncate">{lang === 'fr' ? nextCourseInfo.nameFr : nextCourseInfo.nameEn}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#1976D2] flex-shrink-0" />
+            </a>
+            {/* 📘 Mon parcours A1 → vue carrousel complet */}
+            <a href="/module/cours" className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5E9] hover:bg-[#C8E6C9] transition-colors active:scale-[0.98]">
+              <span className="text-xl flex-shrink-0">📘</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#002844]">
+                  {lang === 'fr'
+                    ? (nextCourseInfo.isPathB ? 'Mon parcours B' : 'Mon parcours A1')
+                    : (nextCourseInfo.isPathB ? 'My Path B' : 'My A1 Path')}
+                </p>
+                <p className="text-[10px] text-[#555555]">{nextCourseInfo.progress} {lang === 'fr' ? 'complétés' : 'completed'}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#2E7D32] flex-shrink-0" />
+            </a>
+            {/* 🎯 Entraînement → module entraînement */}
+            <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#FFF3E0] hover:bg-[#FFE0B2] transition-colors active:scale-[0.98]">
+              <span className="text-xl flex-shrink-0">🎯</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
+                <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'Exercices libres' : 'Free practice'}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#E65100] flex-shrink-0" />
+            </a>
           </div>
-        </a>
-
-        {/* §5 V3.8: Daily words chest — BUG-62 V3.9: redirect to pedagogical coffre */}
-        <a href="/module/coffre"
-          className="block mb-3 rounded-2xl bg-white border-2 border-[#D9B438]/30 p-4 shadow-sm active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#D9B438]/10 flex items-center justify-center flex-shrink-0 text-xl">
-              📦
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-[#002844]">
-                {lang === 'fr' ? `Tes ${wordsPerDay} mots du jour` : `Your ${wordsPerDay} daily words`}
-              </p>
-              <p className="text-xs text-[#555555]">
-                {lang === 'fr' ? 'Vocabulaire + audio + définitions' : 'Vocabulary + audio + definitions'}
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-[#D9B438] flex-shrink-0" />
-          </div>
-        </a>
-
-        {/* §5 V3.8: See full path map — secondary link */}
-        <a href="/module/cours"
-          className="block mb-4 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">📘</span>
-            <p className="text-xs font-semibold text-[#002844] flex-1">
-              {lang === 'fr'
-                ? (nextCourseInfo.isPathB ? 'Voir tout le parcours B' : 'Voir tout le parcours A1')
-                : (nextCourseInfo.isPathB ? 'View full Path B' : 'View full A1 Path')}
-            </p>
-            <ChevronRight className="h-4 w-4 text-[#555555]" />
-          </div>
-        </a>
+        </div>
 
         {/* BLOC-05: 5 OBJECTIVE BLOCKS — filtered by user objectives */}
         {(() => {
@@ -479,44 +466,7 @@ export default function DashboardPage() {
         <div className="md:grid md:grid-cols-5 md:gap-4">
           {/* Left column (60%) */}
           <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
-            {/* BLOC-06: À réviser aujourd'hui */}
-            {(() => {
-              const wordsToReview = progress?.wordsToReview || 0
-              const grammarToReview = progress?.grammarToReview || 0
-              const totalReview = wordsToReview + grammarToReview
-              return (
-                <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <RefreshCw className="h-4 w-4 text-[#7B1FA2]" />
-                      <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'À réviser aujourd\'hui' : 'To review today'}</span>
-                    </div>
-                    {totalReview > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <a href="/module/vocabulaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#F3E5F5] hover:bg-[#E1BEE7] transition-colors">
-                          <BookOpen className="h-4 w-4 text-[#7B1FA2]" />
-                          <div>
-                            <p className="text-lg font-bold text-[#7B1FA2]">{wordsToReview}</p>
-                            <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'mots' : 'words'}</p>
-                          </div>
-                        </a>
-                        <a href="/module/grammaire" className="flex items-center gap-2 p-3 rounded-xl bg-[#FFF8E1] hover:bg-[#FFECB3] transition-colors">
-                          <PenTool className="h-4 w-4 text-[#F9A825]" />
-                          <div>
-                            <p className="text-lg font-bold text-[#F9A825]">{grammarToReview}</p>
-                            <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'règles' : 'rules'}</p>
-                          </div>
-                        </a>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Rien à réviser pour le moment. Complète des exercices pour alimenter ta révision !' : 'Nothing to review yet. Complete exercises to build your review list!'}</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* BLOC-07: Calendrier révision + rappel du jour */}
+            {/* BLOC 4 left — V3.10: Planning hebdo (À réviser supprimé, intégré dans Explorer BLOC 3) */}
             {(() => {
               const sched = user.settings.schedules?.[activeLang] || user.settings.schedule
               const today = new Date()
@@ -573,18 +523,6 @@ export default function DashboardPage() {
                 </div>
               )
             })()}
-
-            {/* ARCHI-03 V3.9: "Explorer" — Entraînement uniquement (Dictionnaire/Coach IA déjà dans nav bas) */}
-            <div className="rounded-2xl bg-white shadow-sm p-4">
-              <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0] hover:bg-[#E0E0E0] transition-colors">
-                <div className="w-10 h-10 rounded-full bg-[#E65100]/10 flex items-center justify-center">
-                  <Dumbbell className="h-5 w-5 text-[#E65100]" />
-                </div>
-                <span className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Entraînement' : 'Training'}</span>
-                <ChevronRight className="h-4 w-4 text-[#555555] ml-auto" />
-              </a>
-            </div>
 
           </div>
 
@@ -652,23 +590,8 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* ===== BOTTOM NAVIGATION BAR ===== */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
-        <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
-          {bottomNav.map(item => {
-            const Icon = item.icon
-            return (
-              <a key={item.id} href={item.href}
-                className="flex flex-col items-center gap-0.5 px-3 py-1 min-w-[60px]">
-                <Icon className="h-5 w-5" style={{ color: item.active ? '#D9B438' : '#555555' }} />
-                <span className="text-[10px] font-semibold" style={{ color: item.active ? '#D9B438' : '#555555' }}>
-                  {item.label}
-                </span>
-              </a>
-            )
-          })}
-        </div>
-      </nav>
+      {/* V3.10: Use shared BottomNav component */}
+      <BottomNav lang={lang} />
     </div>
   )
 }
