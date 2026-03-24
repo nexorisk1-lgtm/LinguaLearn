@@ -7,9 +7,10 @@ import {
   Play, CheckCircle, XCircle, ArrowRight, Trophy, Flame,
   BookOpen, PenTool, Mic, Volume2, Pencil, Home, Volume, Star,
 } from 'lucide-react'
-import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage'
+import { getCurrentUser, updateUserProgress, saveReviewItem } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningObjective } from '@/types'
 import BottomNav from '@/components/BottomNav'
+import PageHeader from '@/components/PageHeader'
 import {
   getVocabulary, getGrammarRules, getExercisesForRule,
   getReadingTexts, getSpeakingExercises, getWritingExercises,
@@ -773,6 +774,15 @@ function SessionContent() {
       }
     }
 
+    // V3.10: Spaced repetition — track each exercise result for review scheduling
+    for (const result of results) {
+      const itemId = result.exercise.data?.id || result.exercise.data?.ruleId
+      if (!itemId) continue
+      const score = result.correct ? 100 : 0
+      const type = result.exercise.module === 'grammaire' ? 'grammar' as const : 'word' as const
+      saveReviewItem(user.id, activeLang, itemId, type, score)
+    }
+
     // BUG-59: Save course score ONLY if session is fully completed (not partial quit)
     // A course is "completed" only when ALL questions have been answered and the summary screen shown.
     if (courseId && !isPartialQuit) {
@@ -1319,7 +1329,14 @@ function SessionContent() {
   const ModIcon = moduleIcons[currentExercise.module] || BookOpen
 
   return (
-    <div className="min-h-screen pb-20 bg-[#F0F0F0] px-4 py-6">
+    <div className="min-h-screen pb-20 bg-[#F0F0F0]">
+      {/* V3.10: Standard header identique Profil */}
+      <PageHeader
+        title={lang === 'fr' ? 'Session en cours' : 'Session in progress'}
+        onBack={() => setShowQuitConfirm(true)}
+      />
+
+      <div className="px-4 pt-4">
       <div className="max-w-lg mx-auto">
         {/* BUG-58: Quit confirmation overlay */}
         {showQuitConfirm && (
@@ -1347,7 +1364,7 @@ function SessionContent() {
           </div>
         )}
 
-        {/* BUG-58: Quit button + Lesson indicator */}
+        {/* Lesson indicator */}
         <div className="mb-3 flex items-center gap-2">
           {lessons[currentLessonIdx] && (
             <>
@@ -1359,18 +1376,12 @@ function SessionContent() {
               </span>
             </>
           )}
-          <div className="ml-auto flex items-center gap-2">
-            {lessons[currentLessonIdx] && (
-              <button onClick={() => setPhase('lessonMap')}
-                className="text-xs text-[#D9B438] font-semibold hover:underline">
-                {lang === 'fr' ? 'Voir parcours' : 'View path'}
-              </button>
-            )}
-            <button onClick={() => setShowQuitConfirm(true)}
-              className="px-3 py-1.5 rounded-lg bg-gray-200 text-[#002844] text-xs font-bold hover:bg-gray-300 transition-colors">
-              {lang === 'fr' ? '✕ Quitter' : '✕ Leave'}
+          {lessons[currentLessonIdx] && (
+            <button onClick={() => setPhase('lessonMap')}
+              className="ml-auto text-xs text-[#D9B438] font-semibold hover:underline">
+              {lang === 'fr' ? 'Voir parcours' : 'View path'}
             </button>
-          </div>
+          )}
         </div>
 
         {/* Progress bar */}
@@ -1702,6 +1713,7 @@ function SessionContent() {
             </div>
           )}
         </div>
+      </div>
       </div>
       <BottomNav lang={lang} />
     </div>

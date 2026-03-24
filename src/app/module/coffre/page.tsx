@@ -2,8 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Volume2, Mic, MicOff, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
-import { getCurrentUser, updateUserProgress } from '@/lib/db/localStorage';
+import { Volume2, Mic, MicOff, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import { getCurrentUser, updateUserProgress, saveReviewItem } from '@/lib/db/localStorage';
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import { getVocabulary, speakText, isCloseEnough, addToPersonalVocab } from '@/lib/db/bankHelpers';
@@ -147,9 +148,11 @@ export default function CoffrePage() {
           dailyWordsCompleted: prevWords + correctCount,
           lastActivityDate: new Date().toISOString(),
         });
-        // Add all words to personal vocab
+        // Add all words to personal vocab + spaced repetition
+        const scorePct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
         for (const w of dailyWords) {
           addToPersonalVocab(user.id, w.id, 'learned');
+          saveReviewItem(user.id, activeLang, w.id, 'word', scorePct);
         }
       }
       setPhase('summary');
@@ -266,12 +269,11 @@ export default function CoffrePage() {
 
   return (
     <div className="min-h-screen pb-20 bg-[#F0F0F0]">
-      {/* Header */}
-      <div className="bg-[#002844] px-4 py-3">
+      {/* V3.10: Standard header identique Profil */}
+      <PageHeader title={lang === 'fr' ? 'Coffre du jour' : 'Daily chest'} backHref="/dashboard" />
+      {/* Progress bar */}
+      <div className="bg-[#002844] px-4 pb-3">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <button onClick={() => router.push('/dashboard')} className="text-white/70 hover:text-white">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
           <div className="flex-1">
             <p className="text-xs text-white/60">{stepLabel}</p>
             <div className="h-1.5 w-full bg-white/20 rounded-full mt-1">

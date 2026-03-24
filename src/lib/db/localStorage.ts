@@ -502,3 +502,69 @@ export function adminCreateUser(
   saveUsers(users);
   return { success: true, user: newUser };
 }
+
+// ==========================================
+// V3.10: SPACED REPETITION SYSTEM
+// Score < 70% → review J+1
+// Score 70-89% → review J+3
+// Score ≥ 90% → review J+7
+// ==========================================
+
+export interface ReviewItem {
+  itemId: string;
+  type: 'word' | 'grammar';
+  lastScore: number;
+  nextReviewDate: string; // YYYY-MM-DD
+  reviewCount: number;
+}
+
+function getReviewKey(userId: string, lang: string): string {
+  return `lingualearn_reviews_${userId}_${lang}`;
+}
+
+export function getReviewItems(userId: string, lang: string): ReviewItem[] {
+  if (!isLocalStorageAvailable()) return [];
+  try {
+    const key = getReviewKey(userId, lang);
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+export function saveReviewItem(userId: string, lang: string, itemId: string, type: 'word' | 'grammar', score: number): void {
+  if (!isLocalStorageAvailable()) return;
+  try {
+    const key = getReviewKey(userId, lang);
+    const items: ReviewItem[] = JSON.parse(localStorage.getItem(key) || '[]');
+    const existing = items.find(i => i.itemId === itemId && i.type === type);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Calculate next review date based on score
+    const daysUntilReview = score < 70 ? 1 : score < 90 ? 3 : 7;
+    const nextDate = new Date();
+    nextDate.setDate(nextDate.getDate() + daysUntilReview);
+    const nextReviewDate = nextDate.toISOString().split('T')[0];
+
+    if (existing) {
+      existing.lastScore = score;
+      existing.nextReviewDate = nextReviewDate;
+      existing.reviewCount += 1;
+    } else {
+      items.push({ itemId, type, lastScore: score, nextReviewDate, reviewCount: 1 });
+    }
+    localStorage.setItem(key, JSON.stringify(items));
+
+    // Update user progress wordsToReview / grammarToReview counts
+    const wordsToReview = items.filter(i => i.type === 'word' && i.nextReviewDate <= todayStr).length;
+    const grammarToReview = items.filter(i => i.type === 'grammar' && i.nextReviewDate <= todayStr).length;
+    updateUserProgress(userId, lang as LearningLanguage, { wordsToReview, grammarToReview });
+  } catch (e) {
+    console.warn('Failed to save review item:', e);
+  }
+}
+
+export function getDueReviews(userId: string, lang: string): ReviewItem[] {
+  const items = getReviewItems(userId, lang);
+  const todayStr = new Date().toISOString().split('T')[0];
+  return items.filter(i => i.nextReviewDate <= todayStr);
+}

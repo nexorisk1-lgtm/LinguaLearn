@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, setActiveLang, logoutUser, getAllUsers } from '@/lib/db/localStorage'
+import { getCurrentUser, setActiveLang, logoutUser, getAllUsers, getDueReviews } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
@@ -231,8 +231,11 @@ export default function DashboardPage() {
     }
   })()
 
-  // Daily words count
-  const wordsPerDay = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
+  // V3.10: Spaced repetition — compute due reviews
+  const dueReviews = getDueReviews(user.id, activeLang)
+  const dueWordReviews = dueReviews.filter(r => r.type === 'word').length
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const dueGrammarReviews = dueReviews.filter(r => r.type === 'grammar').length
 
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
@@ -358,114 +361,97 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC 3 — V3.10: Pavé "Explorer" (5 entrées cliquables) */}
+        {/* BLOC 3 — V3.10: Pavé "Explorer" (grille 3 colonnes, icônes rondes) */}
         <div className="rounded-2xl bg-white shadow-sm p-4 mb-4">
           <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-          <div className="space-y-2">
-            {/* 📦 Mes nouveaux mots → coffre du jour */}
-            <a href="/module/coffre" className="flex items-center gap-3 p-3 rounded-xl bg-[#FFF8E1] hover:bg-[#FFECB3] transition-colors active:scale-[0.98]">
-              <span className="text-xl flex-shrink-0">📦</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Mes nouveaux mots' : 'My new words'}</p>
-                <p className="text-[10px] text-[#555555]">{lang === 'fr' ? `${wordsPerDay} mots à découvrir aujourd'hui` : `${wordsPerDay} words to discover today`}</p>
+          <div className="grid grid-cols-3 gap-3">
+            {/* 📦 Mes nouveaux mots */}
+            <a href="/module/coffre" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#FFF8E1] transition-colors active:scale-95">
+              <div className="w-14 h-14 rounded-full bg-[#D9B438]/15 flex items-center justify-center">
+                <span className="text-2xl">📦</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#D9B438] flex-shrink-0" />
+              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Mes nouveaux mots' : 'New words'}</p>
             </a>
-            {/* 🔄 Mes révisions → mots à retravailler */}
-            <a href="/module/vocabulaire" className="flex items-center gap-3 p-3 rounded-xl bg-[#F3E5F5] hover:bg-[#E1BEE7] transition-colors active:scale-[0.98]">
-              <span className="text-xl flex-shrink-0">🔄</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Mes révisions' : 'My reviews'}</p>
-                <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'Mots à retravailler' : 'Words to review'}</p>
+            {/* 🔄 Mes révisions */}
+            <a href="/module/vocabulaire" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F3E5F5] transition-colors active:scale-95 relative">
+              <div className="w-14 h-14 rounded-full bg-[#7B1FA2]/10 flex items-center justify-center relative">
+                <span className="text-2xl">🔄</span>
+                {dueWordReviews > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{dueWordReviews}</span>
+                )}
               </div>
-              <ChevronRight className="h-4 w-4 text-[#7B1FA2] flex-shrink-0" />
+              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Mes révisions' : 'Reviews'}</p>
             </a>
-            {/* ▶️ Continuer mon cours → cours suivant non terminé */}
-            <a href={nextCourseInfo.url} className="flex items-center gap-3 p-3 rounded-xl bg-[#E3F2FD] hover:bg-[#BBDEFB] transition-colors active:scale-[0.98]">
-              <span className="text-xl flex-shrink-0">▶️</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Continuer mon cours' : 'Continue my course'}</p>
-                <p className="text-[10px] text-[#555555] truncate">{lang === 'fr' ? nextCourseInfo.nameFr : nextCourseInfo.nameEn}</p>
+            {/* ▶️ Mon cours du jour */}
+            <a href={nextCourseInfo.url} className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#E3F2FD] transition-colors active:scale-95">
+              <div className="w-14 h-14 rounded-full bg-[#1976D2]/10 flex items-center justify-center">
+                <span className="text-2xl">▶️</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#1976D2] flex-shrink-0" />
+              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Mon cours du jour' : 'Today\'s course'}</p>
             </a>
-            {/* 📘 Mon parcours A1 → vue carrousel complet */}
-            <a href="/module/cours" className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5E9] hover:bg-[#C8E6C9] transition-colors active:scale-[0.98]">
-              <span className="text-xl flex-shrink-0">📘</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#002844]">
-                  {lang === 'fr'
-                    ? (nextCourseInfo.isPathB ? 'Mon parcours B' : 'Mon parcours A1')
-                    : (nextCourseInfo.isPathB ? 'My Path B' : 'My A1 Path')}
-                </p>
-                <p className="text-[10px] text-[#555555]">{nextCourseInfo.progress} {lang === 'fr' ? 'complétés' : 'completed'}</p>
+            {/* 📘 Mon parcours */}
+            <a href="/module/cours" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#E8F5E9] transition-colors active:scale-95">
+              <div className="w-14 h-14 rounded-full bg-[#2E7D32]/10 flex items-center justify-center">
+                <span className="text-2xl">📘</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#2E7D32] flex-shrink-0" />
+              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">
+                {lang === 'fr'
+                  ? (nextCourseInfo.isPathB ? 'Mon parcours B' : 'Mon parcours A1')
+                  : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path')}
+              </p>
             </a>
-            {/* 🎯 Entraînement → module entraînement */}
-            <a href="/module/entrainement" className="flex items-center gap-3 p-3 rounded-xl bg-[#FFF3E0] hover:bg-[#FFE0B2] transition-colors active:scale-[0.98]">
-              <span className="text-xl flex-shrink-0">🎯</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
-                <p className="text-[10px] text-[#555555]">{lang === 'fr' ? 'Exercices libres' : 'Free practice'}</p>
+            {/* 🎯 Entraînement */}
+            <a href="/module/entrainement" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#FFF3E0] transition-colors active:scale-95">
+              <div className="w-14 h-14 rounded-full bg-[#E65100]/10 flex items-center justify-center">
+                <span className="text-2xl">🎯</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#E65100] flex-shrink-0" />
+              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
             </a>
           </div>
         </div>
 
-        {/* BLOC-05: 5 OBJECTIVE BLOCKS — filtered by user objectives */}
-        {(() => {
-          // Filter blocks: always show grammaire and vocabulaire, plus user's specific objectives
-          const visibleBlocks = moduleBlocks.filter(b =>
-            b.objective === 'grammaire' || b.objective === 'vocabulaire' || (objectives as string[]).includes(b.objective)
-          )
-          // Calculate responsive grid columns based on visible blocks count
-          const gridCols = visibleBlocks.length === 2
-            ? 'grid-cols-2'
-            : visibleBlocks.length === 3
-            ? 'grid-cols-3'
-            : visibleBlocks.length === 4
-            ? 'grid-cols-2 md:grid-cols-4'
-            : 'grid-cols-2 md:grid-cols-5'
-
-          return (
-            <div className={`grid ${gridCols} gap-3 mb-4`}>
-              {visibleBlocks.map((block, idx) => {
-                const Icon = block.icon
-                const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
-                // For 2-col layout on mobile with odd number of blocks, last one spans full width
-                const isLast = idx === visibleBlocks.length - 1 && visibleBlocks.length % 2 !== 0
-                return (
-                  <a key={block.id} href={block.href}
-                    className={`rounded-2xl p-3 md:p-3 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2 md:col-span-1' : ''}`}
-                    style={{ backgroundColor: block.bgLight }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-1.5 rounded-lg" style={{ backgroundColor: block.color }}>
-                        <Icon className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <p className="font-bold text-xs mb-1.5" style={{ color: block.color }}>{block.label}</p>
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-[10px] text-[#555555] hidden md:inline">{lang === 'fr' ? 'Prog.' : 'Prog.'}</span>
-                        <span className="text-[10px] font-bold" style={{ color: block.color }}>{pct}%</span>
-                      </div>
-                      <div className="h-1.5 w-full rounded-full bg-white/60">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
-                      </div>
-                    </div>
-                  </a>
-                )
-              })}
-            </div>
-          )
-        })()}
-
-        {/* Responsive 2-column layout for lower dashboard */}
+        {/* BLOC 4 — V3.10: Progression + Planning (gauche 60%) | Classement (droite 40%) */}
         <div className="md:grid md:grid-cols-5 md:gap-4">
-          {/* Left column (60%) */}
+          {/* Left column (60%) — Objectifs + Planning */}
           <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
+            {/* Objective blocks */}
+            {(() => {
+              const visibleBlocks = moduleBlocks.filter(b =>
+                b.objective === 'grammaire' || b.objective === 'vocabulaire' || (objectives as string[]).includes(b.objective)
+              )
+              const gridCols = visibleBlocks.length === 2 ? 'grid-cols-2'
+                : visibleBlocks.length === 3 ? 'grid-cols-3'
+                : visibleBlocks.length === 4 ? 'grid-cols-2' : 'grid-cols-2'
+              return (
+                <div className={`grid ${gridCols} gap-3`}>
+                  {visibleBlocks.map((block, idx) => {
+                    const Icon = block.icon
+                    const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
+                    const isLast = idx === visibleBlocks.length - 1 && visibleBlocks.length % 2 !== 0
+                    return (
+                      <a key={block.id} href={block.href}
+                        className={`rounded-2xl p-3 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2 md:col-span-1' : ''}`}
+                        style={{ backgroundColor: block.bgLight }}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="p-1.5 rounded-lg" style={{ backgroundColor: block.color }}>
+                            <Icon className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-xs mb-1.5" style={{ color: block.color }}>{block.label}</p>
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-[10px] font-bold" style={{ color: block.color }}>{pct}%</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-white/60">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
+                          </div>
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+              )
+            })()}
             {/* BLOC 4 left — V3.10: Planning hebdo (À réviser supprimé, intégré dans Explorer BLOC 3) */}
             {(() => {
               const sched = user.settings.schedules?.[activeLang] || user.settings.schedule

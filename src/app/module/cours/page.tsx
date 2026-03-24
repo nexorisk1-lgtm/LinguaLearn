@@ -365,7 +365,7 @@ export default function CoursPage() {
         <div className="max-w-lg mx-auto">
           {/* Back */}
           <div onClick={() => setSelectedCourse(null)} className="mb-6">
-            <PageHeader title={lang === 'fr' ? 'Retour au parcours' : 'Back to path'} variant="light" />
+            <PageHeader title={lang === 'fr' ? 'Retour au parcours' : 'Back to path'} />
           </div>
 
           {/* Course card */}
