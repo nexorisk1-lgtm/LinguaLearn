@@ -368,8 +368,7 @@ export default function DashboardPage() {
         {(() => {
           const todayStr = new Date().toISOString().split('T')[0]
           const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
-          const coffreDone = (progress?.dailyWordsCompleted || 0) > 0
-          // V3.14: courseCompleted removed — stars now computed inline with progressive logic
+          // V3.16b: coffreDone now computed inline in indicator via fresh localStorage read
 
           // Persist today as completed if session done
           if (sessionDoneToday) {
@@ -400,15 +399,15 @@ export default function DashboardPage() {
                 </svg>
               ),
               label: lang === 'fr' ? 'Nouveaux mots' : 'New words',
-              // V3.16: Stars based on real completion % — 0★ <33%, 1★ 33-65%, 2★ 66-99%, 3★ 100%
+              // V3.16b BUG-69: Read directly from localStorage to avoid stale state
               indicator: (() => {
                 try {
+                  // 1. Check in-progress coffre session
                   const coffreKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`
                   const saved = localStorage.getItem(coffreKey)
                   if (saved) {
                     const s = JSON.parse(saved)
-                    const todayStr2 = new Date().toISOString().split('T')[0]
-                    if (s.date === todayStr2 && s.exercises?.length > 0) {
+                    if (s.date === todayStr && s.exercises?.length > 0) {
                       const pct = Math.round((s.exerciseIndex / s.exercises.length) * 100)
                       if (pct >= 100) return renderStars(3)
                       if (pct >= 66) return renderStars(2)
@@ -416,8 +415,12 @@ export default function DashboardPage() {
                       return renderStars(0)
                     }
                   }
-                  // If no saved session but coffre was completed today (cleared on completion)
-                  if (coffreDone) return renderStars(3)
+                  // 2. Check if coffre was completed today (read fresh from localStorage)
+                  const freshUser = getCurrentUser()
+                  const freshProgress = freshUser?.progress?.[activeLang]
+                  const freshLastDay = freshProgress?.lastActivityDate?.split('T')[0]
+                  const freshWords = (freshLastDay === todayStr ? freshProgress?.dailyWordsCompleted : 0) || 0
+                  if (freshWords > 0) return renderStars(3)
                 } catch { /* ignore */ }
                 return renderStars(0)
               })(),
@@ -446,9 +449,15 @@ export default function DashboardPage() {
               bg: '#1976D2',
               icon: <span style={{ fontSize: '36px' }}>▶️</span>,
               label: lang === 'fr' ? 'Cours du jour' : "Today's course",
+              // V3.16b BUG-68: Check if any course was completed today (not just next course)
               indicator: (() => {
-                // V3.15: progressive stars based on course score
                 try {
+                  // Check if a course was completed today
+                  const todayKey = `lingualearn_course_done_today_${user.id}`
+                  const courseDone = localStorage.getItem(todayKey) === todayStr
+                  if (courseDone) return renderStars(3)
+
+                  // Check score of current next course for partial progress
                   const key = `lingualearn_course_scores_${user.id}_${activeLang}`
                   const stored = localStorage.getItem(key)
                   const scores = stored ? JSON.parse(stored) : {}
@@ -535,7 +544,7 @@ export default function DashboardPage() {
                         background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
                       }}>
                       <div className="mb-1">{entry.icon}</div>
-                      <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(12px, 2vw, 22px)' }}>{entry.label}</p>
+                      <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(14px, 2.4vw, 24px)' }}>{entry.label}</p>
                       <div className="mt-1">{entry.indicator}</div>
                     </a>
                   )
