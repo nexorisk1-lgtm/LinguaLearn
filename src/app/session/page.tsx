@@ -504,8 +504,8 @@ function SessionContent() {
             setSessionReady(true)
             setPhase('exercise')
           }
-          // Clear resume data after loading
-          localStorage.removeItem(resumeKey)
+          // V3.19b: Don't clear resume on load — clear on session completion instead
+          // This protects against page refresh during resume
         }
       } catch { /* ignore */ }
     }
@@ -687,6 +687,34 @@ function SessionContent() {
     setResults(prev => [...prev, { exercise: currentExercise, userAnswer, correct }])
   }
 
+  // V3.19b BUG-72: Auto-save resume position after each exercise advance
+  // V3.19b BUG-68: Also save partial progress percentage for dashboard stars
+  const autoSaveResume = useCallback((nextExIdx: number, nextLessonIdx: number, currentResults: SessionResult[]) => {
+    if (!courseId || !user) return
+    try {
+      const resumeKey = `lingualearn_resume_${user.id}_${courseId}`
+      localStorage.setItem(resumeKey, JSON.stringify({
+        lessonIndex: nextLessonIdx,
+        exerciseIndex: nextExIdx,
+        savedAt: new Date().toISOString(),
+        exercises,
+        lessons,
+        results: currentResults,
+      }))
+      // BUG-68: Save partial progress for dashboard stars
+      const totalEx = exercises.length
+      const progressPct = totalEx > 0 ? Math.round((nextExIdx / totalEx) * 100) : 0
+      const correctCount = currentResults.filter(r => r.correct).length
+      const scorePct = currentResults.length > 0 ? Math.round((correctCount / currentResults.length) * 100) : 0
+      localStorage.setItem(`lingualearn_course_progress_today_${user.id}`, JSON.stringify({
+        courseId,
+        progressPct,
+        scorePct,
+        date: new Date().toISOString().split('T')[0],
+      }))
+    } catch { /* ignore */ }
+  }, [courseId, user, exercises, lessons])
+
   const handleNext = () => {
     setShowFeedback(false)
     setUserInput('')
@@ -697,8 +725,14 @@ function SessionContent() {
     setShowWhyWrong(false)
     setUserAudioUrl(null) // V3.16: Reset audio to prevent residual oral buttons
 
+    // Capture current results (including the one just answered) for auto-save
+    const currentResults = [...results]
+
     const nextIdx = currentIdx + 1
     if (nextIdx < exercises.length) {
+      // V3.19b BUG-72: Auto-save after each exercise
+      autoSaveResume(nextIdx, currentLessonIdx, currentResults)
+
       // Check if we're moving to a new lesson
       const currentLessonIndex = exercises[currentIdx]?.lessonIndex ?? 0
       const nextLessonIndex = exercises[nextIdx]?.lessonIndex ?? 0
@@ -715,6 +749,8 @@ function SessionContent() {
           return l
         }))
         setCurrentLessonIdx(nextLessonIndex)
+        // Auto-save with updated lesson index
+        autoSaveResume(nextIdx, nextLessonIndex, currentResults)
         // Show lesson map briefly between lessons
         setPhase('lessonMap')
         setCurrentIdx(nextIdx)
@@ -804,6 +840,12 @@ function SessionContent() {
         const todayKey = `lingualearn_course_done_today_${user.id}`
         localStorage.setItem(todayKey, todayStr)
       } catch { /* ignore */ }
+      // V3.19b BUG-72: Clear resume data on full completion
+      if (courseId) {
+        try {
+          localStorage.removeItem(`lingualearn_resume_${user.id}_${courseId}`)
+        } catch { /* ignore */ }
+      }
     }
 
     // BUG-59: Save course score ONLY if session is fully completed (not partial quit)

@@ -448,15 +448,28 @@ export default function DashboardPage() {
               bg: '#1976D2',
               icon: <span style={{ fontSize: '36px' }}>▶️</span>,
               label: lang === 'fr' ? 'Cours du jour' : "Today's course",
-              // V3.16b BUG-68: Check if any course was completed today (not just next course)
+              // V3.19b BUG-68: Read course completion + partial progress for accurate stars
               indicator: (() => {
                 try {
-                  // Check if a course was completed today
+                  // 1. Check if a course was fully completed today → 3 stars
                   const todayKey = `lingualearn_course_done_today_${user.id}`
                   const courseDone = localStorage.getItem(todayKey) === todayStr
                   if (courseDone) return renderStars(3)
 
-                  // Check score of current next course for partial progress
+                  // 2. Check in-progress course today (partial stars from auto-save)
+                  const progressStr = localStorage.getItem(`lingualearn_course_progress_today_${user.id}`)
+                  if (progressStr) {
+                    const prog = JSON.parse(progressStr)
+                    if (prog.date === todayStr && prog.progressPct > 0) {
+                      const pct = prog.progressPct
+                      if (pct >= 100) return renderStars(3)
+                      if (pct >= 66) return renderStars(2)
+                      if (pct >= 33) return renderStars(1)
+                      return renderStars(0)
+                    }
+                  }
+
+                  // 3. Fallback: check saved course scores
                   const key = `lingualearn_course_scores_${user.id}_${activeLang}`
                   const stored = localStorage.getItem(key)
                   const scores = stored ? JSON.parse(stored) : {}
