@@ -535,7 +535,7 @@ export default function DashboardPage() {
                         background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
                       }}>
                       <div className="mb-1">{entry.icon}</div>
-                      <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(11px, 1.8vw, 20px)' }}>{entry.label}</p>
+                      <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(12px, 2vw, 22px)' }}>{entry.label}</p>
                       <div className="mt-1">{entry.indicator}</div>
                     </a>
                   )
@@ -619,7 +619,25 @@ export default function DashboardPage() {
               const sched = user.settings.schedules?.[activeLang] || user.settings.schedule
               const today = new Date()
               const todayStr = today.toISOString().split('T')[0]
-              const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
+              // V3.16 BUG-66: Planning validated only if trio Cours + Nouveaux mots + Révisions done
+              const coffreDoneToday = (progress?.dailyWordsCompleted || 0) > 0
+              const courseDoneToday = (() => {
+                try {
+                  const todayKey = `lingualearn_course_done_today_${user.id}`
+                  return localStorage.getItem(todayKey) === todayStr
+                } catch { return false }
+              })()
+              const revisionsDoneToday = (() => {
+                try {
+                  const reviews = getDueReviews(user.id, activeLang)
+                  // If there are 0 due reviews, revisions are "done" (nothing to do)
+                  // If there are due reviews, check if user did revisions today
+                  if (reviews.length === 0) return true
+                  const revKey = `lingualearn_revision_done_today_${user.id}`
+                  return localStorage.getItem(revKey) === todayStr
+                } catch { return false }
+              })()
+              const sessionDoneToday = coffreDoneToday && courseDoneToday && revisionsDoneToday
               // V3.11: Persistent completed days history
               const sessionHistory = getSessionHistory(user.id, activeLang)
               const dayNames = lang === 'fr'

@@ -379,7 +379,14 @@ function SessionContent() {
       }
     }
 
-    // STEP 4: Summary (handled separately in UI)
+    // V3.16 BUG-62: If no exercises generated, force vocab generation (never show empty session)
+    if (allExercises.length === 0) {
+      const words = getVocabulary(activeLang, userThemes, userLevel)
+      if (words.length > 0) {
+        allExercises.push(...generateVocabExercises(words, Math.min(5, words.length), isPathB))
+        if (!usedModules.includes('vocabulaire')) usedModules.push('vocabulaire')
+      }
+    }
 
     // Tag exercises with lesson indices and build lesson map
     const sessionLessons: SessionLesson[] = []
@@ -784,8 +791,15 @@ function SessionContent() {
       saveReviewItem(user.id, activeLang, itemId, type, score)
     }
 
+    // V3.16 BUG-66: Mark course done today for planning validation
+    if (!isPartialQuit) {
+      try {
+        const todayKey = `lingualearn_course_done_today_${user.id}`
+        localStorage.setItem(todayKey, todayStr)
+      } catch { /* ignore */ }
+    }
+
     // BUG-59: Save course score ONLY if session is fully completed (not partial quit)
-    // A course is "completed" only when ALL questions have been answered and the summary screen shown.
     if (courseId && !isPartialQuit) {
       const correctCount = results.filter(r => r.correct).length
       const totalResults = results.length
@@ -1163,10 +1177,11 @@ function SessionContent() {
             <div className="w-20 h-20 rounded-full bg-[#D9B438]/20 flex items-center justify-center mx-auto mb-4">
               <Trophy className="h-10 w-10 text-[#D9B438]" />
             </div>
-            <h1 className="text-2xl font-bold text-[#002844] mb-2">
+            {/* V3.16 BUG-65: bigger text */}
+            <h1 className="font-bold text-[#002844] mb-2" style={{ fontSize: '28px' }}>
               {lang === 'fr' ? 'Session terminée !' : 'Session complete!'}
             </h1>
-            <p className="text-sm text-[#555555]">
+            <p className="text-base text-[#555555]">
               {lang === 'fr'
                 ? `${correctCount}/${totalCount} bonnes réponses (${pct}%)`
                 : `${correctCount}/${totalCount} correct answers (${pct}%)`}
@@ -1175,21 +1190,22 @@ function SessionContent() {
 
           {/* Stars display */}
           <div className="rounded-2xl bg-white p-6 shadow-sm mb-6 text-center">
-            <div className="flex justify-center gap-2 mb-3">
+            {/* V3.16 BUG-65: bigger stars and text */}
+            <div className="flex justify-center gap-3 mb-3">
               {[1, 2, 3].map(i => (
-                <Star key={i} className={`h-10 w-10 transition-all ${
+                <Star key={i} className={`h-12 w-12 transition-all ${
                   i <= stars
                     ? 'text-[#D9B438] fill-[#D9B438] scale-110'
                     : 'text-gray-200'
                 }`} />
               ))}
             </div>
-            <p className={`text-lg font-bold ${
+            <p className={`text-xl font-bold ${
               stars >= 3 ? 'text-green-600' : stars >= 2 ? 'text-[#D9B438]' : stars >= 1 ? 'text-orange-500' : 'text-red-500'
             }`}>
               {starLabel}
             </p>
-            <p className="text-3xl font-bold text-[#002844] mt-2">{pct}%</p>
+            <p className="font-bold text-[#002844] mt-2" style={{ fontSize: '36px' }}>{pct}%</p>
             <div className="h-3 w-full rounded-full bg-gray-100 mt-3">
               <div className="h-full rounded-full transition-all"
                 style={{
@@ -1231,7 +1247,7 @@ function SessionContent() {
 
           {/* Results detail */}
           <div className="rounded-2xl bg-white p-4 shadow-sm mb-6 space-y-3">
-            <h3 className="font-bold text-sm text-[#002844] mb-2">{lang === 'fr' ? 'Détail' : 'Details'}</h3>
+            <h3 className="font-bold text-base text-[#002844] mb-2">{lang === 'fr' ? 'Détail' : 'Details'}</h3>
             {results.map((r, i) => (
               <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
                 {r.correct
@@ -1265,18 +1281,18 @@ function SessionContent() {
             </div>
           </div>
 
-          {/* Actions */}
+          {/* V3.16 BUG-63: Retour à l'accueil + BUG-64: "Session suivante" */}
           <div className="space-y-3">
-            {courseId ? (
+            {/* Always show "Retour à l'accueil" */}
+            <a href="/dashboard"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#002844] text-white font-bold text-base hover:bg-[#003a5c] transition-colors">
+              <Home className="h-5 w-5" />
+              {lang === 'fr' ? "Retour à l'accueil" : 'Back to home'}
+            </a>
+            {courseId && (
               <a href="/module/cours"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-[#002844] text-[#002844] font-bold text-sm hover:bg-[#002844]/5 transition-colors">
                 {lang === 'fr' ? 'Retour au parcours' : 'Back to path'}
-              </a>
-            ) : (
-              <a href="/dashboard"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors">
-                <Home className="h-4 w-4" />
-                {lang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}
               </a>
             )}
             <button onClick={() => {
@@ -1290,7 +1306,7 @@ function SessionContent() {
               buildSession(user)
             }}
               className="w-full py-3 rounded-xl bg-[#D9B438] text-[#002844] font-bold text-sm hover:bg-[#c9a530] transition-colors">
-              {lang === 'fr' ? 'Nouvelle session' : 'New session'}
+              {lang === 'fr' ? 'Session suivante' : 'Next session'}
             </button>
           </div>
         </div>

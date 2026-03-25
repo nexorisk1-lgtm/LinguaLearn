@@ -130,17 +130,15 @@ export default function CoffrePage() {
 
   const currentExercise = exercises[currentExIdx];
 
-  // V3.15: Auto TTS gated — only speak after user has interacted at least once
-  const [userInteracted, setUserInteracted] = useState(false);
+  // V3.16 BUG-61: TTS auto-play on every discovery word display
   useEffect(() => {
-    if (!userInteracted) return; // V3.15: Don't auto-play TTS before first user click
     if (!currentExercise || currentExercise.step !== 'discovery') return;
     const timer = setTimeout(() => {
       speakText(currentExercise.word.word_target, activeLang);
-    }, 300);
+    }, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentExIdx, currentExercise?.step, userInteracted]);
+  }, [currentExIdx, currentExercise?.step]);
 
   // Generate distractors for QCM
   const getDistractors = (correct: VocabWord, count: number): string[] => {
@@ -204,7 +202,6 @@ export default function CoffrePage() {
   };
 
   const handleNextExercise = () => {
-    if (!userInteracted) setUserInteracted(true); // V3.15: mark first interaction
     setSelectedOption(null);
     setShowFeedback(false);
     setWritingInput('');
@@ -232,7 +229,6 @@ export default function CoffrePage() {
 
   const handleQCMSelect = (option: string, correctAnswer: string) => {
     if (showFeedback) return;
-    if (!userInteracted) setUserInteracted(true);
     setSelectedOption(option);
     const correct = option.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
     setIsCorrect(correct);

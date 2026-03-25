@@ -102,6 +102,11 @@ export default function RevisionsPage() {
       setSelectedOption(null);
       setShowFeedback(false);
       if (currentIdx + 1 >= reviewWords.length) {
+        // V3.16 BUG-66: Mark revisions done today for planning validation
+        try {
+          const revKey = `lingualearn_revision_done_today_${user.id}`;
+          localStorage.setItem(revKey, new Date().toISOString().split('T')[0]);
+        } catch { /* ignore */ }
         setPhase('summary');
       } else {
         setCurrentIdx(prev => prev + 1);
