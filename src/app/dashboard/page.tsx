@@ -442,20 +442,19 @@ export default function DashboardPage() {
           return (
             <div className="mb-4">
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              <div className="grid grid-cols-3 gap-3">
+              {/* V3.12b: 5 ronds sur 1 seule ligne horizontale, scroll si nécessaire sur mobile */}
+              <div className="flex items-center gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: 'x mandatory' }}>
                 {entries.map((entry, idx) => (
                   <a key={idx} href={entry.href}
-                    className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
+                    className="flex-shrink-0 flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
                     style={{
-                      width: '100%',
-                      aspectRatio: '1',
-                      maxWidth: '140px',
-                      minWidth: '120px',
-                      margin: '0 auto',
+                      width: 'clamp(80px, 18vw, 200px)',
+                      height: 'clamp(80px, 18vw, 200px)',
                       background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
+                      scrollSnapAlign: 'start',
                     }}>
                     <div className="mb-1">{entry.icon}</div>
-                    <p className="font-bold text-white text-center leading-tight px-2" style={{ fontSize: '12px' }}>{entry.label}</p>
+                    <p className="font-bold text-white text-center leading-tight px-2" style={{ fontSize: 'clamp(10px, 1.4vw, 16px)' }}>{entry.label}</p>
                     <div className="mt-1">{entry.indicator}</div>
                   </a>
                 ))}
