@@ -381,11 +381,11 @@ export default function DashboardPage() {
             addSessionDate(user.id, activeLang, todayStr)
           }
 
-          // Stars helper: grey ☆ or gold ★
+          // Stars helper: grey ☆ or gold ★ — V3.13: 24px minimum
           const renderStars = (filled: number, total: number = 3) => (
-            <span style={{ letterSpacing: '3px', fontSize: '16px' }}>
+            <span style={{ letterSpacing: '4px', fontSize: '24px', lineHeight: '1' }}>
               {Array.from({ length: total }, (_, i) => (
-                <span key={i} style={{ color: i < filled ? '#D9B438' : '#9CA3AF' }}>{i < filled ? '★' : '☆'}</span>
+                <span key={i} style={{ color: i < filled ? '#D9B438' : '#CCCCCC' }}>{i < filled ? '★' : '☆'}</span>
               ))}
             </span>
           )
@@ -413,7 +413,7 @@ export default function DashboardPage() {
               icon: <span style={{ fontSize: '36px' }}>🔄</span>,
               label: lang === 'fr' ? 'Révisions' : 'Reviews',
               indicator: dueWordReviews > 0
-                ? <span className="font-bold" style={{ fontSize: '13px', color: '#fff' }}>{dueWordReviews} {lang === 'fr' ? 'mots' : 'words'}</span>
+                ? <span className="font-bold" style={{ fontSize: '16px', color: '#fff' }}>{dueWordReviews} {lang === 'fr' ? 'mots' : 'words'}</span>
                 : renderStars(3),
             },
             {
@@ -428,7 +428,7 @@ export default function DashboardPage() {
               bg: '#2E7D32',
               icon: <span style={{ fontSize: '36px' }}>📘</span>,
               label: lang === 'fr' ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1') : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path'),
-              indicator: <span className="font-bold" style={{ fontSize: '13px', color: '#fff' }}>{nextCourseInfo.progress}</span>,
+              indicator: <span className="font-bold" style={{ fontSize: '16px', color: '#fff' }}>{nextCourseInfo.progress}</span>,
             },
             {
               href: '/module/entrainement',
@@ -442,19 +442,20 @@ export default function DashboardPage() {
           return (
             <div className="mb-4">
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              {/* V3.12b: 5 ronds sur 1 seule ligne horizontale, scroll si nécessaire sur mobile */}
-              <div className="flex items-center gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: 'x mandatory' }}>
+              {/* V3.13: 5 ronds répartis uniformément sur toute la largeur */}
+              <div className="flex justify-evenly items-center w-full overflow-x-auto pb-2">
                 {entries.map((entry, idx) => (
                   <a key={idx} href={entry.href}
-                    className="flex-shrink-0 flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
+                    className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
                     style={{
-                      width: 'clamp(80px, 18vw, 200px)',
-                      height: 'clamp(80px, 18vw, 200px)',
+                      width: 'calc((100% - 2rem) / 5)',
+                      maxWidth: '200px',
+                      aspectRatio: '1',
+                      minWidth: '80px',
                       background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
-                      scrollSnapAlign: 'start',
                     }}>
                     <div className="mb-1">{entry.icon}</div>
-                    <p className="font-bold text-white text-center leading-tight px-2" style={{ fontSize: 'clamp(10px, 1.4vw, 16px)' }}>{entry.label}</p>
+                    <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(11px, 1.8vw, 20px)' }}>{entry.label}</p>
                     <div className="mt-1">{entry.indicator}</div>
                   </a>
                 ))}
