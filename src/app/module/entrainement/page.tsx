@@ -192,7 +192,7 @@ export default function EntrainementPage() {
                   <div className="flex-1 rounded-xl p-3 bg-red-50">
                     <X className="h-5 w-5 mx-auto text-red-500 mb-1" />
                     <p className="text-lg font-bold text-red-600">{didntKnowCount}</p>
-                    <p className="text-[10px] text-red-500 font-semibold">{lang === 'fr' ? 'Pas su' : "Didn't know"}</p>
+                    <p className="text-[10px] text-red-500 font-semibold">{lang === 'fr' ? 'Je ne savais pas' : "Didn't know"}</p>
                   </div>
                 </div>
 
@@ -299,7 +299,7 @@ export default function EntrainementPage() {
                     <button onClick={() => handleAssessment('didnt_know')}
                       className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-red-50 border-2 border-red-200 hover:border-red-400">
                       <X className="h-5 w-5 text-red-500" />
-                      <span className="text-red-600">{lang === 'fr' ? 'Pas su' : "Didn't know"}</span>
+                      <span className="text-red-600">{lang === 'fr' ? 'Je ne savais pas' : "Didn't know"}</span>
                     </button>
                     <button onClick={() => handleAssessment('hard')}
                       className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-orange-50 border-2 border-orange-200 hover:border-orange-400">

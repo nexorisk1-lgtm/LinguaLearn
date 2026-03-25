@@ -395,7 +395,8 @@ export default function CoffrePage() {
             const options = shuffleArray([word.word_target, ...distractors]);
             return (
               <div className="text-center">
-                <p className="text-sm font-bold text-[#002844] mb-4">
+                {/* V3.16: question 28px bold */}
+                <p className="font-bold text-[#002844] mb-4" style={{ fontSize: '28px' }}>
                   {lang === 'fr' ? "Qu'as-tu entendu ?" : 'What did you hear?'}
                 </p>
                 {/* V3.14: speaker 80px */}
@@ -421,7 +422,7 @@ export default function CoffrePage() {
                     }
                     return (
                       <button key={i} onClick={() => handleQCMSelect(opt, word.word_target)} className={btnClass} disabled={showFeedback}
-                        style={{ fontSize: '24px', minHeight: '56px' }}>
+                        style={{ fontSize: '20px', minHeight: '52px' }}>
                         {opt}
                       </button>
                     );
@@ -443,7 +444,8 @@ export default function CoffrePage() {
             const options = shuffleArray([word.word_fr, ...distractors]);
             return (
               <div className="text-center">
-                <p className="text-sm font-bold text-[#002844] mb-2">
+                {/* V3.16: question 28px bold */}
+                <p className="font-bold text-[#002844] mb-2" style={{ fontSize: '28px' }}>
                   {lang === 'fr' ? 'Quelle est la traduction ?' : 'What is the translation?'}
                 </p>
                 <p className="text-3xl font-bold text-[#002844] mb-6">{word.word_target}</p>
@@ -464,7 +466,7 @@ export default function CoffrePage() {
                     }
                     return (
                       <button key={i} onClick={() => handleQCMSelect(opt, word.word_fr)} className={btnClass} disabled={showFeedback}
-                        style={{ fontSize: '24px', minHeight: '56px' }}>
+                        style={{ fontSize: '20px', minHeight: '52px' }}>
                         {opt}
                       </button>
                     );
@@ -483,7 +485,8 @@ export default function CoffrePage() {
           {/* STEP 4: ORAL — Pronounce */}
           {step === 'oral' && (
             <div className="text-center">
-              <p className="text-sm font-bold text-[#002844] mb-2">
+              {/* V3.16: question 28px bold */}
+              <p className="font-bold text-[#002844] mb-2" style={{ fontSize: '28px' }}>
                 {lang === 'fr' ? 'Prononcez ce mot :' : 'Pronounce this word:'}
               </p>
               <p className="text-3xl font-bold text-[#002844] mb-2">{word.word_target}</p>
@@ -519,7 +522,8 @@ export default function CoffrePage() {
           {/* STEP 5: WRITING (Parcours A only) */}
           {step === 'writing' && (
             <div className="text-center">
-              <p className="text-sm font-bold text-[#002844] mb-2">
+              {/* V3.16: question 28px bold */}
+              <p className="font-bold text-[#002844] mb-2" style={{ fontSize: '28px' }}>
                 {lang === 'fr' ? 'Écrivez le mot entendu :' : 'Write the word you hear:'}
               </p>
               {/* V3.14: speaker 80px */}

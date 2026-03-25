@@ -400,13 +400,11 @@ export default function DashboardPage() {
                 </svg>
               ),
               label: lang === 'fr' ? 'Nouveaux mots' : 'New words',
+              // V3.16: Stars based on real completion % — 0★ <33%, 1★ 33-65%, 2★ 66-99%, 3★ 100%
               indicator: (() => {
-                // V3.14: progressive stars based on real coffre progress
-                // Check saved coffre session for partial progress
                 try {
                   const coffreKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`
                   const saved = localStorage.getItem(coffreKey)
-                  if (coffreDone) return renderStars(3)
                   if (saved) {
                     const s = JSON.parse(saved)
                     const todayStr2 = new Date().toISOString().split('T')[0]
@@ -415,8 +413,11 @@ export default function DashboardPage() {
                       if (pct >= 100) return renderStars(3)
                       if (pct >= 66) return renderStars(2)
                       if (pct >= 33) return renderStars(1)
+                      return renderStars(0)
                     }
                   }
+                  // If no saved session but coffre was completed today (cleared on completion)
+                  if (coffreDone) return renderStars(3)
                 } catch { /* ignore */ }
                 return renderStars(0)
               })(),
@@ -485,10 +486,31 @@ export default function DashboardPage() {
               {/* V3.13: 5 ronds répartis uniformément sur toute la largeur */}
               <div className="flex justify-between items-center w-full overflow-x-auto pb-2">
                 {entries.map((entry, idx) => {
-                  // V3.15: Check if today is a planned day for "Cours du jour"
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  // V3.16: Check planning + resume — resume always takes priority
                   const handleClick = (e: React.MouseEvent) => {
                     if ((entry as Record<string, unknown>).noSessionCheck) {
+                      // Check if there's an active resume — if so, go directly (no modal)
+                      try {
+                        const courseId = entry.href.split('courseId=')[1]
+                        if (courseId) {
+                          const resumeKey = `lingualearn_resume_${user.id}_${courseId}`
+                          const resumeStr = localStorage.getItem(resumeKey)
+                          if (resumeStr) {
+                            const resume = JSON.parse(resumeStr)
+                            if (Date.now() - new Date(resume.savedAt).getTime() < 24 * 60 * 60 * 1000) {
+                              return // Resume exists → navigate directly
+                            }
+                          }
+                        }
+                      } catch { /* ignore */ }
+
+                      // Check if user already chose "Continue anyway" today
+                      try {
+                        const overrideKey = `lingualearn_continue_override_${user.id}`
+                        const override = localStorage.getItem(overrideKey)
+                        if (override === todayStr) return // Already overridden today → navigate directly
+                      } catch { /* ignore */ }
+
                       const schedule = user.settings.schedules?.[activeLang] || user.settings.schedule
                       const days = schedule?.days || []
                       const dayNames: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
@@ -544,6 +566,12 @@ export default function DashboardPage() {
                   {lang === 'fr' ? 'Fermer' : 'Close'}
                 </button>
                 <a href={noSessionNextUrl}
+                  onClick={() => {
+                    // V3.16: Mark that user chose to continue — skip modal on return
+                    try {
+                      localStorage.setItem(`lingualearn_continue_override_${user.id}`, new Date().toISOString().split('T')[0])
+                    } catch { /* ignore */ }
+                  }}
                   className="flex-1 py-3 rounded-xl bg-[#002844] text-white text-sm font-bold text-center">
                   {lang === 'fr' ? 'Continuer quand même →' : 'Continue anyway →'}
                 </a>

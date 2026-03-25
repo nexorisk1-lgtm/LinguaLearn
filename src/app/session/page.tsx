@@ -681,6 +681,7 @@ function SessionContent() {
     setShowingComprehension(false)
     setWordDefinition(null)
     setShowWhyWrong(false)
+    setUserAudioUrl(null) // V3.16: Reset audio to prevent residual oral buttons
 
     const nextIdx = currentIdx + 1
     if (nextIdx < exercises.length) {
@@ -1486,7 +1487,8 @@ function SessionContent() {
               ) : (
                 // Display comprehension question
                 <div>
-                  <h2 className="text-sm font-bold text-[#002844] mb-4">
+                  {/* V3.16: question 28px bold */}
+                  <h2 className="font-bold text-[#002844] mb-4" style={{ fontSize: '28px' }}>
                     {lang === 'fr' ? 'Question de compréhension :' : 'Reading comprehension:'}
                   </h2>
                   <p className="text-base font-semibold text-[#002844] mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -1497,7 +1499,8 @@ function SessionContent() {
             </div>
           ) : currentExercise.type === 'speaking_repeat' ? (
             <div>
-              <h2 className="text-base font-bold text-[#002844] mb-4">
+              {/* V3.16: question 28px bold */}
+              <h2 className="font-bold text-[#002844] mb-4" style={{ fontSize: '28px' }}>
                 {lang === 'fr' ? 'Prononcez :' : 'Say:'}
               </h2>
               <div className="p-6 bg-blue-50 rounded-xl border-2 border-[#D9B438] text-center mb-4">
@@ -1511,7 +1514,8 @@ function SessionContent() {
             </div>
           ) : (
             <div>
-              <h2 className="text-sm font-semibold text-[#555555] mb-2">
+              {/* V3.16: question 28px bold */}
+              <h2 className="font-bold text-[#002844] mb-2" style={{ fontSize: '28px' }}>
                 {currentExercise.type === 'vocab_translate'
                   ? (lang === 'fr' ? 'Traduisez ce mot :' : 'Translate this word:')
                   : (lang === 'fr' ? 'Répondez :' : 'Answer:')}
