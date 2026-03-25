@@ -366,15 +366,7 @@ export default function DashboardPage() {
           const todayStr = new Date().toISOString().split('T')[0]
           const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
           const coffreDone = (progress?.dailyWordsCompleted || 0) > 0
-          const courseCompleted = (() => {
-            try {
-              const key = `lingualearn_course_scores_${user.id}_${activeLang}`
-              const stored = localStorage.getItem(key)
-              const scores = stored ? JSON.parse(stored) : {}
-              const courseId = nextCourseInfo.url.split('courseId=')[1]
-              return courseId && scores[courseId] && scores[courseId].score >= 60
-            } catch { return false }
-          })()
+          // V3.14: courseCompleted removed — stars now computed inline with progressive logic
 
           // Persist today as completed if session done
           if (sessionDoneToday) {
@@ -405,7 +397,26 @@ export default function DashboardPage() {
                 </svg>
               ),
               label: lang === 'fr' ? 'Nouveaux mots' : 'New words',
-              indicator: renderStars(coffreDone ? 3 : 0),
+              indicator: (() => {
+                // V3.14: progressive stars based on real coffre progress
+                // Check saved coffre session for partial progress
+                try {
+                  const coffreKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`
+                  const saved = localStorage.getItem(coffreKey)
+                  if (coffreDone) return renderStars(3)
+                  if (saved) {
+                    const s = JSON.parse(saved)
+                    const todayStr2 = new Date().toISOString().split('T')[0]
+                    if (s.date === todayStr2 && s.exercises?.length > 0) {
+                      const pct = Math.round((s.exerciseIndex / s.exercises.length) * 100)
+                      if (pct >= 100) return renderStars(3)
+                      if (pct >= 66) return renderStars(2)
+                      if (pct >= 33) return renderStars(1)
+                    }
+                  }
+                } catch { /* ignore */ }
+                return renderStars(0)
+              })(),
             },
             {
               href: '/module/revisions',
@@ -421,7 +432,22 @@ export default function DashboardPage() {
               bg: '#1976D2',
               icon: <span style={{ fontSize: '36px' }}>▶️</span>,
               label: lang === 'fr' ? 'Cours du jour' : "Today's course",
-              indicator: courseCompleted ? renderStars(3) : renderStars(0),
+              indicator: (() => {
+                // V3.14: progressive stars based on course score
+                try {
+                  const key = `lingualearn_course_scores_${user.id}_${activeLang}`
+                  const stored = localStorage.getItem(key)
+                  const scores = stored ? JSON.parse(stored) : {}
+                  const courseId = nextCourseInfo.url.split('courseId=')[1]
+                  if (courseId && scores[courseId]) {
+                    const score = scores[courseId].score || 0
+                    if (score >= 100) return renderStars(3)
+                    if (score >= 66) return renderStars(2)
+                    if (score >= 33) return renderStars(1)
+                  }
+                } catch { /* ignore */ }
+                return renderStars(0)
+              })(),
             },
             {
               href: '/module/cours',
@@ -435,7 +461,25 @@ export default function DashboardPage() {
               bg: '#E65100',
               icon: <span style={{ fontSize: '36px' }}>🎯</span>,
               label: lang === 'fr' ? 'Entraînement' : 'Training',
-              indicator: sessionDoneToday ? renderStars(3) : renderStars(0),
+              indicator: (() => {
+                // V3.14: progressive stars based on flashcard progress
+                if (sessionDoneToday) return renderStars(3)
+                try {
+                  const flashKey = `lingualearn_flashcard_progress_${user.id}_${activeLang}`
+                  const saved = localStorage.getItem(flashKey)
+                  if (saved) {
+                    const s = JSON.parse(saved)
+                    const todayStr2 = new Date().toISOString().split('T')[0]
+                    if (s.date === todayStr2 && s.cards?.length > 0) {
+                      const pct = Math.round((s.currentIndex / s.cards.length) * 100)
+                      if (pct >= 100) return renderStars(3)
+                      if (pct >= 66) return renderStars(2)
+                      if (pct >= 33) return renderStars(1)
+                    }
+                  }
+                } catch { /* ignore */ }
+                return renderStars(0)
+              })(),
             },
           ]
 
@@ -443,7 +487,7 @@ export default function DashboardPage() {
             <div className="mb-4">
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
               {/* V3.13: 5 ronds répartis uniformément sur toute la largeur */}
-              <div className="flex justify-evenly items-center w-full overflow-x-auto pb-2">
+              <div className="flex justify-between items-center w-full overflow-x-auto pb-2">
                 {entries.map((entry, idx) => (
                   <a key={idx} href={entry.href}
                     className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"

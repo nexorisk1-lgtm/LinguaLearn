@@ -80,31 +80,42 @@ export default function CoffrePage() {
 
     const wordsPerDay = currentUser.settings.schedules?.[aLang]?.wordsPerDay || 8;
 
-    // Get vocabulary pool and pick daily words
-    const themes = config?.themes || [];
-    const allVocab = getVocabulary(aLang, themes, 'A1');
-    const shuffled = shuffleArray(allVocab);
-    const picked = shuffled.slice(0, Math.min(wordsPerDay, shuffled.length));
-    setDailyWords(picked);
+    // V3.14: Check for saved session to resume
+    const savedKey = `lingualearn_coffre_progress_${currentUser.id}_${aLang}`;
+    const savedSession = (() => { try { const s = localStorage.getItem(savedKey); return s ? JSON.parse(s) : null; } catch { return null; } })();
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    // Build exercise sequence: each word goes through multiple steps
-    // Parcours A: 5 steps (discovery, recognition, qcm, oral, writing) = 4-5 repetitions
-    // Parcours B: 4 steps (discovery, recognition, qcm, oral) = 3 repetitions (no writing)
-    const steps: CoffreStep[] = pathB
-      ? ['discovery', 'recognition', 'qcm_translation', 'oral']
-      : ['discovery', 'recognition', 'qcm_translation', 'oral', 'writing'];
+    if (savedSession && savedSession.date === todayStr && savedSession.exerciseIndex > 0) {
+      // Resume from saved position
+      setDailyWords(savedSession.dailyWords || []);
+      setExercises(savedSession.exercises || []);
+      setCurrentExIdx(savedSession.exerciseIndex);
+      setCorrectCount(savedSession.correctCount || 0);
+      setTotalCount(savedSession.totalCount || 0);
+      setPhase('learning'); // Skip welcome, go straight to exercises
+    } else {
+      // New session: pick words and build exercises
+      const themes = config?.themes || [];
+      const allVocab = getVocabulary(aLang, themes, 'A1');
+      const shuffled = shuffleArray(allVocab);
+      const picked = shuffled.slice(0, Math.min(wordsPerDay, shuffled.length));
+      setDailyWords(picked);
 
-    const allExercises: WordExercise[] = [];
-    // Group by step so user does all words in discovery, then all in recognition, etc.
-    for (const step of steps) {
-      const stepExercises = picked.map(word => ({
-        word,
-        step,
-        completed: false,
-      }));
-      allExercises.push(...shuffleArray(stepExercises));
+      const steps: CoffreStep[] = pathB
+        ? ['discovery', 'recognition', 'qcm_translation', 'oral']
+        : ['discovery', 'recognition', 'qcm_translation', 'oral', 'writing'];
+
+      const allExercises: WordExercise[] = [];
+      for (const step of steps) {
+        const stepExercises = picked.map(word => ({
+          word,
+          step,
+          completed: false,
+        }));
+        allExercises.push(...shuffleArray(stepExercises));
+      }
+      setExercises(allExercises);
     }
-    setExercises(allExercises);
 
     // Init speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -140,6 +151,46 @@ export default function CoffrePage() {
     return shuffled.slice(0, count).map(w => w.word_target);
   };
 
+  // V3.14: Save coffre position to localStorage after each exercise
+  const saveCoffrePosition = (nextIdx: number, newCorrect: number, newTotal: number) => {
+    if (!user) return;
+    const savedKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`;
+    const todayStr = new Date().toISOString().split('T')[0];
+    try {
+      localStorage.setItem(savedKey, JSON.stringify({
+        date: todayStr,
+        exerciseIndex: nextIdx,
+        dailyWords,
+        exercises,
+        correctCount: newCorrect,
+        totalCount: newTotal,
+      }));
+    } catch { /* ignore storage errors */ }
+  };
+
+  // V3.14: Clear coffre saved position (on completion)
+  const clearCoffrePosition = () => {
+    if (!user) return;
+    const savedKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`;
+    try { localStorage.removeItem(savedKey); } catch { /* ignore */ }
+  };
+
+  // V3.14: Increment dailyWordsCompleted in real-time (called after each scored exercise)
+  const incrementDailyWords = () => {
+    if (!user) return;
+    const progress = user.progress?.[activeLang];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const lastDay = progress?.lastActivityDate?.split('T')[0];
+    const prevWords = (lastDay === todayStr ? progress?.dailyWordsCompleted : 0) || 0;
+    updateUserProgress(user.id, activeLang, {
+      dailyWordsCompleted: prevWords + 1,
+      lastActivityDate: new Date().toISOString(),
+    });
+    // Update local user state to keep in sync
+    const refreshed = getCurrentUser();
+    if (refreshed) setUser(refreshed);
+  };
+
   const handleNextExercise = () => {
     setSelectedOption(null);
     setShowFeedback(false);
@@ -148,26 +199,22 @@ export default function CoffrePage() {
     setIsRecording(false);
 
     if (currentExIdx + 1 >= exercises.length) {
-      // Save progress
+      // Session complete — save final progress & clear saved position
       if (user) {
-        const progress = user.progress?.[activeLang];
-        const todayStr = new Date().toISOString().split('T')[0];
-        const lastDay = progress?.lastActivityDate?.split('T')[0];
-        const prevWords = (lastDay === todayStr ? progress?.dailyWordsCompleted : 0) || 0;
-        updateUserProgress(user.id, activeLang, {
-          dailyWordsCompleted: prevWords + correctCount,
-          lastActivityDate: new Date().toISOString(),
-        });
         // Add all words to personal vocab + spaced repetition
         const scorePct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
         for (const w of dailyWords) {
           addToPersonalVocab(user.id, w.id, 'learned');
           saveReviewItem(user.id, activeLang, w.id, 'word', scorePct);
         }
+        clearCoffrePosition();
       }
       setPhase('summary');
     } else {
-      setCurrentExIdx(prev => prev + 1);
+      const nextIdx = currentExIdx + 1;
+      setCurrentExIdx(nextIdx);
+      // V3.14: Save position after each advance
+      saveCoffrePosition(nextIdx, correctCount, totalCount);
     }
   };
 
@@ -178,7 +225,10 @@ export default function CoffrePage() {
     setIsCorrect(correct);
     setShowFeedback(true);
     setTotalCount(prev => prev + 1);
-    if (correct) setCorrectCount(prev => prev + 1);
+    if (correct) {
+      setCorrectCount(prev => prev + 1);
+      incrementDailyWords(); // V3.14: real-time objective
+    }
     setTimeout(handleNextExercise, 1200);
   };
 
@@ -188,7 +238,10 @@ export default function CoffrePage() {
     setIsCorrect(correct);
     setShowFeedback(true);
     setTotalCount(prev => prev + 1);
-    if (correct) setCorrectCount(prev => prev + 1);
+    if (correct) {
+      setCorrectCount(prev => prev + 1);
+      incrementDailyWords(); // V3.14: real-time objective
+    }
     setTimeout(handleNextExercise, 1200);
   };
 
@@ -208,7 +261,10 @@ export default function CoffrePage() {
         setIsCorrect(correct);
         setShowFeedback(true);
         setTotalCount(prev => prev + 1);
-        if (correct) setCorrectCount(prev => prev + 1);
+        if (correct) {
+          setCorrectCount(prev => prev + 1);
+          incrementDailyWords(); // V3.14: real-time objective
+        }
         setTimeout(handleNextExercise, 1500);
       }
     };
@@ -328,17 +384,9 @@ export default function CoffrePage() {
   const word = currentExercise.word;
   const step = currentExercise.step;
 
-  // Step label
-  const stepLabel = (() => {
-    const labels: Record<CoffreStep, { fr: string; en: string }> = {
-      discovery: { fr: 'Découverte', en: 'Discovery' },
-      recognition: { fr: 'Reconnaissance', en: 'Recognition' },
-      qcm_translation: { fr: 'Traduction', en: 'Translation' },
-      oral: { fr: 'Prononciation', en: 'Pronunciation' },
-      writing: { fr: 'Écriture', en: 'Writing' },
-    };
-    return lang === 'fr' ? labels[step].fr : labels[step].en;
-  })();
+  // V3.14: Step label removed from UI but kept for accessibility
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _step = step;
 
   return (
     <div className="min-h-screen pb-20 bg-[#F0F0F0]">
@@ -348,7 +396,7 @@ export default function CoffrePage() {
       <div className="bg-[#002844] px-4 pb-3">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-xs text-white/60">{stepLabel}</p>
+            {/* V3.14: step label removed — progress bar only */}
             <div className="h-1.5 w-full bg-white/20 rounded-full mt-1">
               <div className="h-full bg-[#D9B438] rounded-full transition-all" style={{ width: `${progressPct}%` }} />
             </div>
@@ -392,15 +440,18 @@ export default function CoffrePage() {
                 <p className="text-sm font-bold text-[#002844] mb-4">
                   {lang === 'fr' ? "Qu'as-tu entendu ?" : 'What did you hear?'}
                 </p>
+                {/* V3.14: speaker 80px */}
                 <button onClick={() => speakText(word.word_target, activeLang)}
-                  className="mx-auto mb-6 w-16 h-16 rounded-full bg-[#002844] flex items-center justify-center hover:bg-[#003a5c] transition-colors shadow-lg">
-                  <Volume2 className="h-7 w-7 text-white" />
+                  className="mx-auto mb-6 rounded-full bg-[#002844] flex items-center justify-center hover:bg-[#003a5c] transition-colors shadow-lg"
+                  style={{ width: '80px', height: '80px' }}>
+                  <Volume2 className="h-8 w-8 text-white" />
                 </button>
+                {/* V3.14: options 24px min font */}
                 <div className="space-y-3">
                   {options.map((opt, i) => {
                     const isSelected = selectedOption === opt;
                     const isAnswer = opt === word.word_target;
-                    let btnClass = 'w-full py-3.5 rounded-xl text-sm font-bold transition-all ';
+                    let btnClass = 'w-full py-3.5 rounded-xl font-bold transition-all ';
                     if (showFeedback) {
                       if (isAnswer) btnClass += 'bg-green-100 text-green-800 border-2 border-green-500';
                       else if (isSelected && !isAnswer) btnClass += 'bg-red-100 text-red-800 border-2 border-red-400';
@@ -411,7 +462,8 @@ export default function CoffrePage() {
                         : 'bg-white text-[#002844] border border-gray-200 hover:border-[#002844]';
                     }
                     return (
-                      <button key={i} onClick={() => handleQCMSelect(opt, word.word_target)} className={btnClass} disabled={showFeedback}>
+                      <button key={i} onClick={() => handleQCMSelect(opt, word.word_target)} className={btnClass} disabled={showFeedback}
+                        style={{ fontSize: '24px', minHeight: '56px' }}>
                         {opt}
                       </button>
                     );
@@ -437,11 +489,12 @@ export default function CoffrePage() {
                   {lang === 'fr' ? 'Quelle est la traduction ?' : 'What is the translation?'}
                 </p>
                 <p className="text-3xl font-bold text-[#002844] mb-6">{word.word_target}</p>
+                {/* V3.14: options 24px min font */}
                 <div className="space-y-3">
                   {options.map((opt, i) => {
                     const isSelected = selectedOption === opt;
                     const isAnswer = opt === word.word_fr;
-                    let btnClass = 'w-full py-3.5 rounded-xl text-sm font-bold transition-all ';
+                    let btnClass = 'w-full py-3.5 rounded-xl font-bold transition-all ';
                     if (showFeedback) {
                       if (isAnswer) btnClass += 'bg-green-100 text-green-800 border-2 border-green-500';
                       else if (isSelected && !isAnswer) btnClass += 'bg-red-100 text-red-800 border-2 border-red-400';
@@ -452,7 +505,8 @@ export default function CoffrePage() {
                         : 'bg-white text-[#002844] border border-gray-200 hover:border-[#002844]';
                     }
                     return (
-                      <button key={i} onClick={() => handleQCMSelect(opt, word.word_fr)} className={btnClass} disabled={showFeedback}>
+                      <button key={i} onClick={() => handleQCMSelect(opt, word.word_fr)} className={btnClass} disabled={showFeedback}
+                        style={{ fontSize: '24px', minHeight: '56px' }}>
                         {opt}
                       </button>
                     );
@@ -510,9 +564,11 @@ export default function CoffrePage() {
               <p className="text-sm font-bold text-[#002844] mb-2">
                 {lang === 'fr' ? 'Écrivez le mot entendu :' : 'Write the word you hear:'}
               </p>
+              {/* V3.14: speaker 80px */}
               <button onClick={() => speakText(word.word_target, activeLang)}
-                className="mx-auto mb-6 w-16 h-16 rounded-full bg-[#002844] flex items-center justify-center hover:bg-[#003a5c] transition-colors shadow-lg">
-                <Volume2 className="h-7 w-7 text-white" />
+                className="mx-auto mb-6 rounded-full bg-[#002844] flex items-center justify-center hover:bg-[#003a5c] transition-colors shadow-lg"
+                style={{ width: '80px', height: '80px' }}>
+                <Volume2 className="h-8 w-8 text-white" />
               </button>
               <input
                 type="text"

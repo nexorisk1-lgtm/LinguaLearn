@@ -35,14 +35,31 @@ export default function EntrainementPage() {
     if (!u) { router.push('/auth'); return }
     setUser(u)
 
-    const activeLang = u.activeLang || u.settings.learningLangs[0] || 'en'
-    const themes = u.settings.languageConfigs?.[activeLang]?.themes || ['travel']
-    const level = u.progress?.[activeLang]?.levelCecrl || 'A1'
-    const vocab = getVocabulary(activeLang, themes, level)
+    const aLang = u.activeLang || u.settings.learningLangs[0] || 'en'
+    const themes = u.settings.languageConfigs?.[aLang]?.themes || ['travel']
+    const level = u.progress?.[aLang]?.levelCecrl || 'A1'
 
-    // Pick 8 random words for flashcard session
-    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
-    setCards(shuffled.map(w => ({ word: w, flipped: false })))
+    // V3.14: Check for saved flashcard session to resume
+    const savedKey = `lingualearn_flashcard_progress_${u.id}_${aLang}`
+    const todayStr = new Date().toISOString().split('T')[0]
+    let resumed = false
+    try {
+      const saved = localStorage.getItem(savedKey)
+      if (saved) {
+        const s = JSON.parse(saved)
+        if (s.date === todayStr && s.currentIndex > 0 && s.cards?.length > 0) {
+          setCards(s.cards)
+          setCurrentIndex(s.currentIndex)
+          resumed = true
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (!resumed) {
+      const vocab = getVocabulary(aLang, themes, level)
+      const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
+      setCards(shuffled.map(w => ({ word: w, flipped: false })))
+    }
     setLoading(false)
   }, [router])
 
@@ -69,6 +86,21 @@ export default function EntrainementPage() {
     }, 150)
   }
 
+  // V3.14: Save flashcard position to localStorage
+  const saveFlashcardPosition = (updatedCards: FlashCard[], nextIndex: number) => {
+    if (!user) return
+    const savedKey = `lingualearn_flashcard_progress_${user.id}_${activeLang}`
+    const todayStr = new Date().toISOString().split('T')[0]
+    try {
+      localStorage.setItem(savedKey, JSON.stringify({ date: todayStr, cards: updatedCards, currentIndex: nextIndex }))
+    } catch { /* ignore */ }
+  }
+  const clearFlashcardPosition = () => {
+    if (!user) return
+    const savedKey = `lingualearn_flashcard_progress_${user.id}_${activeLang}`
+    try { localStorage.removeItem(savedKey) } catch { /* ignore */ }
+  }
+
   // Self-assessment buttons
   const handleAssessment = (result: 'knew' | 'hard' | 'didnt_know') => {
     const updated = [...cards]
@@ -83,8 +115,11 @@ export default function EntrainementPage() {
     setTimeout(() => {
       if (currentIndex + 1 >= cards.length) {
         setSessionDone(true)
+        clearFlashcardPosition() // V3.14: clear on completion
       } else {
-        setCurrentIndex(prev => prev + 1)
+        const nextIdx = currentIndex + 1
+        setCurrentIndex(nextIdx)
+        saveFlashcardPosition(updated, nextIdx) // V3.14: save position
       }
     }, 300)
   }
@@ -97,6 +132,7 @@ export default function EntrainementPage() {
     setCards(shuffled.map(w => ({ word: w, flipped: false })))
     setCurrentIndex(0)
     setSessionDone(false)
+    clearFlashcardPosition() // V3.14: clear saved position on restart
   }
 
   const tabs = [
@@ -151,7 +187,7 @@ export default function EntrainementPage() {
                   <div className="flex-1 rounded-xl p-3 bg-orange-50">
                     <HelpCircle className="h-5 w-5 mx-auto text-orange-500 mb-1" />
                     <p className="text-lg font-bold text-orange-600">{hardCount}</p>
-                    <p className="text-[10px] text-orange-500 font-semibold">{lang === 'fr' ? 'Difficile' : 'Hard'}</p>
+                    <p className="text-[10px] text-orange-500 font-semibold">{lang === 'fr' ? "J'ai hésité" : 'Hard'}</p>
                   </div>
                   <div className="flex-1 rounded-xl p-3 bg-red-50">
                     <X className="h-5 w-5 mx-auto text-red-500 mb-1" />
@@ -268,7 +304,7 @@ export default function EntrainementPage() {
                     <button onClick={() => handleAssessment('hard')}
                       className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-orange-50 border-2 border-orange-200 hover:border-orange-400">
                       <HelpCircle className="h-5 w-5 text-orange-500" />
-                      <span className="text-orange-600">{lang === 'fr' ? 'Difficile' : 'Hard'}</span>
+                      <span className="text-orange-600">{lang === 'fr' ? "J'ai hésité" : 'Hard'}</span>
                     </button>
                     <button onClick={() => handleAssessment('knew')}
                       className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-green-50 border-2 border-green-200 hover:border-green-400">
