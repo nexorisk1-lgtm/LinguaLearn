@@ -185,20 +185,19 @@ export default function CoffrePage() {
     try { localStorage.removeItem(savedKey); } catch { /* ignore */ }
   };
 
-  // V3.14: Increment dailyWordsCompleted in real-time (called after each scored exercise)
+  // V3.18 BUG-70: Read prevWords fresh from localStorage (not stale component state)
   const incrementDailyWords = () => {
     if (!user) return;
-    const progress = user.progress?.[activeLang];
     const todayStr = new Date().toISOString().split('T')[0];
-    const lastDay = progress?.lastActivityDate?.split('T')[0];
-    const prevWords = (lastDay === todayStr ? progress?.dailyWordsCompleted : 0) || 0;
+    // Read fresh from localStorage to avoid stale closure
+    const freshUser = getCurrentUser();
+    const freshProgress = freshUser?.progress?.[activeLang];
+    const freshLastDay = freshProgress?.lastActivityDate?.split('T')[0];
+    const prevWords = (freshLastDay === todayStr ? freshProgress?.dailyWordsCompleted : 0) || 0;
     updateUserProgress(user.id, activeLang, {
       dailyWordsCompleted: prevWords + 1,
       lastActivityDate: new Date().toISOString(),
     });
-    // Update local user state to keep in sync
-    const refreshed = getCurrentUser();
-    if (refreshed) setUser(refreshed);
   };
 
   const handleNextExercise = () => {
@@ -217,6 +216,28 @@ export default function CoffrePage() {
           saveReviewItem(user.id, activeLang, w.id, 'word', scorePct);
         }
         clearCoffrePosition();
+
+        // V3.18 BUG-70: Mark coffre as done today (reliable marker for dashboard stars)
+        try {
+          const todayStr = new Date().toISOString().split('T')[0];
+          localStorage.setItem(`lingualearn_coffre_done_today_${user.id}`, todayStr);
+        } catch { /* ignore */ }
+
+        // V3.18 BUG-71: Increment objectiveProgress.vocabulaire
+        // Coffre words count as vocabulary progress (5% per word learned)
+        try {
+          const freshUser = getCurrentUser();
+          const freshProgress = freshUser?.progress?.[activeLang];
+          const currentObjProgress = freshProgress?.objectiveProgress || {} as Record<string, number>;
+          const currentVocab = (currentObjProgress as Record<string, number>).vocabulaire || 0;
+          const increment = dailyWords.length * 5; // 5% per word, same as session/page.tsx
+          updateUserProgress(user.id, activeLang, {
+            objectiveProgress: {
+              ...currentObjProgress,
+              vocabulaire: Math.min(100, currentVocab + increment),
+            },
+          });
+        } catch { /* ignore */ }
       }
       setPhase('summary');
     } else {

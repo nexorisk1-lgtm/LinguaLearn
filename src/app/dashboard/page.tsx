@@ -399,10 +399,14 @@ export default function DashboardPage() {
                 </svg>
               ),
               label: lang === 'fr' ? 'Nouveaux mots' : 'New words',
-              // V3.16b BUG-69: Read directly from localStorage to avoid stale state
+              // V3.18 BUG-70: Check coffre_done_today marker first (most reliable)
               indicator: (() => {
                 try {
-                  // 1. Check in-progress coffre session
+                  // 1. Check if coffre was completed today (dedicated marker — same pattern as course_done_today)
+                  const coffreDoneKey = `lingualearn_coffre_done_today_${user.id}`
+                  if (localStorage.getItem(coffreDoneKey) === todayStr) return renderStars(3)
+
+                  // 2. Check in-progress coffre session for partial stars
                   const coffreKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`
                   const saved = localStorage.getItem(coffreKey)
                   if (saved) {
@@ -415,7 +419,7 @@ export default function DashboardPage() {
                       return renderStars(0)
                     }
                   }
-                  // 2. Check if coffre was completed today (read fresh from localStorage)
+                  // 3. Fallback: check dailyWordsCompleted
                   const freshUser = getCurrentUser()
                   const freshProgress = freshUser?.progress?.[activeLang]
                   const freshLastDay = freshProgress?.lastActivityDate?.split('T')[0]
@@ -629,7 +633,12 @@ export default function DashboardPage() {
               const today = new Date()
               const todayStr = today.toISOString().split('T')[0]
               // V3.16 BUG-66: Planning validated only if trio Cours + Nouveaux mots + Révisions done
-              const coffreDoneToday = (progress?.dailyWordsCompleted || 0) > 0
+              // V3.18 BUG-70: Use dedicated coffre marker for reliable detection
+              const coffreDoneToday = (() => {
+                try {
+                  return localStorage.getItem(`lingualearn_coffre_done_today_${user.id}`) === todayStr
+                } catch { return false }
+              })() || (progress?.dailyWordsCompleted || 0) > 0
               const courseDoneToday = (() => {
                 try {
                   const todayKey = `lingualearn_course_done_today_${user.id}`
