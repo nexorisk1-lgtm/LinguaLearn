@@ -232,6 +232,7 @@ function SessionContent() {
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
   const [phase, setPhase] = useState<SessionPhase>('intro')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [introCountdown, setIntroCountdown] = useState(5)
   const [exercises, setExercises] = useState<SessionExercise[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -240,6 +241,7 @@ function SessionContent() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [showFeedback, setShowFeedback] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sessionModules, setSessionModules] = useState<string[]>([])
   const [lessons, setLessons] = useState<SessionLesson[]>([])
   const [currentLessonIdx, setCurrentLessonIdx] = useState(0)
@@ -509,20 +511,15 @@ function SessionContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, buildSession])
 
-  // Intro countdown
+  // V3.11: Skip intro countdown — go directly to lessonMap (no intermediate screen)
   useEffect(() => {
     if (phase !== 'intro') return
-    if (introCountdown <= 0) {
-      if (exercises.length > 0) {
-        setPhase('lessonMap')
-      } else {
-        setPhase('summary')
-      }
-      return
+    if (exercises.length > 0) {
+      setPhase('lessonMap')
+    } else {
+      setPhase('summary')
     }
-    const timer = setTimeout(() => setIntroCountdown(prev => prev - 1), 1000)
-    return () => clearTimeout(timer)
-  }, [phase, introCountdown, exercises.length])
+  }, [phase, exercises.length])
 
   const currentExercise = exercises[currentIdx]
 
@@ -901,6 +898,7 @@ function SessionContent() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const skipIntro = () => {
     if (exercises.length > 0) {
       setPhase('lessonMap')
@@ -1010,6 +1008,7 @@ function SessionContent() {
   }
 
   const activeLang = user.activeLang || user.settings.learningLangs[0] || 'en'
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sessionDuration = user.settings.schedules?.[activeLang]?.duration || user.settings.schedule?.duration || 10
 
   const moduleIcons: Record<string, any> = {
@@ -1030,40 +1029,17 @@ function SessionContent() {
   // ==========================================
   // PHASE: INTRO (5 seconds)
   // ==========================================
+  // V3.11: intro phase skipped — goes directly to lessonMap
   if (phase === 'intro') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#002844] to-[#003a5c] flex flex-col items-center justify-center px-6 text-center">
-        <div className="mb-8">
+      <div className="min-h-screen bg-gradient-to-b from-[#002844] to-[#003a5c]">
+        <PageHeader title={lang === 'fr' ? 'Session du jour' : "Today's Session"} backHref="/dashboard" />
+        <div className="flex flex-col items-center justify-center px-6 text-center py-12">
           <div className="w-20 h-20 rounded-full bg-[#D9B438] flex items-center justify-center mx-auto mb-6 animate-pulse">
             <Play className="h-10 w-10 text-[#002844] ml-1" fill="#002844" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-3">
-            {lang === 'fr' ? 'Session du jour' : "Today's Session"}
-          </h1>
-          <p className="text-white/70 text-sm mb-2">
-            ~{sessionDuration} min · {exercises.length} {lang === 'fr' ? 'exercices' : 'exercises'}
-          </p>
-          <div className="flex gap-2 justify-center flex-wrap mt-4">
-            {sessionModules.map(mod => {
-              const Icon = moduleIcons[mod] || BookOpen
-              return (
-                <div key={mod} className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full">
-                  <Icon className="h-4 w-4 text-[#D9B438]" />
-                  <span className="text-xs text-white font-medium">{moduleLabels[mod]?.[lang] || mod}</span>
-                </div>
-              )
-            })}
-          </div>
+          <p className="text-white/70 text-sm">{lang === 'fr' ? 'Chargement...' : 'Loading...'}</p>
         </div>
-
-        <div className="text-6xl font-bold text-[#D9B438] mb-8 tabular-nums">
-          {introCountdown}
-        </div>
-
-        <button onClick={skipIntro}
-          className="text-white/50 text-sm hover:text-white transition-colors">
-          {lang === 'fr' ? 'Commencer maintenant →' : 'Start now →'}
-        </button>
       </div>
     )
   }
@@ -1073,12 +1049,12 @@ function SessionContent() {
   // ==========================================
   if (phase === 'lessonMap') {
     return (
-      <div className="min-h-screen bg-[#F0F0F0] px-4 py-8">
+      <div className="min-h-screen bg-[#F0F0F0]">
+        {/* V3.11: Standard back button → dashboard */}
+        <PageHeader title={lang === 'fr' ? 'Parcours de session' : 'Session path'} backHref="/dashboard" />
+        <div className="px-4 pt-6 pb-8">
         <div className="max-w-lg mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-[#002844] mb-2">
-              {lang === 'fr' ? 'Parcours de session' : 'Session path'}
-            </h1>
             <p className="text-sm text-[#555555]">
               {lang === 'fr'
                 ? `${lessons.filter(l => l.completed).length}/${lessons.length} leçons`
@@ -1154,6 +1130,7 @@ function SessionContent() {
               })}
             </div>
           </div>
+        </div>
         </div>
       </div>
     )

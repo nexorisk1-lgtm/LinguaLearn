@@ -117,6 +117,16 @@ export default function CoffrePage() {
 
   const currentExercise = exercises[currentExIdx];
 
+  // V3.11: Auto TTS in Discovery phase — speak word automatically when displayed
+  useEffect(() => {
+    if (!currentExercise || currentExercise.step !== 'discovery') return;
+    const timer = setTimeout(() => {
+      speakText(currentExercise.word.word_target, activeLang);
+    }, 300); // small delay for smooth transition
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentExIdx, currentExercise?.step]);
+
   // Generate distractors for QCM
   const getDistractors = (correct: VocabWord, count: number): string[] => {
     const pool = dailyWords.filter(w => w.id !== correct.id);

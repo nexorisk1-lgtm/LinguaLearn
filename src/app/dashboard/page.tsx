@@ -361,91 +361,104 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC 3 — V3.10: Pavé "Explorer" (grille 3 colonnes, icônes rondes) */}
-        <div className="rounded-2xl bg-white shadow-sm p-4 mb-4">
-          <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-          <div className="grid grid-cols-3 gap-3">
-            {/* 📦 Mes nouveaux mots */}
-            <a href="/module/coffre" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#FFF8E1] transition-colors active:scale-95">
-              <div className="w-14 h-14 rounded-full bg-[#D9B438]/15 flex items-center justify-center">
-                <span className="text-2xl">📦</span>
+        {/* BLOC 3 — V3.11: Explorer carrousel horizontal, icônes 64px, indicateurs état */}
+        {(() => {
+          const todayStr = new Date().toISOString().split('T')[0]
+          const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
+          const coffreDone = (progress?.dailyWordsCompleted || 0) > 0
+          // Check if today's course is completed
+          const courseCompleted = (() => {
+            try {
+              const key = `lingualearn_course_scores_${user.id}_${activeLang}`
+              const stored = localStorage.getItem(key)
+              const scores = stored ? JSON.parse(stored) : {}
+              const courseId = nextCourseInfo.url.split('courseId=')[1]
+              return courseId && scores[courseId] && scores[courseId].score >= 60
+            } catch { return false }
+          })()
+
+          return (
+            <div className="rounded-2xl bg-white shadow-sm p-4 mb-4">
+              <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
+              <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
+                {/* 📦 Mes nouveaux mots */}
+                <a href="/module/coffre" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
+                  <div className="w-16 h-16 rounded-full bg-[#D9B438]/15 flex items-center justify-center">
+                    <span className="text-3xl">📦</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Nouveaux mots' : 'New words'}</p>
+                  <span className="text-xs" style={{ letterSpacing: '2px' }}>{coffreDone ? '★★★' : '☆☆☆'}</span>
+                </a>
+                {/* 🔄 Mes révisions */}
+                <a href="/module/vocabulaire" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
+                  <div className="w-16 h-16 rounded-full bg-[#7B1FA2]/10 flex items-center justify-center relative">
+                    <span className="text-3xl">🔄</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Révisions' : 'Reviews'}</p>
+                  <span className="text-[11px] font-semibold text-[#7B1FA2]">{dueWordReviews > 0 ? `${dueWordReviews} ${lang === 'fr' ? 'mots' : 'words'}` : '✓'}</span>
+                </a>
+                {/* ▶️ Mon cours du jour */}
+                <a href={nextCourseInfo.url} className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
+                  <div className="w-16 h-16 rounded-full bg-[#1976D2]/10 flex items-center justify-center">
+                    <span className="text-3xl">▶️</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Cours du jour' : "Today's course"}</p>
+                  <span className="text-xs font-semibold text-[#1976D2]">{courseCompleted ? '✓' : '★'}</span>
+                </a>
+                {/* 📘 Mon parcours */}
+                <a href="/module/cours" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
+                  <div className="w-16 h-16 rounded-full bg-[#2E7D32]/10 flex items-center justify-center">
+                    <span className="text-3xl">📘</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">
+                    {lang === 'fr'
+                      ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1')
+                      : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path')}
+                  </p>
+                  <span className="text-[11px] font-semibold text-[#2E7D32]">{nextCourseInfo.progress}</span>
+                </a>
+                {/* 🎯 Entraînement */}
+                <a href="/module/entrainement" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
+                  <div className="w-16 h-16 rounded-full bg-[#E65100]/10 flex items-center justify-center">
+                    <span className="text-3xl">🎯</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
+                  {sessionDoneToday && <span className="w-3 h-3 rounded-full bg-green-500 mx-auto" />}
+                  {!sessionDoneToday && <span className="w-3 h-3 rounded-full bg-gray-200 mx-auto" />}
+                </a>
               </div>
-              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Mes nouveaux mots' : 'New words'}</p>
-            </a>
-            {/* 🔄 Mes révisions */}
-            <a href="/module/vocabulaire" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F3E5F5] transition-colors active:scale-95 relative">
-              <div className="w-14 h-14 rounded-full bg-[#7B1FA2]/10 flex items-center justify-center relative">
-                <span className="text-2xl">🔄</span>
-                {dueWordReviews > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{dueWordReviews}</span>
-                )}
-              </div>
-              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Mes révisions' : 'Reviews'}</p>
-            </a>
-            {/* ▶️ Mon cours du jour */}
-            <a href={nextCourseInfo.url} className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#E3F2FD] transition-colors active:scale-95">
-              <div className="w-14 h-14 rounded-full bg-[#1976D2]/10 flex items-center justify-center">
-                <span className="text-2xl">▶️</span>
-              </div>
-              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Mon cours du jour' : 'Today\'s course'}</p>
-            </a>
-            {/* 📘 Mon parcours */}
-            <a href="/module/cours" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#E8F5E9] transition-colors active:scale-95">
-              <div className="w-14 h-14 rounded-full bg-[#2E7D32]/10 flex items-center justify-center">
-                <span className="text-2xl">📘</span>
-              </div>
-              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">
-                {lang === 'fr'
-                  ? (nextCourseInfo.isPathB ? 'Mon parcours B' : 'Mon parcours A1')
-                  : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path')}
-              </p>
-            </a>
-            {/* 🎯 Entraînement */}
-            <a href="/module/entrainement" className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#FFF3E0] transition-colors active:scale-95">
-              <div className="w-14 h-14 rounded-full bg-[#E65100]/10 flex items-center justify-center">
-                <span className="text-2xl">🎯</span>
-              </div>
-              <p className="text-[11px] font-bold text-[#002844] text-center leading-tight">{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
-            </a>
-          </div>
-        </div>
+            </div>
+          )
+        })()}
 
         {/* BLOC 4 — V3.10: Progression + Planning (gauche 60%) | Classement (droite 40%) */}
         <div className="md:grid md:grid-cols-5 md:gap-4">
           {/* Left column (60%) — Objectifs + Planning */}
           <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
-            {/* Objective blocks */}
+            {/* V3.11: Objective blocks — empilés verticalement, 1 par ligne */}
             {(() => {
               const visibleBlocks = moduleBlocks.filter(b =>
                 b.objective === 'grammaire' || b.objective === 'vocabulaire' || (objectives as string[]).includes(b.objective)
               )
-              const gridCols = visibleBlocks.length === 2 ? 'grid-cols-2'
-                : visibleBlocks.length === 3 ? 'grid-cols-3'
-                : visibleBlocks.length === 4 ? 'grid-cols-2' : 'grid-cols-2'
               return (
-                <div className={`grid ${gridCols} gap-3`}>
-                  {visibleBlocks.map((block, idx) => {
+                <div className="space-y-2">
+                  {visibleBlocks.map(block => {
                     const Icon = block.icon
                     const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
-                    const isLast = idx === visibleBlocks.length - 1 && visibleBlocks.length % 2 !== 0
                     return (
                       <a key={block.id} href={block.href}
-                        className={`rounded-2xl p-3 shadow-sm transition-transform active:scale-95 ${isLast ? 'col-span-2 md:col-span-1' : ''}`}
+                        className="flex items-center gap-3 rounded-xl p-3 shadow-sm transition-transform active:scale-[0.98]"
                         style={{ backgroundColor: block.bgLight }}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="p-1.5 rounded-lg" style={{ backgroundColor: block.color }}>
-                            <Icon className="h-4 w-4 text-white" />
-                          </div>
+                        <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: block.color }}>
+                          <Icon className="h-4 w-4 text-white" />
                         </div>
-                        <p className="font-bold text-xs mb-1.5" style={{ color: block.color }}>{block.label}</p>
-                        <div>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-[10px] font-bold" style={{ color: block.color }}>{pct}%</span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-white/60">
+                        <p className="font-bold text-xs flex-shrink-0 w-20" style={{ color: block.color }}>{block.label}</p>
+                        <div className="flex-1">
+                          <div className="h-2 w-full rounded-full bg-white/60">
                             <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
                           </div>
                         </div>
+                        <span className="text-xs font-bold flex-shrink-0 w-8 text-right" style={{ color: block.color }}>{pct}%</span>
                       </a>
                     )
                   })}
