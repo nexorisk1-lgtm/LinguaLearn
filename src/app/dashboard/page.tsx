@@ -361,7 +361,7 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC 3 — V3.11: Explorer — icônes ≥64px, texte 15px bold, étoiles dorées, pleine largeur */}
+        {/* BLOC 3 — V3.12: Explorer — grands ronds ≥120px, titre+étoiles à l'intérieur, couleurs par entrée */}
         {(() => {
           const todayStr = new Date().toISOString().split('T')[0]
           const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
@@ -381,54 +381,84 @@ export default function DashboardPage() {
             addSessionDate(user.id, activeLang, todayStr)
           }
 
+          // Stars helper: grey ☆ or gold ★
+          const renderStars = (filled: number, total: number = 3) => (
+            <span style={{ letterSpacing: '3px', fontSize: '16px' }}>
+              {Array.from({ length: total }, (_, i) => (
+                <span key={i} style={{ color: i < filled ? '#D9B438' : '#9CA3AF' }}>{i < filled ? '★' : '☆'}</span>
+              ))}
+            </span>
+          )
+
+          // Explorer entries config
+          const entries = [
+            {
+              href: '/module/coffre',
+              bg: '#D9B438',
+              icon: (
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none">
+                  <rect x="8" y="20" width="48" height="32" rx="4" fill="#8B6914" />
+                  <rect x="8" y="20" width="48" height="12" rx="4" fill="#D9B438" />
+                  <rect x="26" y="26" width="12" height="8" rx="2" fill="#8B6914" />
+                  <circle cx="32" cy="30" r="2" fill="#D9B438" />
+                  <path d="M16 20 Q32 8 48 20" stroke="#D9B438" strokeWidth="3" fill="none" />
+                </svg>
+              ),
+              label: lang === 'fr' ? 'Nouveaux mots' : 'New words',
+              indicator: renderStars(coffreDone ? 3 : 0),
+            },
+            {
+              href: '/module/revisions',
+              bg: '#7B1FA2',
+              icon: <span style={{ fontSize: '36px' }}>🔄</span>,
+              label: lang === 'fr' ? 'Révisions' : 'Reviews',
+              indicator: dueWordReviews > 0
+                ? <span className="font-bold" style={{ fontSize: '13px', color: '#fff' }}>{dueWordReviews} {lang === 'fr' ? 'mots' : 'words'}</span>
+                : renderStars(3),
+            },
+            {
+              href: nextCourseInfo.url,
+              bg: '#1976D2',
+              icon: <span style={{ fontSize: '36px' }}>▶️</span>,
+              label: lang === 'fr' ? 'Cours du jour' : "Today's course",
+              indicator: courseCompleted ? renderStars(3) : renderStars(0),
+            },
+            {
+              href: '/module/cours',
+              bg: '#2E7D32',
+              icon: <span style={{ fontSize: '36px' }}>📘</span>,
+              label: lang === 'fr' ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1') : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path'),
+              indicator: <span className="font-bold" style={{ fontSize: '13px', color: '#fff' }}>{nextCourseInfo.progress}</span>,
+            },
+            {
+              href: '/module/entrainement',
+              bg: '#E65100',
+              icon: <span style={{ fontSize: '36px' }}>🎯</span>,
+              label: lang === 'fr' ? 'Entraînement' : 'Training',
+              indicator: sessionDoneToday ? renderStars(3) : renderStars(0),
+            },
+          ]
+
           return (
-            <div className="rounded-2xl bg-white shadow-sm p-4 mb-4">
+            <div className="mb-4">
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              <div className="flex overflow-x-auto pb-2 -mx-1 px-1 gap-2" style={{ scrollSnapType: 'x mandatory' }}>
-                {/* 📦 Nouveaux mots */}
-                <a href="/module/coffre" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="rounded-full bg-[#D9B438]/15 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
-                    <span style={{ fontSize: '28px' }}>📦</span>
-                  </div>
-                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Nouveaux mots' : 'New words'}</p>
-                  <span style={{ letterSpacing: '2px', color: '#D9B438', fontSize: '12px' }}>{coffreDone ? '★★★' : '☆☆☆'}</span>
-                </a>
-                {/* 🔄 Révisions → /module/revisions */}
-                <a href="/module/revisions" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="rounded-full bg-[#7B1FA2]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
-                    <span style={{ fontSize: '28px' }}>🔄</span>
-                  </div>
-                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Révisions' : 'Reviews'}</p>
-                  <span className="font-semibold" style={{ fontSize: '12px', color: '#D9B438' }}>{dueWordReviews > 0 ? `${dueWordReviews} ${lang === 'fr' ? 'mots' : 'words'}` : '✓'}</span>
-                </a>
-                {/* ▶️ Cours du jour */}
-                <a href={nextCourseInfo.url} className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="rounded-full bg-[#1976D2]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
-                    <span style={{ fontSize: '28px' }}>▶️</span>
-                  </div>
-                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Cours du jour' : "Today's"}</p>
-                  <span style={{ fontSize: '12px', color: '#D9B438' }}>{courseCompleted ? '✓' : '★'}</span>
-                </a>
-                {/* 📘 Parcours */}
-                <a href="/module/cours" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="rounded-full bg-[#2E7D32]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
-                    <span style={{ fontSize: '28px' }}>📘</span>
-                  </div>
-                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>
-                    {lang === 'fr' ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1') : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path')}
-                  </p>
-                  <span className="font-semibold" style={{ fontSize: '12px', color: '#D9B438' }}>{nextCourseInfo.progress}</span>
-                </a>
-                {/* 🎯 Entraînement */}
-                <a href="/module/entrainement" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="rounded-full bg-[#E65100]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
-                    <span style={{ fontSize: '28px' }}>🎯</span>
-                  </div>
-                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
-                  {sessionDoneToday
-                    ? <span className="w-3.5 h-3.5 rounded-full bg-green-500 mx-auto" />
-                    : <span className="w-3.5 h-3.5 rounded-full bg-gray-200 mx-auto" />}
-                </a>
+              <div className="grid grid-cols-3 gap-3">
+                {entries.map((entry, idx) => (
+                  <a key={idx} href={entry.href}
+                    className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
+                    style={{
+                      width: '100%',
+                      aspectRatio: '1',
+                      maxWidth: '140px',
+                      minWidth: '120px',
+                      margin: '0 auto',
+                      background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
+                    }}>
+                    <div className="mb-1">{entry.icon}</div>
+                    <p className="font-bold text-white text-center leading-tight px-2" style={{ fontSize: '12px' }}>{entry.label}</p>
+                    <div className="mt-1">{entry.indicator}</div>
+                  </a>
+                ))}
               </div>
             </div>
           )

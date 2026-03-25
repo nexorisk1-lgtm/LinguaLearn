@@ -2,21 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { RotateCcw, Volume2, Check, Trophy, Zap, Brain } from 'lucide-react'
+import { RotateCcw, Volume2, Trophy, Zap, Brain, Check, X, HelpCircle } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
-import { getCurrentUser } from '@/lib/db/localStorage'
+import { getCurrentUser, saveReviewItem } from '@/lib/db/localStorage'
 import { User } from '@/types'
 import BottomNav from '@/components/BottomNav'
-import { getVocabulary, speakText, isCloseEnough } from '@/lib/db/bankHelpers'
+import { getVocabulary, speakText } from '@/lib/db/bankHelpers'
 import { VocabWord } from '@/lib/db/bankTypes'
 
-type FlashcardState = 'front' | 'correct' | 'incorrect' | 'flipped'
 type TrainingTab = 'flashcards' | 'quiz' | 'jeux'
 
 interface FlashCard {
   word: VocabWord
-  state: FlashcardState
-  attempts: number
+  flipped: boolean
+  result?: 'knew' | 'hard' | 'didnt_know'
 }
 
 export default function EntrainementPage() {
@@ -28,25 +27,22 @@ export default function EntrainementPage() {
   // Flashcard state
   const [cards, setCards] = useState<FlashCard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [answer, setAnswer] = useState('')
-  const [submitted, setSubmitted] = useState(false)
   const [sessionDone, setSessionDone] = useState(false)
-  const [correctCount, setCorrectCount] = useState(0)
-  const [, setFailedWords] = useState<string[]>([])
+  const [isFlipping, setIsFlipping] = useState(false)
 
   useEffect(() => {
     const u = getCurrentUser()
     if (!u) { router.push('/auth'); return }
     setUser(u)
-    
+
     const activeLang = u.activeLang || u.settings.learningLangs[0] || 'en'
     const themes = u.settings.languageConfigs?.[activeLang]?.themes || ['travel']
     const level = u.progress?.[activeLang]?.levelCecrl || 'A1'
     const vocab = getVocabulary(activeLang, themes, level)
-    
-    // Pick 5 random words
-    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 5)
-    setCards(shuffled.map(w => ({ word: w, state: 'front', attempts: 0 })))
+
+    // Pick 8 random words for flashcard session
+    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
+    setCards(shuffled.map(w => ({ word: w, flipped: false })))
     setLoading(false)
   }, [router])
 
@@ -58,65 +54,49 @@ export default function EntrainementPage() {
   const lang = user.settings.interfaceLang || 'fr'
 
   const currentCard = cards[currentIndex]
-  const remainingCards = cards.filter(c => c.state !== 'correct')
 
-  const handleSubmit = () => {
-    if (!currentCard || submitted) return
-    setSubmitted(true)
-    
-    const target = currentCard.word.word_target
-    const isCorrect = answer.toLowerCase().trim() === target.toLowerCase().trim() || isCloseEnough(answer, target)
-    
-    const updated = [...cards]
-    if (isCorrect) {
-      updated[currentIndex] = { ...updated[currentIndex], state: 'correct' }
-      setCorrectCount(prev => prev + 1)
-    } else {
-      updated[currentIndex] = { ...updated[currentIndex], state: 'flipped', attempts: updated[currentIndex].attempts + 1 }
-      speakText(target, activeLang)
-    }
-    setCards(updated)
+  // Flip the card
+  const handleFlip = () => {
+    if (!currentCard || currentCard.flipped) return
+    setIsFlipping(true)
+    setTimeout(() => {
+      const updated = [...cards]
+      updated[currentIndex] = { ...updated[currentIndex], flipped: true }
+      setCards(updated)
+      setIsFlipping(false)
+      // Auto TTS on flip
+      speakText(currentCard.word.word_target, activeLang)
+    }, 150)
   }
 
-  const handleNext = () => {
+  // Self-assessment buttons
+  const handleAssessment = (result: 'knew' | 'hard' | 'didnt_know') => {
     const updated = [...cards]
-    
-    // If incorrect, move to end of pile
-    if (updated[currentIndex].state === 'flipped') {
-      updated[currentIndex] = { ...updated[currentIndex], state: 'front' }
-      const card = updated.splice(currentIndex, 1)[0]
-      updated.push(card)
-      setCards(updated)
-    }
-    
-    // Find next non-correct card
-    const remaining = updated.filter(c => c.state !== 'correct')
-    if (remaining.length === 0) {
-      setSessionDone(true)
-      // Track failed words
-      setFailedWords(updated.filter(c => c.attempts > 1).map(c => c.word.word_target))
-    } else {
-      const nextIdx = updated.findIndex(c => c.state !== 'correct')
-      setCurrentIndex(nextIdx >= 0 ? nextIdx : 0)
-    }
-    
-    setAnswer('')
-    setSubmitted(false)
+    updated[currentIndex] = { ...updated[currentIndex], result }
+    setCards(updated)
+
+    // Save to spaced repetition
+    const scorePct = result === 'knew' ? 95 : result === 'hard' ? 70 : 30
+    saveReviewItem(user.id, activeLang, currentCard.word.id, 'word', scorePct)
+
+    // Next card or finish
+    setTimeout(() => {
+      if (currentIndex + 1 >= cards.length) {
+        setSessionDone(true)
+      } else {
+        setCurrentIndex(prev => prev + 1)
+      }
+    }, 300)
   }
 
   const restartSession = () => {
-    const activeLangLocal = user.activeLang || user.settings.learningLangs[0] || 'en'
-    const themes = user.settings.languageConfigs?.[activeLangLocal]?.themes || ['travel']
-    const level = user.progress?.[activeLangLocal]?.levelCecrl || 'A1'
-    const vocab = getVocabulary(activeLangLocal, themes, level)
-    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 5)
-    setCards(shuffled.map(w => ({ word: w, state: 'front', attempts: 0 })))
+    const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
+    const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
+    const vocab = getVocabulary(activeLang, themes, level)
+    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
+    setCards(shuffled.map(w => ({ word: w, flipped: false })))
     setCurrentIndex(0)
-    setAnswer('')
-    setSubmitted(false)
     setSessionDone(false)
-    setCorrectCount(0)
-    setFailedWords([])
   }
 
   const tabs = [
@@ -125,9 +105,13 @@ export default function EntrainementPage() {
     { id: 'jeux' as TrainingTab, label: lang === 'fr' ? 'Jeux' : 'Games', icon: Trophy },
   ]
 
+  // Session stats
+  const knewCount = cards.filter(c => c.result === 'knew').length
+  const hardCount = cards.filter(c => c.result === 'hard').length
+  const didntKnowCount = cards.filter(c => c.result === 'didnt_know').length
+
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
-      {/* Header */}
       <PageHeader title={lang === 'fr' ? 'Entraînement' : 'Training'} backHref="/dashboard" />
 
       {/* Tabs */}
@@ -145,24 +129,45 @@ export default function EntrainementPage() {
       </div>
 
       <main className="px-4 pt-4">
-        {/* FLASHCARDS TAB */}
+        {/* FLASHCARDS TAB — V3.12: Flip recto/verso + 3 boutons auto-évaluation */}
         {activeTab === 'flashcards' && (
           <div className="max-w-md mx-auto">
             {sessionDone ? (
               /* Summary */
               <div className="rounded-2xl bg-white p-6 shadow-sm text-center">
-                <Trophy className="h-12 w-12 mx-auto mb-3" style={{ color: correctCount >= 3 ? '#D9B438' : '#555555' }} />
+                <Trophy className="h-12 w-12 mx-auto mb-3" style={{ color: knewCount >= 5 ? '#D9B438' : '#555555' }} />
                 <h2 className="text-xl font-bold text-[#002844] mb-2">
-                  {correctCount >= 3 ? (lang === 'fr' ? 'Session réussie !' : 'Session passed!') : (lang === 'fr' ? 'Continue tes efforts !' : 'Keep trying!')}
+                  {lang === 'fr' ? 'Session terminée !' : 'Session complete!'}
                 </h2>
-                <p className="text-sm text-[#555555] mb-4">{correctCount}/5 {lang === 'fr' ? 'correct' : 'correct'}</p>
-                
+                <p className="text-sm text-[#555555] mb-6">{cards.length} {lang === 'fr' ? 'cartes revues' : 'cards reviewed'}</p>
+
+                {/* Stats */}
+                <div className="flex gap-3 mb-6">
+                  <div className="flex-1 rounded-xl p-3 bg-green-50">
+                    <Check className="h-5 w-5 mx-auto text-green-600 mb-1" />
+                    <p className="text-lg font-bold text-green-700">{knewCount}</p>
+                    <p className="text-[10px] text-green-600 font-semibold">{lang === 'fr' ? 'Je savais' : 'I knew'}</p>
+                  </div>
+                  <div className="flex-1 rounded-xl p-3 bg-orange-50">
+                    <HelpCircle className="h-5 w-5 mx-auto text-orange-500 mb-1" />
+                    <p className="text-lg font-bold text-orange-600">{hardCount}</p>
+                    <p className="text-[10px] text-orange-500 font-semibold">{lang === 'fr' ? 'Difficile' : 'Hard'}</p>
+                  </div>
+                  <div className="flex-1 rounded-xl p-3 bg-red-50">
+                    <X className="h-5 w-5 mx-auto text-red-500 mb-1" />
+                    <p className="text-lg font-bold text-red-600">{didntKnowCount}</p>
+                    <p className="text-[10px] text-red-500 font-semibold">{lang === 'fr' ? 'Pas su' : "Didn't know"}</p>
+                  </div>
+                </div>
+
                 {/* Card results */}
                 <div className="space-y-2 mb-6">
                   {cards.map((card, i) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${card.attempts === 0 ? 'bg-green-100' : card.attempts === 1 ? 'bg-gray-100' : 'bg-red-100'}`}>
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${
+                      card.result === 'knew' ? 'bg-green-100' : card.result === 'hard' ? 'bg-orange-100' : 'bg-red-100'
+                    }`}>
                       <span className="text-sm font-medium text-[#002844]">{card.word.word_fr}</span>
-                      <span className="text-sm font-bold" style={{ color: card.attempts === 0 ? '#2e7d32' : card.attempts === 1 ? '#555555' : '#d32f2f' }}>
+                      <span className="text-sm font-bold" style={{ color: card.result === 'knew' ? '#2e7d32' : card.result === 'hard' ? '#E65100' : '#d32f2f' }}>
                         {card.word.word_target}
                       </span>
                     </div>
@@ -177,70 +182,107 @@ export default function EntrainementPage() {
                 </button>
               </div>
             ) : currentCard ? (
-              /* Active card */
+              /* Active flashcard with flip */
               <div>
                 {/* Progress */}
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-semibold text-[#555555]">
-                    {remainingCards.length} {lang === 'fr' ? 'carte(s) restante(s)' : 'card(s) remaining'}
+                    {currentIndex + 1}/{cards.length}
                   </span>
-                  <span className="text-sm font-bold text-[#D9B438]">{correctCount}/5</span>
+                  <div className="flex gap-1">
+                    {cards.map((_, i) => (
+                      <div key={i} className="w-2 h-2 rounded-full" style={{
+                        backgroundColor: i < currentIndex ? (cards[i].result === 'knew' ? '#2e7d32' : cards[i].result === 'hard' ? '#E65100' : '#d32f2f') :
+                          i === currentIndex ? '#002844' : '#D1D5DB'
+                      }} />
+                    ))}
+                  </div>
                 </div>
 
-                {/* Card */}
-                <div className={`rounded-2xl p-6 shadow-lg mb-4 transition-all ${
-                  submitted && currentCard.state === 'correct' ? 'bg-green-50 border-2 border-green-400' :
-                  submitted && currentCard.state === 'flipped' ? 'bg-red-50 border-2 border-red-300' :
-                  'bg-white border-2 border-[#D9B438]'
-                }`}>
-                  {/* French word */}
-                  <p className="text-center text-lg font-bold text-[#002844] mb-1">{currentCard.word.word_fr}</p>
-                  <p className="text-center text-xs text-[#555555] mb-4">{lang === 'fr' ? 'Traduisez en' : 'Translate to'} {activeLang.toUpperCase()}</p>
-
-                  {/* Flipped: show answer */}
-                  {submitted && currentCard.state === 'flipped' && (
-                    <div className="text-center mb-4 p-3 rounded-lg bg-white/80">
-                      <p className="text-xl font-bold text-[#002844]">{currentCard.word.word_target}</p>
-                      {currentCard.word.phonetic && <p className="text-xs italic text-[#D9B438]">/{currentCard.word.phonetic}/</p>}
-                      <button onClick={() => speakText(currentCard.word.word_target, activeLang)}
-                        className="mt-2 p-2 rounded-lg bg-[#D9B438] inline-flex">
-                        <Volume2 className="h-4 w-4 text-[#002844]" />
+                {/* Flashcard — flip animation */}
+                <div
+                  onClick={!currentCard.flipped ? handleFlip : undefined}
+                  className="relative cursor-pointer mb-6"
+                  style={{ perspective: '1000px', minHeight: '280px' }}
+                >
+                  <div
+                    className="w-full rounded-2xl shadow-lg transition-transform duration-500"
+                    style={{
+                      transformStyle: 'preserve-3d',
+                      transform: currentCard.flipped || isFlipping ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                      minHeight: '280px',
+                    }}
+                  >
+                    {/* RECTO — Mot en français + audio */}
+                    <div
+                      className="absolute inset-0 rounded-2xl p-8 flex flex-col items-center justify-center"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        backgroundColor: '#002844',
+                      }}
+                    >
+                      <p className="text-3xl font-bold text-white mb-4 text-center">{currentCard.word.word_fr}</p>
+                      <button onClick={(e) => { e.stopPropagation(); speakText(currentCard.word.word_fr, 'fr') }}
+                        className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-colors mb-6">
+                        <Volume2 className="h-6 w-6 text-white" />
                       </button>
+                      <p className="text-sm text-white/50">
+                        {lang === 'fr' ? 'Touche pour retourner' : 'Tap to flip'}
+                      </p>
                     </div>
-                  )}
 
-                  {submitted && currentCard.state === 'correct' && (
-                    <div className="text-center mb-4">
-                      <Check className="h-10 w-10 mx-auto text-green-600 mb-1" />
-                      <p className="text-lg font-bold text-green-700">{lang === 'fr' ? 'Correct !' : 'Correct!'}</p>
+                    {/* VERSO — Traduction + phonétique + exemple */}
+                    <div
+                      className="absolute inset-0 rounded-2xl p-8 flex flex-col items-center justify-center bg-white border-2 border-[#D9B438]"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg)',
+                      }}
+                    >
+                      <p className="text-3xl font-bold text-[#002844] mb-2 text-center">{currentCard.word.word_target}</p>
+                      {currentCard.word.phonetic && (
+                        <p className="text-sm italic text-[#D9B438] mb-3">/{currentCard.word.phonetic}/</p>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); speakText(currentCard.word.word_target, activeLang) }}
+                        className="w-12 h-12 rounded-full bg-[#002844]/10 flex items-center justify-center hover:bg-[#002844]/20 transition-colors mb-4">
+                        <Volume2 className="h-5 w-5 text-[#002844]" />
+                      </button>
+                      {currentCard.word.example_en && (
+                        <p className="text-xs text-[#555555] text-center italic max-w-[250px]">
+                          &ldquo;{currentCard.word.example_en}&rdquo;
+                        </p>
+                      )}
+                      <p className="text-xs text-[#999] mt-3 uppercase tracking-wide">{currentCard.word.theme} · {currentCard.word.level}</p>
                     </div>
-                  )}
-
-                  {/* Input */}
-                  {!submitted && (
-                    <input type="text" value={answer} onChange={e => setAnswer(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
-                      className="w-full px-4 py-3 rounded-xl border-2 text-center text-lg font-medium"
-                      style={{ borderColor: '#D9B438', color: '#002844' }}
-                      placeholder={lang === 'fr' ? 'Votre réponse...' : 'Your answer...'}
-                      autoFocus
-                    />
-                  )}
+                  </div>
                 </div>
 
-                {/* Buttons */}
-                {!submitted ? (
-                  <button onClick={handleSubmit} disabled={!answer.trim()}
-                    className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50"
-                    style={{ backgroundColor: '#D9B438', color: '#002844' }}>
-                    {lang === 'fr' ? 'Valider' : 'Submit'}
-                  </button>
-                ) : (
-                  <button onClick={handleNext}
-                    className="w-full py-3 rounded-xl font-bold text-sm"
-                    style={{ backgroundColor: '#002844', color: '#FFFFFF' }}>
-                    {lang === 'fr' ? 'Continuer' : 'Continue'}
-                  </button>
+                {/* 3 boutons auto-évaluation — visibles seulement côté verso */}
+                {currentCard.flipped && (
+                  <div className="flex gap-3">
+                    <button onClick={() => handleAssessment('didnt_know')}
+                      className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-red-50 border-2 border-red-200 hover:border-red-400">
+                      <X className="h-5 w-5 text-red-500" />
+                      <span className="text-red-600">{lang === 'fr' ? 'Pas su' : "Didn't know"}</span>
+                    </button>
+                    <button onClick={() => handleAssessment('hard')}
+                      className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-orange-50 border-2 border-orange-200 hover:border-orange-400">
+                      <HelpCircle className="h-5 w-5 text-orange-500" />
+                      <span className="text-orange-600">{lang === 'fr' ? 'Difficile' : 'Hard'}</span>
+                    </button>
+                    <button onClick={() => handleAssessment('knew')}
+                      className="flex-1 py-3.5 rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 bg-green-50 border-2 border-green-200 hover:border-green-400">
+                      <Check className="h-5 w-5 text-green-600" />
+                      <span className="text-green-700">{lang === 'fr' ? 'Je savais' : 'I knew'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Instruction si pas encore retourné */}
+                {!currentCard.flipped && (
+                  <p className="text-center text-xs text-[#999] mt-2">
+                    {lang === 'fr' ? 'Réfléchis à la traduction, puis retourne la carte' : 'Think of the translation, then flip the card'}
+                  </p>
                 )}
               </div>
             ) : (

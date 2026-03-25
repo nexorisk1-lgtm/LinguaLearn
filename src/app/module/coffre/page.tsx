@@ -21,7 +21,7 @@ import { VocabWord } from '@/lib/db/bankTypes';
 // ==========================================
 
 type CoffreStep = 'discovery' | 'recognition' | 'qcm_translation' | 'oral' | 'writing';
-type CoffrePhase = 'learning' | 'summary';
+type CoffrePhase = 'welcome' | 'learning' | 'summary';
 
 interface WordExercise {
   word: VocabWord;
@@ -49,7 +49,7 @@ export default function CoffrePage() {
   const [dailyWords, setDailyWords] = useState<VocabWord[]>([]);
   const [exercises, setExercises] = useState<WordExercise[]>([]);
   const [currentExIdx, setCurrentExIdx] = useState(0);
-  const [phase, setPhase] = useState<CoffrePhase>('learning');
+  const [phase, setPhase] = useState<CoffrePhase>('welcome');
   const [loading, setLoading] = useState(true);
 
   // Exercise state
@@ -225,13 +225,76 @@ export default function CoffrePage() {
     );
   }
 
+  // WELCOME PHASE — V3.12: Coffre illustration + bouton "Ouvrir"
+  if (phase === 'welcome') {
+    const wordsCount = dailyWords.length || (user.settings.schedules?.[activeLang]?.wordsPerDay || 8);
+    return (
+      <div className="min-h-screen bg-[#F0F0F0] pb-20">
+        <PageHeader title={lang === 'fr' ? 'Coffre du jour' : 'Daily chest'} backHref="/dashboard" />
+        <div className="flex flex-col items-center justify-center px-6 pt-12">
+          {/* Coffre illustration SVG */}
+          <div className="mb-8">
+            <svg viewBox="0 0 200 180" width="200" height="180" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Chest body */}
+              <rect x="30" y="70" width="140" height="90" rx="12" fill="#8B6914" />
+              <rect x="30" y="70" width="140" height="90" rx="12" stroke="#6B4F10" strokeWidth="3" />
+              {/* Wood grain lines */}
+              <line x1="50" y1="100" x2="150" y2="100" stroke="#6B4F10" strokeWidth="1.5" opacity="0.4" />
+              <line x1="50" y1="125" x2="150" y2="125" stroke="#6B4F10" strokeWidth="1.5" opacity="0.4" />
+              {/* Chest lid */}
+              <path d="M25 75 Q100 20 175 75" fill="#D9B438" stroke="#B8960F" strokeWidth="3" />
+              <rect x="30" y="60" width="140" height="20" rx="6" fill="#D9B438" />
+              <rect x="30" y="60" width="140" height="20" rx="6" stroke="#B8960F" strokeWidth="2" />
+              {/* Lock */}
+              <rect x="85" y="72" width="30" height="24" rx="5" fill="#6B4F10" />
+              <circle cx="100" cy="82" r="5" fill="#D9B438" />
+              <rect x="98" y="82" width="4" height="8" rx="1" fill="#D9B438" />
+              {/* Metal corners */}
+              <rect x="30" y="70" width="20" height="8" rx="2" fill="#B8960F" />
+              <rect x="150" y="70" width="20" height="8" rx="2" fill="#B8960F" />
+              <rect x="30" y="148" width="20" height="8" rx="2" fill="#B8960F" />
+              <rect x="150" y="148" width="20" height="8" rx="2" fill="#B8960F" />
+              {/* Sparkles */}
+              <circle cx="45" cy="45" r="3" fill="#D9B438" opacity="0.8" />
+              <circle cx="160" cy="35" r="2.5" fill="#D9B438" opacity="0.6" />
+              <circle cx="80" cy="30" r="2" fill="#D9B438" opacity="0.7" />
+              <circle cx="130" cy="25" r="3" fill="#D9B438" opacity="0.5" />
+              <path d="M55 38 l3-8 3 8 -8-5 10 0z" fill="#D9B438" opacity="0.6" />
+              <path d="M145 42 l2-6 2 6 -6-4 8 0z" fill="#D9B438" opacity="0.5" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-[#002844] mb-3 text-center">
+            {lang === 'fr' ? 'Coffre du jour' : 'Daily Chest'}
+          </h1>
+          <p className="text-[#555555] text-center mb-8 text-sm max-w-xs">
+            {lang === 'fr'
+              ? `Ouvre le coffre pour découvrir tes ${wordsCount} mots du jour`
+              : `Open the chest to discover your ${wordsCount} words of the day`}
+          </p>
+          <button onClick={() => setPhase('learning')}
+            className="px-10 py-4 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
+            style={{ backgroundColor: '#D9B438', color: '#002844' }}>
+            {lang === 'fr' ? 'Ouvrir' : 'Open'}
+          </button>
+        </div>
+        <BottomNav lang={lang} />
+      </div>
+    );
+  }
+
   // SUMMARY PHASE
   if (phase === 'summary') {
     const pct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
     return (
       <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
         <div className="max-w-lg mx-auto text-center">
-          <div className="text-6xl mb-4">📦</div>
+          <svg viewBox="0 0 80 72" width="80" height="72" fill="none" className="mx-auto mb-4">
+            <rect x="12" y="28" width="56" height="36" rx="5" fill="#8B6914" stroke="#6B4F10" strokeWidth="2" />
+            <path d="M10 30 Q40 8 70 30" fill="#D9B438" stroke="#B8960F" strokeWidth="2" />
+            <rect x="12" y="24" width="56" height="10" rx="3" fill="#D9B438" stroke="#B8960F" strokeWidth="1.5" />
+            <rect x="34" y="29" width="12" height="10" rx="2" fill="#6B4F10" />
+            <circle cx="40" cy="33" r="2" fill="#D9B438" />
+          </svg>
           <h1 className="text-2xl font-bold text-[#002844] mb-2">
             {lang === 'fr' ? 'Coffre terminé !' : 'Chest complete!'}
           </h1>
