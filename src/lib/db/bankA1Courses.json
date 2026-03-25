@@ -1,0 +1,2204 @@
+[
+  {
+    "id": "a1_c1",
+    "bloc": 1,
+    "title": "Verbe To Be : affirmation",
+    "type": "grammar",
+    "rule": {
+      "en": "I am / You are / He-She-It is / We-They are — Structure: Subject + to be + attribute. Contracted forms: I'm, you're, he's, she's, it's, we're, they're.",
+      "fr": "Je suis / Tu es / Il-Elle-C'est / Nous-Ils sommes/sont — Structure : Sujet + to be + attribut. Formes contractées : I'm, you're, he's…"
+    },
+    "examples": [
+      {
+        "en": "I am happy today.",
+        "fr": "Je suis heureux aujourd'hui."
+      },
+      {
+        "en": "She is a teacher.",
+        "fr": "Elle est professeure."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "name",
+        "definition_en": "The word used to identify a person",
+        "definition_fr": "Le mot utilisé pour identifier une personne",
+        "example_en": "My name is Emma.",
+        "example_fr": "Mon nom est Emma."
+      },
+      {
+        "word": "old",
+        "definition_en": "Having lived for many years",
+        "definition_fr": "Ayant vécu de nombreuses années",
+        "example_en": "He is very old.",
+        "example_fr": "Il est très vieux."
+      },
+      {
+        "word": "young",
+        "definition_en": "Having lived for only a short time",
+        "definition_fr": "N'ayant vécu que peu de temps",
+        "example_en": "She is young and energetic.",
+        "example_fr": "Elle est jeune et énergique."
+      },
+      {
+        "word": "tall",
+        "definition_en": "Having great height",
+        "definition_fr": "Ayant une grande taille",
+        "example_en": "My brother is tall.",
+        "example_fr": "Mon frère est grand."
+      },
+      {
+        "word": "short",
+        "definition_en": "Having little height",
+        "definition_fr": "Ayant peu de hauteur",
+        "example_en": "The child is short.",
+        "example_fr": "L'enfant est petit."
+      },
+      {
+        "word": "happy",
+        "definition_en": "Feeling or showing pleasure or contentment",
+        "definition_fr": "Ressentir ou montrer du plaisir ou de la satisfaction",
+        "example_en": "I am happy to see you.",
+        "example_fr": "Je suis content de te voir."
+      },
+      {
+        "word": "tired",
+        "definition_en": "In need of sleep or rest",
+        "definition_fr": "Ayant besoin de sommeil ou de repos",
+        "example_en": "She is tired after work.",
+        "example_fr": "Elle est fatiguée après le travail."
+      },
+      {
+        "word": "hungry",
+        "definition_en": "Feeling the need to eat",
+        "definition_fr": "Ressentir le besoin de manger",
+        "example_en": "The children are hungry.",
+        "example_fr": "Les enfants ont faim."
+      },
+      {
+        "word": "mother",
+        "definition_en": "A female parent",
+        "definition_fr": "Un parent féminin",
+        "example_en": "My mother is kind.",
+        "example_fr": "Ma mère est gentille."
+      },
+      {
+        "word": "father",
+        "definition_en": "A male parent",
+        "definition_fr": "Un parent masculin",
+        "example_en": "My father is a doctor.",
+        "example_fr": "Mon père est médecin."
+      },
+      {
+        "word": "sister",
+        "definition_en": "A girl or woman who has the same parents as another person",
+        "definition_fr": "Une fille ou femme qui a les mêmes parents qu'une autre personne",
+        "example_en": "My sister is funny.",
+        "example_fr": "Ma sœur est drôle."
+      },
+      {
+        "word": "brother",
+        "definition_en": "A boy or man who has the same parents as another person",
+        "definition_fr": "Un garçon ou homme qui a les mêmes parents qu'une autre personne",
+        "example_en": "Her brother is tall.",
+        "example_fr": "Son frère est grand."
+      },
+      {
+        "word": "son",
+        "definition_en": "A male child of a parent",
+        "definition_fr": "Un enfant masculin d'un parent",
+        "example_en": "Their son is three years old.",
+        "example_fr": "Leur fils a trois ans."
+      },
+      {
+        "word": "daughter",
+        "definition_en": "A female child of a parent",
+        "definition_fr": "Un enfant féminin d'un parent",
+        "example_en": "Their youngest daughter is five years old.",
+        "example_fr": "Leur fille cadette a cinq ans."
+      },
+      {
+        "word": "friend",
+        "definition_en": "A person you know well and like",
+        "definition_fr": "Une personne que vous connaissez bien et que vous appréciez",
+        "example_en": "She is my best friend.",
+        "example_fr": "Elle est ma meilleure amie."
+      }
+    ]
+  },
+  {
+    "id": "a1_c2",
+    "bloc": 1,
+    "title": "Le pluriel des noms",
+    "type": "grammar",
+    "rule": {
+      "en": "+s (regular) / +es (box→boxes) / +ies (baby→babies) / Irregular: man→men, child→children, woman→women, tooth→teeth, foot→feet",
+      "fr": "+s (régulier) / +es (box→boxes) / +ies (baby→babies) / Irréguliers : man→men, child→children, woman→women, tooth→teeth, foot→feet"
+    },
+    "examples": [
+      {
+        "en": "I have three books.",
+        "fr": "J'ai trois livres."
+      },
+      {
+        "en": "The children are playing.",
+        "fr": "Les enfants jouent."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "book",
+        "definition_en": "A set of written or printed pages bound together",
+        "definition_fr": "Un ensemble de pages écrites ou imprimées reliées ensemble",
+        "example_en": "I read a good book last night.",
+        "example_fr": "J'ai lu un bon livre hier soir."
+      },
+      {
+        "word": "bag",
+        "definition_en": "A container made of flexible material for carrying things",
+        "definition_fr": "Un contenant en matière souple pour porter des objets",
+        "example_en": "She has a red bag.",
+        "example_fr": "Elle a un sac rouge."
+      },
+      {
+        "word": "box",
+        "definition_en": "A rigid container with a flat base and sides",
+        "definition_fr": "Un contenant rigide avec une base plate et des côtés",
+        "example_en": "There are two boxes on the table.",
+        "example_fr": "Il y a deux boîtes sur la table."
+      },
+      {
+        "word": "child",
+        "definition_en": "A young human being below the age of puberty",
+        "definition_fr": "Un jeune être humain en dessous de l'âge de la puberté",
+        "example_en": "The child is playing in the garden.",
+        "example_fr": "L'enfant joue dans le jardin."
+      },
+      {
+        "word": "woman",
+        "definition_en": "An adult human female",
+        "definition_fr": "Une femme adulte",
+        "example_en": "That woman is my teacher.",
+        "example_fr": "Cette femme est ma professeure."
+      },
+      {
+        "word": "man",
+        "definition_en": "An adult human male",
+        "definition_fr": "Un homme adulte",
+        "example_en": "The man is reading a newspaper.",
+        "example_fr": "L'homme lit un journal."
+      },
+      {
+        "word": "tooth",
+        "definition_en": "Each of the hard white structures in the jaws used for biting",
+        "definition_fr": "Chacune des structures dures et blanches dans les mâchoires utilisées pour mordre",
+        "example_en": "I brush my teeth every morning.",
+        "example_fr": "Je me brosse les dents chaque matin."
+      },
+      {
+        "word": "foot",
+        "definition_en": "The lower extremity of the leg below the ankle",
+        "definition_fr": "L'extrémité inférieure de la jambe en dessous de la cheville",
+        "example_en": "My left foot hurts.",
+        "example_fr": "Mon pied gauche me fait mal."
+      },
+      {
+        "word": "teacher",
+        "definition_en": "A person who teaches in a school",
+        "definition_fr": "Une personne qui enseigne dans une école",
+        "example_en": "My teacher is very patient.",
+        "example_fr": "Mon professeur est très patient."
+      },
+      {
+        "word": "student",
+        "definition_en": "A person studying at a school or university",
+        "definition_fr": "Une personne qui étudie dans une école ou une université",
+        "example_en": "She is a good student.",
+        "example_fr": "C'est une bonne élève."
+      },
+      {
+        "word": "class",
+        "definition_en": "A group of students who are taught together",
+        "definition_fr": "Un groupe d'élèves enseignés ensemble",
+        "example_en": "Our class has twenty students.",
+        "example_fr": "Notre classe a vingt élèves."
+      },
+      {
+        "word": "school",
+        "definition_en": "An institution for educating children",
+        "definition_fr": "Un établissement pour éduquer les enfants",
+        "example_en": "She goes to school by bus.",
+        "example_fr": "Elle va à l'école en bus."
+      }
+    ]
+  },
+  {
+    "id": "a1_c3",
+    "bloc": 1,
+    "title": "To Be : interrogation et négation",
+    "type": "grammar",
+    "rule": {
+      "en": "Questions: Is she…? / Are you…? (invert subject and verb). Negation: I am not / She isn't / They aren't.",
+      "fr": "Questions : Is she…? / Are you…? (inversion sujet/verbe). Négation : I am not / She isn't / They aren't."
+    },
+    "examples": [
+      {
+        "en": "Are you a student?",
+        "fr": "Êtes-vous étudiant ?"
+      },
+      {
+        "en": "She isn't a nurse.",
+        "fr": "Elle n'est pas infirmière."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "doctor",
+        "definition_en": "A person qualified to practise medicine",
+        "definition_fr": "Une personne qualifiée pour pratiquer la médecine",
+        "example_en": "Is he a doctor?",
+        "example_fr": "Est-il médecin ?"
+      },
+      {
+        "word": "nurse",
+        "definition_en": "A person trained to care for sick people",
+        "definition_fr": "Une personne formée pour soigner les malades",
+        "example_en": "The nurse is very kind.",
+        "example_fr": "L'infirmière est très gentille."
+      },
+      {
+        "word": "engineer",
+        "definition_en": "A person who designs or builds machines or structures",
+        "definition_fr": "Une personne qui conçoit ou construit des machines ou des structures",
+        "example_en": "My father is an engineer.",
+        "example_fr": "Mon père est ingénieur."
+      },
+      {
+        "word": "police",
+        "definition_en": "The civil force responsible for maintaining public order",
+        "definition_fr": "La force civile chargée de maintenir l'ordre public",
+        "example_en": "The police officer is on duty.",
+        "example_fr": "Le policier est en service."
+      },
+      {
+        "word": "artist",
+        "definition_en": "A person who creates works of art",
+        "definition_fr": "Une personne qui crée des œuvres d'art",
+        "example_en": "She is a talented artist.",
+        "example_fr": "C'est une artiste talentueuse."
+      },
+      {
+        "word": "manager",
+        "definition_en": "A person responsible for controlling a business or team",
+        "definition_fr": "Une personne responsable de la gestion d'une entreprise ou d'une équipe",
+        "example_en": "He is the manager of a big company.",
+        "example_fr": "Il est directeur d'une grande entreprise."
+      },
+      {
+        "word": "chef",
+        "definition_en": "A professional cook in a restaurant or hotel",
+        "definition_fr": "Un cuisinier professionnel dans un restaurant ou un hôtel",
+        "example_en": "The chef is preparing dinner.",
+        "example_fr": "Le chef prépare le dîner."
+      }
+    ]
+  },
+  {
+    "id": "a1_c4",
+    "bloc": 1,
+    "title": "Articles A / An / The",
+    "type": "grammar",
+    "rule": {
+      "en": "Vowel sound → an / Consonant sound → a / Definite → the / No article: proper nouns, countries, languages.",
+      "fr": "Son voyelle → an / Son consonne → a / Défini → the / Pas d'article : noms propres, pays, langues."
+    },
+    "examples": [
+      {
+        "en": "She is an engineer.",
+        "fr": "Elle est ingénieure."
+      },
+      {
+        "en": "The door is open.",
+        "fr": "La porte est ouverte."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "house",
+        "definition_en": "A building for human habitation",
+        "definition_fr": "Un bâtiment destiné à l'habitation humaine",
+        "example_en": "They live in a big house.",
+        "example_fr": "Ils habitent dans une grande maison."
+      },
+      {
+        "word": "door",
+        "definition_en": "A hinged or sliding barrier at the entrance of a room or building",
+        "definition_fr": "Une barrière à charnières ou coulissante à l'entrée d'une pièce ou d'un bâtiment",
+        "example_en": "Please close the door.",
+        "example_fr": "Veuillez fermer la porte."
+      },
+      {
+        "word": "window",
+        "definition_en": "An opening in a wall fitted with glass",
+        "definition_fr": "Une ouverture dans un mur équipée de verre",
+        "example_en": "Open the window, please.",
+        "example_fr": "Ouvrez la fenêtre, s'il vous plaît."
+      },
+      {
+        "word": "table",
+        "definition_en": "A piece of furniture with a flat top and legs",
+        "definition_fr": "Un meuble avec un plateau plat et des pieds",
+        "example_en": "Put your book on the table.",
+        "example_fr": "Pose ton livre sur la table."
+      },
+      {
+        "word": "chair",
+        "definition_en": "A separate seat for one person with a back",
+        "definition_fr": "Un siège individuel avec un dossier",
+        "example_en": "She is sitting on a chair.",
+        "example_fr": "Elle est assise sur une chaise."
+      },
+      {
+        "word": "room",
+        "definition_en": "A space within a building enclosed by walls",
+        "definition_fr": "Un espace dans un bâtiment entouré de murs",
+        "example_en": "This is a very nice room.",
+        "example_fr": "C'est une très belle pièce."
+      },
+      {
+        "word": "kitchen",
+        "definition_en": "A room where food is cooked and prepared",
+        "definition_fr": "Une pièce où les repas sont cuisinés et préparés",
+        "example_en": "She is in the kitchen.",
+        "example_fr": "Elle est dans la cuisine."
+      },
+      {
+        "word": "bed",
+        "definition_en": "A piece of furniture for sleeping on",
+        "definition_fr": "Un meuble sur lequel on dort",
+        "example_en": "The bed is very comfortable.",
+        "example_fr": "Le lit est très confortable."
+      },
+      {
+        "word": "garden",
+        "definition_en": "A piece of ground for growing flowers or vegetables",
+        "definition_fr": "Un terrain pour cultiver des fleurs ou des légumes",
+        "example_en": "We have a beautiful garden.",
+        "example_fr": "Nous avons un beau jardin."
+      },
+      {
+        "word": "sofa",
+        "definition_en": "A long comfortable seat with a back and arms",
+        "definition_fr": "Un long siège confortable avec un dossier et des accoudoirs",
+        "example_en": "He is sleeping on the sofa.",
+        "example_fr": "Il dort sur le canapé."
+      },
+      {
+        "word": "lamp",
+        "definition_en": "A device for giving light",
+        "definition_fr": "Un appareil pour donner de la lumière",
+        "example_en": "She turned on the lamp.",
+        "example_fr": "Elle a allumé la lampe."
+      }
+    ]
+  },
+  {
+    "id": "a1_c5",
+    "bloc": 1,
+    "title": "Adjectifs possessifs",
+    "type": "grammar",
+    "rule": {
+      "en": "my, your, his, her, its, our, their — Always BEFORE the noun. No plural form (my books ✓ / mys books ✗).",
+      "fr": "my, your, his, her, its, our, their — Toujours AVANT le nom. Pas de pluriel (my books ✓ / mys books ✗)."
+    },
+    "examples": [
+      {
+        "en": "My grandmother is kind.",
+        "fr": "Ma grand-mère est gentille."
+      },
+      {
+        "en": "Their house is big.",
+        "fr": "Leur maison est grande."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "grandmother",
+        "definition_en": "The mother of one's father or mother",
+        "definition_fr": "La mère de son père ou de sa mère",
+        "example_en": "My grandmother makes great cookies.",
+        "example_fr": "Ma grand-mère fait d'excellents biscuits."
+      },
+      {
+        "word": "grandfather",
+        "definition_en": "The father of one's father or mother",
+        "definition_fr": "Le père de son père ou de sa mère",
+        "example_en": "His grandfather is eighty years old.",
+        "example_fr": "Son grand-père a quatre-vingts ans."
+      },
+      {
+        "word": "uncle",
+        "definition_en": "The brother of one's father or mother",
+        "definition_fr": "Le frère de son père ou de sa mère",
+        "example_en": "My uncle lives in Paris.",
+        "example_fr": "Mon oncle vit à Paris."
+      },
+      {
+        "word": "aunt",
+        "definition_en": "The sister of one's father or mother",
+        "definition_fr": "La sœur de son père ou de sa mère",
+        "example_en": "Her aunt is a doctor.",
+        "example_fr": "Sa tante est médecin."
+      },
+      {
+        "word": "cousin",
+        "definition_en": "A child of one's uncle or aunt",
+        "definition_fr": "L'enfant de son oncle ou de sa tante",
+        "example_en": "Our cousins are visiting this weekend.",
+        "example_fr": "Nos cousins viennent ce week-end."
+      },
+      {
+        "word": "husband",
+        "definition_en": "A married man in relation to his wife",
+        "definition_fr": "Un homme marié par rapport à sa femme",
+        "example_en": "Her husband is very funny.",
+        "example_fr": "Son mari est très drôle."
+      },
+      {
+        "word": "wife",
+        "definition_en": "A married woman in relation to her husband",
+        "definition_fr": "Une femme mariée par rapport à son mari",
+        "example_en": "His wife is a teacher.",
+        "example_fr": "Sa femme est professeure."
+      },
+      {
+        "word": "baby",
+        "definition_en": "A very young child or infant",
+        "definition_fr": "Un très jeune enfant ou nourrisson",
+        "example_en": "Their baby is six months old.",
+        "example_fr": "Leur bébé a six mois."
+      },
+      {
+        "word": "parents",
+        "definition_en": "One's father and mother",
+        "definition_fr": "Son père et sa mère",
+        "example_en": "My parents live in Lyon.",
+        "example_fr": "Mes parents vivent à Lyon."
+      }
+    ]
+  },
+  {
+    "id": "a1_c6",
+    "bloc": 2,
+    "title": "Present Simple : affirmation",
+    "type": "grammar",
+    "rule": {
+      "en": "I work / She works — Add -s at 3rd person singular. He goes / She watches / She studies (consonant+y → ies).",
+      "fr": "I work / She works — Ajouter -s à la 3e personne du singulier. He goes / She watches / She studies (consonne+y → ies)."
+    },
+    "examples": [
+      {
+        "en": "She works every day.",
+        "fr": "Elle travaille tous les jours."
+      },
+      {
+        "en": "He goes to school by bus.",
+        "fr": "Il va à l'école en bus."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "work",
+        "definition_en": "Activity involving mental or physical effort done to achieve a result",
+        "definition_fr": "Activité impliquant un effort mental ou physique pour atteindre un résultat",
+        "example_en": "I work in a hospital.",
+        "example_fr": "Je travaille dans un hôpital."
+      },
+      {
+        "word": "live",
+        "definition_en": "To make one's home in a particular place",
+        "definition_fr": "Faire sa maison dans un endroit particulier",
+        "example_en": "They live in a small town.",
+        "example_fr": "Ils vivent dans une petite ville."
+      },
+      {
+        "word": "eat",
+        "definition_en": "To put food in your mouth and swallow it",
+        "definition_fr": "Mettre de la nourriture dans sa bouche et l'avaler",
+        "example_en": "We eat dinner at seven.",
+        "example_fr": "Nous dînons à sept heures."
+      },
+      {
+        "word": "drink",
+        "definition_en": "To take liquid into the mouth and swallow",
+        "definition_fr": "Prendre du liquide dans la bouche et avaler",
+        "example_en": "She drinks coffee every morning.",
+        "example_fr": "Elle boit du café chaque matin."
+      },
+      {
+        "word": "sleep",
+        "definition_en": "To be in a natural state of rest",
+        "definition_fr": "Être dans un état naturel de repos",
+        "example_en": "He sleeps eight hours a night.",
+        "example_fr": "Il dort huit heures par nuit."
+      },
+      {
+        "word": "like",
+        "definition_en": "To find something pleasant or enjoyable",
+        "definition_fr": "Trouver quelque chose agréable ou plaisant",
+        "example_en": "I like chocolate very much.",
+        "example_fr": "J'aime beaucoup le chocolat."
+      },
+      {
+        "word": "love",
+        "definition_en": "To feel deep affection for someone or something",
+        "definition_fr": "Ressentir une profonde affection pour quelqu'un ou quelque chose",
+        "example_en": "She loves reading books.",
+        "example_fr": "Elle aime lire des livres."
+      },
+      {
+        "word": "hate",
+        "definition_en": "To feel intense dislike for something",
+        "definition_fr": "Ressentir une forte aversion pour quelque chose",
+        "example_en": "He hates waking up early.",
+        "example_fr": "Il déteste se lever tôt."
+      },
+      {
+        "word": "read",
+        "definition_en": "To look at and understand written words",
+        "definition_fr": "Regarder et comprendre des mots écrits",
+        "example_en": "She reads the newspaper every day.",
+        "example_fr": "Elle lit le journal chaque jour."
+      },
+      {
+        "word": "write",
+        "definition_en": "To mark letters or words on a surface",
+        "definition_fr": "Tracer des lettres ou des mots sur une surface",
+        "example_en": "He writes emails at work.",
+        "example_fr": "Il écrit des e-mails au travail."
+      },
+      {
+        "word": "play",
+        "definition_en": "To engage in activity for enjoyment",
+        "definition_fr": "S'engager dans une activité pour le plaisir",
+        "example_en": "The children play in the park.",
+        "example_fr": "Les enfants jouent dans le parc."
+      },
+      {
+        "word": "cook",
+        "definition_en": "To prepare food by heating it",
+        "definition_fr": "Préparer les aliments en les chauffant",
+        "example_en": "My mother cooks delicious food.",
+        "example_fr": "Ma mère cuisine des plats délicieux."
+      },
+      {
+        "word": "run",
+        "definition_en": "To move quickly on foot",
+        "definition_fr": "Se déplacer rapidement à pied",
+        "example_en": "She runs five kilometres every day.",
+        "example_fr": "Elle court cinq kilomètres chaque jour."
+      },
+      {
+        "word": "walk",
+        "definition_en": "To move at a regular pace on foot",
+        "definition_fr": "Se déplacer à une allure régulière à pied",
+        "example_en": "We walk to school every morning.",
+        "example_fr": "Nous allons à l'école à pied chaque matin."
+      }
+    ]
+  },
+  {
+    "id": "a1_c7",
+    "bloc": 2,
+    "title": "Present Simple : interrogation",
+    "type": "grammar",
+    "rule": {
+      "en": "Do you…? / Does she…? — Use auxiliary DO/DOES + subject + base verb. Does she work? (NOT: Does she works?)",
+      "fr": "Do you…? / Does she…? — Utiliser l'auxiliaire DO/DOES + sujet + verbe base. Does she work? (PAS : Does she works?)"
+    },
+    "examples": [
+      {
+        "en": "Do you eat bread for breakfast?",
+        "fr": "Manges-tu du pain au petit-déjeuner ?"
+      },
+      {
+        "en": "Does she drink coffee?",
+        "fr": "Boit-elle du café ?"
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "bread",
+        "definition_en": "A food made from flour and water, baked in an oven",
+        "definition_fr": "Un aliment fait de farine et d'eau, cuit au four",
+        "example_en": "Do you eat bread every day?",
+        "example_fr": "Manges-tu du pain tous les jours ?"
+      },
+      {
+        "word": "water",
+        "definition_en": "A clear liquid that is essential for life",
+        "definition_fr": "Un liquide clair essentiel à la vie",
+        "example_en": "She drinks two litres of water a day.",
+        "example_fr": "Elle boit deux litres d'eau par jour."
+      },
+      {
+        "word": "milk",
+        "definition_en": "A white liquid produced by female mammals for feeding young",
+        "definition_fr": "Un liquide blanc produit par les mammifères femelles pour nourrir leurs petits",
+        "example_en": "Does he drink milk in the morning?",
+        "example_fr": "Boit-il du lait le matin ?"
+      },
+      {
+        "word": "coffee",
+        "definition_en": "A hot drink made from roasted coffee beans",
+        "definition_fr": "Une boisson chaude préparée à partir de grains de café torréfiés",
+        "example_en": "I drink coffee at breakfast.",
+        "example_fr": "Je bois du café au petit-déjeuner."
+      },
+      {
+        "word": "tea",
+        "definition_en": "A hot drink made by infusing dried leaves in boiling water",
+        "definition_fr": "Une boisson chaude préparée en faisant infuser des feuilles séchées dans de l'eau bouillante",
+        "example_en": "Do you prefer tea or coffee?",
+        "example_fr": "Préfères-tu le thé ou le café ?"
+      },
+      {
+        "word": "apple",
+        "definition_en": "A round fruit with red or green skin and white flesh",
+        "definition_fr": "Un fruit rond à peau rouge ou verte et à chair blanche",
+        "example_en": "She eats an apple every morning.",
+        "example_fr": "Elle mange une pomme chaque matin."
+      },
+      {
+        "word": "orange",
+        "definition_en": "A round citrus fruit with a tough orange skin",
+        "definition_fr": "Un fruit citrus rond à peau orange épaisse",
+        "example_en": "Do you like orange juice?",
+        "example_fr": "Aimes-tu le jus d'orange ?"
+      },
+      {
+        "word": "rice",
+        "definition_en": "A grain used as a food staple in many countries",
+        "definition_fr": "Un grain utilisé comme aliment de base dans de nombreux pays",
+        "example_en": "They eat rice for lunch every day.",
+        "example_fr": "Ils mangent du riz au déjeuner tous les jours."
+      },
+      {
+        "word": "meat",
+        "definition_en": "The flesh of an animal used as food",
+        "definition_fr": "La chair d'un animal utilisée comme nourriture",
+        "example_en": "Does she eat meat?",
+        "example_fr": "Mange-t-elle de la viande ?"
+      },
+      {
+        "word": "fish",
+        "definition_en": "An animal that lives in water and is often eaten as food",
+        "definition_fr": "Un animal qui vit dans l'eau et est souvent mangé comme nourriture",
+        "example_en": "We eat fish on Fridays.",
+        "example_fr": "Nous mangeons du poisson le vendredi."
+      },
+      {
+        "word": "vegetable",
+        "definition_en": "A plant or part of a plant used as food",
+        "definition_fr": "Une plante ou une partie d'une plante utilisée comme nourriture",
+        "example_en": "Do you eat vegetables every day?",
+        "example_fr": "Manges-tu des légumes tous les jours ?"
+      },
+      {
+        "word": "soup",
+        "definition_en": "A liquid food made by boiling meat or vegetables",
+        "definition_fr": "Un aliment liquide préparé en faisant bouillir de la viande ou des légumes",
+        "example_en": "She makes vegetable soup for dinner.",
+        "example_fr": "Elle prépare une soupe aux légumes pour le dîner."
+      }
+    ]
+  },
+  {
+    "id": "a1_c8",
+    "bloc": 2,
+    "title": "Present Simple : négation",
+    "type": "grammar",
+    "rule": {
+      "en": "I don't + base verb / She doesn't + base verb — Never double negation. She doesn't work (NOT: She doesn't works).",
+      "fr": "I don't + verbe base / She doesn't + verbe base — Jamais de double négation. She doesn't work (PAS : She doesn't works)."
+    },
+    "examples": [
+      {
+        "en": "I don't play football.",
+        "fr": "Je ne joue pas au football."
+      },
+      {
+        "en": "She doesn't like music.",
+        "fr": "Elle n'aime pas la musique."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "sport",
+        "definition_en": "A physical activity done for exercise or competition",
+        "definition_fr": "Une activité physique pratiquée pour l'exercice ou la compétition",
+        "example_en": "He doesn't do sport on weekdays.",
+        "example_fr": "Il ne fait pas de sport en semaine."
+      },
+      {
+        "word": "music",
+        "definition_en": "Sounds arranged to be pleasant or exciting to hear",
+        "definition_fr": "Des sons arrangés pour être agréables ou excitants à entendre",
+        "example_en": "She doesn't listen to music at work.",
+        "example_fr": "Elle n'écoute pas de musique au travail."
+      },
+      {
+        "word": "film",
+        "definition_en": "A story shown as moving pictures on a screen",
+        "definition_fr": "Une histoire présentée sous forme d'images animées sur un écran",
+        "example_en": "I don't watch horror films.",
+        "example_fr": "Je ne regarde pas les films d'horreur."
+      },
+      {
+        "word": "game",
+        "definition_en": "An activity with rules played for fun or competition",
+        "definition_fr": "Une activité avec des règles pratiquée pour le plaisir ou la compétition",
+        "example_en": "They don't play video games every day.",
+        "example_fr": "Ils ne jouent pas aux jeux vidéo tous les jours."
+      },
+      {
+        "word": "dance",
+        "definition_en": "To move your body rhythmically to music",
+        "definition_fr": "Bouger son corps en rythme avec la musique",
+        "example_en": "She doesn't dance at parties.",
+        "example_fr": "Elle ne danse pas lors des fêtes."
+      },
+      {
+        "word": "swim",
+        "definition_en": "To move through water using your arms and legs",
+        "definition_fr": "Se déplacer dans l'eau en utilisant ses bras et ses jambes",
+        "example_en": "He doesn't swim in cold water.",
+        "example_fr": "Il ne nage pas dans l'eau froide."
+      },
+      {
+        "word": "draw",
+        "definition_en": "To make a picture with a pencil or pen",
+        "definition_fr": "Faire un dessin avec un crayon ou un stylo",
+        "example_en": "I don't draw very well.",
+        "example_fr": "Je ne dessine pas très bien."
+      },
+      {
+        "word": "paint",
+        "definition_en": "To make a picture using paint and a brush",
+        "definition_fr": "Faire une image en utilisant de la peinture et un pinceau",
+        "example_en": "She doesn't paint on weekdays.",
+        "example_fr": "Elle ne peint pas en semaine."
+      },
+      {
+        "word": "travel",
+        "definition_en": "To go from one place to another",
+        "definition_fr": "Aller d'un endroit à un autre",
+        "example_en": "They don't travel abroad every year.",
+        "example_fr": "Ils ne voyagent pas à l'étranger chaque année."
+      },
+      {
+        "word": "shop",
+        "definition_en": "To go to a store to buy things",
+        "definition_fr": "Aller dans un magasin pour acheter des choses",
+        "example_en": "He doesn't shop online very often.",
+        "example_fr": "Il ne fait pas souvent ses achats en ligne."
+      }
+    ]
+  },
+  {
+    "id": "a1_c9",
+    "bloc": 2,
+    "title": "Mots interrogatifs",
+    "type": "grammar",
+    "rule": {
+      "en": "What (what/which), Where (where), When (when), Who (who), How (how), Why (why), Which (which one).",
+      "fr": "What (quoi/quel), Where (où), When (quand), Who (qui), How (comment), Why (pourquoi), Which (lequel)."
+    },
+    "examples": [
+      {
+        "en": "Where do you live?",
+        "fr": "Où habitez-vous ?"
+      },
+      {
+        "en": "What time is it?",
+        "fr": "Quelle heure est-il ?"
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "day",
+        "definition_en": "A period of 24 hours",
+        "definition_fr": "Une période de 24 heures",
+        "example_en": "What day is it today?",
+        "example_fr": "Quel jour est-on aujourd'hui ?"
+      },
+      {
+        "word": "week",
+        "definition_en": "A period of seven days",
+        "definition_fr": "Une période de sept jours",
+        "example_en": "When does the new week start?",
+        "example_fr": "Quand commence la nouvelle semaine ?"
+      },
+      {
+        "word": "month",
+        "definition_en": "One of the twelve divisions of the year",
+        "definition_fr": "Une des douze divisions de l'année",
+        "example_en": "Which month is your birthday?",
+        "example_fr": "Quel mois est ton anniversaire ?"
+      },
+      {
+        "word": "year",
+        "definition_en": "A period of 365 days",
+        "definition_fr": "Une période de 365 jours",
+        "example_en": "How many years do you study English?",
+        "example_fr": "Depuis combien d'années étudies-tu l'anglais ?"
+      },
+      {
+        "word": "today",
+        "definition_en": "On this present day",
+        "definition_fr": "En ce jour présent",
+        "example_en": "What are you doing today?",
+        "example_fr": "Que fais-tu aujourd'hui ?"
+      },
+      {
+        "word": "yesterday",
+        "definition_en": "On the day before today",
+        "definition_fr": "Le jour avant aujourd'hui",
+        "example_en": "Where did you go yesterday?",
+        "example_fr": "Où es-tu allé hier ?"
+      },
+      {
+        "word": "tomorrow",
+        "definition_en": "On the day after today",
+        "definition_fr": "Le jour après aujourd'hui",
+        "example_en": "When does he arrive tomorrow?",
+        "example_fr": "Quand arrive-t-il demain ?"
+      },
+      {
+        "word": "morning",
+        "definition_en": "The period of time from midnight or dawn until noon",
+        "definition_fr": "La période allant de minuit ou de l'aube jusqu'à midi",
+        "example_en": "Why do you wake up early in the morning?",
+        "example_fr": "Pourquoi te lèves-tu tôt le matin ?"
+      },
+      {
+        "word": "afternoon",
+        "definition_en": "The time from noon until evening",
+        "definition_fr": "La période de midi jusqu'au soir",
+        "example_en": "What do you do in the afternoon?",
+        "example_fr": "Que fais-tu l'après-midi ?"
+      },
+      {
+        "word": "evening",
+        "definition_en": "The period of time at the end of the day",
+        "definition_fr": "La période en fin de journée",
+        "example_en": "How do you spend your evenings?",
+        "example_fr": "Comment passes-tu tes soirées ?"
+      },
+      {
+        "word": "night",
+        "definition_en": "The period of darkness between sunset and sunrise",
+        "definition_fr": "La période d'obscurité entre le coucher et le lever du soleil",
+        "example_en": "Who do you call at night?",
+        "example_fr": "Qui appelles-tu la nuit ?"
+      }
+    ]
+  },
+  {
+    "id": "a1_c10",
+    "bloc": 2,
+    "title": "Adverbes de fréquence",
+    "type": "grammar",
+    "rule": {
+      "en": "always > usually > often > sometimes > never — After 'to be' / Before other verbs: She always works late.",
+      "fr": "always > usually > often > sometimes > never — Après 'to be' / Avant les autres verbes : She always works late."
+    },
+    "examples": [
+      {
+        "en": "I usually work on Monday.",
+        "fr": "Je travaille habituellement le lundi."
+      },
+      {
+        "en": "She never works on Sunday.",
+        "fr": "Elle ne travaille jamais le dimanche."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "Monday",
+        "definition_en": "The first day of the working week",
+        "definition_fr": "Le premier jour de la semaine de travail",
+        "example_en": "I always go to the gym on Monday.",
+        "example_fr": "Je vais toujours à la salle de sport le lundi."
+      },
+      {
+        "word": "Tuesday",
+        "definition_en": "The second day of the working week",
+        "definition_fr": "Le deuxième jour de la semaine de travail",
+        "example_en": "She usually has meetings on Tuesday.",
+        "example_fr": "Elle a habituellement des réunions le mardi."
+      },
+      {
+        "word": "Wednesday",
+        "definition_en": "The third day of the working week",
+        "definition_fr": "Le troisième jour de la semaine de travail",
+        "example_en": "We often eat out on Wednesday.",
+        "example_fr": "Nous sortons souvent manger le mercredi."
+      },
+      {
+        "word": "Thursday",
+        "definition_en": "The fourth day of the working week",
+        "definition_fr": "Le quatrième jour de la semaine de travail",
+        "example_en": "He sometimes plays football on Thursday.",
+        "example_fr": "Il joue parfois au football le jeudi."
+      },
+      {
+        "word": "Friday",
+        "definition_en": "The fifth day of the working week",
+        "definition_fr": "Le cinquième jour de la semaine de travail",
+        "example_en": "They always finish early on Friday.",
+        "example_fr": "Ils finissent toujours tôt le vendredi."
+      },
+      {
+        "word": "Saturday",
+        "definition_en": "The sixth day of the week, a day off for most people",
+        "definition_fr": "Le sixième jour de la semaine, un jour de congé pour la plupart des gens",
+        "example_en": "I never work on Saturday.",
+        "example_fr": "Je ne travaille jamais le samedi."
+      },
+      {
+        "word": "Sunday",
+        "definition_en": "The seventh day of the week",
+        "definition_fr": "Le septième jour de la semaine",
+        "example_en": "She usually rests on Sunday.",
+        "example_fr": "Elle se repose habituellement le dimanche."
+      },
+      {
+        "word": "weekend",
+        "definition_en": "Saturday and Sunday considered together",
+        "definition_fr": "Le samedi et le dimanche considérés ensemble",
+        "example_en": "Do you often go out at the weekend?",
+        "example_fr": "Sors-tu souvent le week-end ?"
+      },
+      {
+        "word": "holiday",
+        "definition_en": "A period of time away from work or school for rest",
+        "definition_fr": "Une période de congé du travail ou de l'école pour se reposer",
+        "example_en": "We always go to the beach for our holidays.",
+        "example_fr": "Nous allons toujours à la plage pour nos vacances."
+      }
+    ]
+  },
+  {
+    "id": "a1_c11",
+    "bloc": 3,
+    "title": "Les nombres 1 à 100",
+    "type": "vocabulary",
+    "rule": {
+      "en": "1-20 specific forms + tens (twenty, thirty…hundred) + combinations (twenty-one). Rule: 13 to 19 = -teen suffix.",
+      "fr": "1-20 formes spécifiques + dizaines (twenty, thirty…hundred) + compositions (twenty-one). Règle : treize à dix-neuf = suffixe -teen."
+    },
+    "examples": [
+      {
+        "en": "She is thirty-five years old.",
+        "fr": "Elle a trente-cinq ans."
+      },
+      {
+        "en": "My phone number is 07 hundred.",
+        "fr": "Mon numéro de téléphone est le 07 cents."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "one",
+        "definition_en": "The number 1",
+        "definition_fr": "Le chiffre 1",
+        "example_en": "I have one brother.",
+        "example_fr": "J'ai un frère."
+      },
+      {
+        "word": "ten",
+        "definition_en": "The number 10",
+        "definition_fr": "Le nombre 10",
+        "example_en": "There are ten students in the room.",
+        "example_fr": "Il y a dix étudiants dans la pièce."
+      },
+      {
+        "word": "twenty",
+        "definition_en": "The number 20",
+        "definition_fr": "Le nombre 20",
+        "example_en": "She is twenty years old.",
+        "example_fr": "Elle a vingt ans."
+      },
+      {
+        "word": "fifty",
+        "definition_en": "The number 50",
+        "definition_fr": "Le nombre 50",
+        "example_en": "The ticket costs fifty euros.",
+        "example_fr": "Le billet coûte cinquante euros."
+      },
+      {
+        "word": "hundred",
+        "definition_en": "The number 100",
+        "definition_fr": "Le nombre 100",
+        "example_en": "There are one hundred questions in the test.",
+        "example_fr": "Il y a cent questions dans le test."
+      },
+      {
+        "word": "phone number",
+        "definition_en": "A sequence of digits used to call someone",
+        "definition_fr": "Une séquence de chiffres utilisée pour appeler quelqu'un",
+        "example_en": "What is your phone number?",
+        "example_fr": "Quel est ton numéro de téléphone ?"
+      },
+      {
+        "word": "price",
+        "definition_en": "The amount of money for which something is sold",
+        "definition_fr": "Le montant d'argent pour lequel quelque chose est vendu",
+        "example_en": "What is the price of this jacket?",
+        "example_fr": "Quel est le prix de cette veste ?"
+      },
+      {
+        "word": "age",
+        "definition_en": "The length of time a person has been alive",
+        "definition_fr": "La durée pendant laquelle une personne a vécu",
+        "example_en": "What is your age?",
+        "example_fr": "Quel est ton âge ?"
+      }
+    ]
+  },
+  {
+    "id": "a1_c12",
+    "bloc": 3,
+    "title": "Couleurs et adjectifs descriptifs",
+    "type": "vocabulary_grammar",
+    "rule": {
+      "en": "Adjective BEFORE the noun: a red car (✓) / a car red (✗). Order: opinion + size + age + colour.",
+      "fr": "Adjectif AVANT le nom : a red car (✓) / a car red (✗). Ordre : opinion + taille + âge + couleur."
+    },
+    "examples": [
+      {
+        "en": "She has a beautiful small blue car.",
+        "fr": "Elle a une belle petite voiture bleue."
+      },
+      {
+        "en": "He wears a big black coat.",
+        "fr": "Il porte un grand manteau noir."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "red",
+        "definition_en": "Of a colour like that of blood or a tomato",
+        "definition_fr": "D'une couleur comme celle du sang ou d'une tomate",
+        "example_en": "She is wearing a red dress.",
+        "example_fr": "Elle porte une robe rouge."
+      },
+      {
+        "word": "blue",
+        "definition_en": "Of a colour like that of a clear sky",
+        "definition_fr": "D'une couleur comme celle d'un ciel clair",
+        "example_en": "The ocean is a beautiful blue colour.",
+        "example_fr": "L'océan est d'une belle couleur bleue."
+      },
+      {
+        "word": "green",
+        "definition_en": "Of a colour like that of grass or leaves",
+        "definition_fr": "D'une couleur comme celle de l'herbe ou des feuilles",
+        "example_en": "The grass is very green.",
+        "example_fr": "L'herbe est très verte."
+      },
+      {
+        "word": "yellow",
+        "definition_en": "Of a colour like that of the sun or gold",
+        "definition_fr": "D'une couleur comme celle du soleil ou de l'or",
+        "example_en": "He has a yellow umbrella.",
+        "example_fr": "Il a un parapluie jaune."
+      },
+      {
+        "word": "black",
+        "definition_en": "Of the darkest colour, the opposite of white",
+        "definition_fr": "De la couleur la plus sombre, le contraire du blanc",
+        "example_en": "My cat is black.",
+        "example_fr": "Mon chat est noir."
+      },
+      {
+        "word": "white",
+        "definition_en": "Of the lightest colour, the opposite of black",
+        "definition_fr": "De la couleur la plus claire, le contraire du noir",
+        "example_en": "The snow is white and cold.",
+        "example_fr": "La neige est blanche et froide."
+      },
+      {
+        "word": "big",
+        "definition_en": "Of a large size or extent",
+        "definition_fr": "D'une grande taille ou étendue",
+        "example_en": "They live in a big house.",
+        "example_fr": "Ils habitent dans une grande maison."
+      },
+      {
+        "word": "small",
+        "definition_en": "Of a little size, not big",
+        "definition_fr": "De petite taille, pas grand",
+        "example_en": "She has a small dog.",
+        "example_fr": "Elle a un petit chien."
+      },
+      {
+        "word": "beautiful",
+        "definition_en": "Pleasing to the senses, very attractive",
+        "definition_fr": "Agréable aux sens, très attrayant",
+        "example_en": "What a beautiful garden!",
+        "example_fr": "Quel beau jardin !"
+      },
+      {
+        "word": "long",
+        "definition_en": "Measuring a great distance from end to end",
+        "definition_fr": "Mesurant une grande distance d'un bout à l'autre",
+        "example_en": "She has long dark hair.",
+        "example_fr": "Elle a de longs cheveux noirs."
+      },
+      {
+        "word": "short",
+        "definition_en": "Measuring a small distance from end to end",
+        "definition_fr": "Mesurant une petite distance d'un bout à l'autre",
+        "example_en": "He has short blond hair.",
+        "example_fr": "Il a les cheveux blonds et courts."
+      }
+    ]
+  },
+  {
+    "id": "a1_c13",
+    "bloc": 3,
+    "title": "Verbe Have Got",
+    "type": "grammar",
+    "rule": {
+      "en": "I have got / She has got / Have you got…? / I haven't got. British form. American: I have / Do you have?",
+      "fr": "I have got / She has got / Have you got…? / I haven't got. Forme britannique. Américain : I have / Do you have?"
+    },
+    "examples": [
+      {
+        "en": "Have you got a dog?",
+        "fr": "As-tu un chien ?"
+      },
+      {
+        "en": "She hasn't got a pet.",
+        "fr": "Elle n'a pas d'animal de compagnie."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "dog",
+        "definition_en": "A common domestic animal kept as a pet or for work",
+        "definition_fr": "Un animal domestique courant gardé comme animal de compagnie ou pour le travail",
+        "example_en": "Have you got a dog?",
+        "example_fr": "As-tu un chien ?"
+      },
+      {
+        "word": "cat",
+        "definition_en": "A small domesticated mammal often kept as a pet",
+        "definition_fr": "Un petit mammifère domestiqué souvent gardé comme animal de compagnie",
+        "example_en": "She has got two cats.",
+        "example_fr": "Elle a deux chats."
+      },
+      {
+        "word": "bird",
+        "definition_en": "A warm-blooded animal with feathers and wings",
+        "definition_fr": "Un animal à sang chaud avec des plumes et des ailes",
+        "example_en": "We have got a yellow bird.",
+        "example_fr": "Nous avons un oiseau jaune."
+      },
+      {
+        "word": "horse",
+        "definition_en": "A large strong animal used for riding or pulling loads",
+        "definition_fr": "Un grand animal fort utilisé pour monter ou tirer des charges",
+        "example_en": "They have got three horses.",
+        "example_fr": "Ils ont trois chevaux."
+      },
+      {
+        "word": "rabbit",
+        "definition_en": "A small mammal with long ears, kept as a pet",
+        "definition_fr": "Un petit mammifère aux longues oreilles, gardé comme animal de compagnie",
+        "example_en": "My daughter has got a white rabbit.",
+        "example_fr": "Ma fille a un lapin blanc."
+      },
+      {
+        "word": "hamster",
+        "definition_en": "A small furry animal often kept as a pet",
+        "definition_fr": "Un petit animal à fourrure souvent gardé comme animal de compagnie",
+        "example_en": "The children have got a hamster.",
+        "example_fr": "Les enfants ont un hamster."
+      },
+      {
+        "word": "pet",
+        "definition_en": "A domestic animal kept for companionship and pleasure",
+        "definition_fr": "Un animal domestique gardé pour la compagnie et le plaisir",
+        "example_en": "Have you got any pets?",
+        "example_fr": "As-tu des animaux de compagnie ?"
+      },
+      {
+        "word": "tail",
+        "definition_en": "The hindmost part of an animal's body",
+        "definition_fr": "La partie la plus en arrière du corps d'un animal",
+        "example_en": "The dog has got a long tail.",
+        "example_fr": "Le chien a une longue queue."
+      },
+      {
+        "word": "fur",
+        "definition_en": "The soft thick hair of some animals",
+        "definition_fr": "Le poil doux et épais de certains animaux",
+        "example_en": "My cat has got soft brown fur.",
+        "example_fr": "Mon chat a un poil brun et doux."
+      }
+    ]
+  },
+  {
+    "id": "a1_c14",
+    "bloc": 3,
+    "title": "Pronoms sujets et compléments d'objet",
+    "type": "grammar",
+    "rule": {
+      "en": "Subject: I, you, he, she, it, we, they → Object: me, you, him, her, it, us, them. Objects come after verbs or prepositions.",
+      "fr": "Sujets : I, you, he, she, it, we, they → Compléments : me, you, him, her, it, us, them. Après verbe ou préposition."
+    },
+    "examples": [
+      {
+        "en": "She likes him a lot.",
+        "fr": "Elle l'aime beaucoup."
+      },
+      {
+        "en": "The teacher helps us every day.",
+        "fr": "Le professeur nous aide chaque jour."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "pen",
+        "definition_en": "An instrument for writing or drawing with ink",
+        "definition_fr": "Un instrument pour écrire ou dessiner à l'encre",
+        "example_en": "Can you give me a pen?",
+        "example_fr": "Peux-tu me donner un stylo ?"
+      },
+      {
+        "word": "pencil",
+        "definition_en": "An instrument for writing with a graphite core",
+        "definition_fr": "Un instrument pour écrire avec un cœur en graphite",
+        "example_en": "She lent him her pencil.",
+        "example_fr": "Elle lui a prêté son crayon."
+      },
+      {
+        "word": "notebook",
+        "definition_en": "A book with blank or lined pages for writing notes",
+        "definition_fr": "Un livre avec des pages vierges ou lignées pour écrire des notes",
+        "example_en": "He forgot his notebook at home.",
+        "example_fr": "Il a oublié son cahier à la maison."
+      },
+      {
+        "word": "desk",
+        "definition_en": "A piece of furniture with a flat surface for working at",
+        "definition_fr": "Un meuble avec une surface plate pour travailler",
+        "example_en": "Put your books on the desk.",
+        "example_fr": "Mets tes livres sur le bureau."
+      },
+      {
+        "word": "board",
+        "definition_en": "A flat surface on a wall used for writing in class",
+        "definition_fr": "Une surface plate sur un mur utilisée pour écrire en classe",
+        "example_en": "The teacher writes on the board.",
+        "example_fr": "Le professeur écrit au tableau."
+      },
+      {
+        "word": "lesson",
+        "definition_en": "A period of learning or teaching",
+        "definition_fr": "Une période d'apprentissage ou d'enseignement",
+        "example_en": "Our next lesson is at ten o'clock.",
+        "example_fr": "Notre prochaine leçon est à dix heures."
+      },
+      {
+        "word": "homework",
+        "definition_en": "School work that students do at home",
+        "definition_fr": "Le travail scolaire que les élèves font à la maison",
+        "example_en": "Did he do his homework?",
+        "example_fr": "A-t-il fait ses devoirs ?"
+      }
+    ]
+  },
+  {
+    "id": "a1_c15",
+    "bloc": 3,
+    "title": "Prépositions de lieu",
+    "type": "grammar",
+    "rule": {
+      "en": "in (inside) / on (surface) / under (below) / next to (beside) / between (in the middle of two) / behind (at the back of) / in front of (before).",
+      "fr": "in (intérieur) / on (surface) / under (dessous) / next to (à côté) / between (entre) / behind (derrière) / in front of (devant)."
+    },
+    "examples": [
+      {
+        "en": "The cat is under the table.",
+        "fr": "Le chat est sous la table."
+      },
+      {
+        "en": "The lamp is next to the sofa.",
+        "fr": "La lampe est à côté du canapé."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "bedroom",
+        "definition_en": "A room used for sleeping",
+        "definition_fr": "Une pièce utilisée pour dormir",
+        "example_en": "Her books are in the bedroom.",
+        "example_fr": "Ses livres sont dans la chambre."
+      },
+      {
+        "word": "bathroom",
+        "definition_en": "A room with a bath or shower",
+        "definition_fr": "Une pièce avec une baignoire ou une douche",
+        "example_en": "The shampoo is in the bathroom.",
+        "example_fr": "Le shampoing est dans la salle de bain."
+      },
+      {
+        "word": "living room",
+        "definition_en": "The main room of a house used for relaxing",
+        "definition_fr": "La pièce principale d'une maison utilisée pour se détendre",
+        "example_en": "The TV is in the living room.",
+        "example_fr": "La télévision est dans le salon."
+      },
+      {
+        "word": "shelf",
+        "definition_en": "A flat board fixed to a wall for placing things on",
+        "definition_fr": "Une planche plate fixée au mur pour poser des objets",
+        "example_en": "The books are on the shelf.",
+        "example_fr": "Les livres sont sur l'étagère."
+      },
+      {
+        "word": "cupboard",
+        "definition_en": "A piece of furniture with doors for storing things",
+        "definition_fr": "Un meuble avec des portes pour ranger des objets",
+        "example_en": "The cups are in the cupboard.",
+        "example_fr": "Les tasses sont dans le placard."
+      },
+      {
+        "word": "wardrobe",
+        "definition_en": "A large cupboard for storing clothes",
+        "definition_fr": "Une grande armoire pour ranger les vêtements",
+        "example_en": "Her dresses are in the wardrobe.",
+        "example_fr": "Ses robes sont dans l'armoire."
+      },
+      {
+        "word": "mirror",
+        "definition_en": "A reflective surface used for looking at yourself",
+        "definition_fr": "Une surface réfléchissante utilisée pour se regarder",
+        "example_en": "There is a mirror above the fireplace.",
+        "example_fr": "Il y a un miroir au-dessus de la cheminée."
+      }
+    ]
+  },
+  {
+    "id": "a1_c16",
+    "bloc": 4,
+    "title": "L'heure et les jours",
+    "type": "vocabulary",
+    "rule": {
+      "en": "What time is it? It's + time. Half past / Quarter past / Quarter to. At + time, On + day, In + month/season.",
+      "fr": "What time is it? It's + heure. Half past / Quarter past / Quarter to. At + heure, On + jour, In + mois/saison."
+    },
+    "examples": [
+      {
+        "en": "It's quarter past three.",
+        "fr": "Il est trois heures et quart."
+      },
+      {
+        "en": "The class starts at nine o'clock.",
+        "fr": "Le cours commence à neuf heures."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "clock",
+        "definition_en": "A device for measuring and showing time",
+        "definition_fr": "Un appareil pour mesurer et afficher l'heure",
+        "example_en": "The clock on the wall shows three o'clock.",
+        "example_fr": "L'horloge sur le mur affiche trois heures."
+      },
+      {
+        "word": "watch",
+        "definition_en": "A small clock worn on the wrist",
+        "definition_fr": "Une petite horloge portée au poignet",
+        "example_en": "She has a beautiful gold watch.",
+        "example_fr": "Elle a une belle montre en or."
+      },
+      {
+        "word": "hour",
+        "definition_en": "A period of sixty minutes",
+        "definition_fr": "Une période de soixante minutes",
+        "example_en": "The film lasts two hours.",
+        "example_fr": "Le film dure deux heures."
+      },
+      {
+        "word": "minute",
+        "definition_en": "A period of sixty seconds",
+        "definition_fr": "Une période de soixante secondes",
+        "example_en": "Wait five minutes, please.",
+        "example_fr": "Attendez cinq minutes, s'il vous plaît."
+      },
+      {
+        "word": "noon",
+        "definition_en": "Twelve o'clock in the middle of the day",
+        "definition_fr": "Douze heures en milieu de journée",
+        "example_en": "We eat lunch at noon.",
+        "example_fr": "Nous déjeunons à midi."
+      },
+      {
+        "word": "midnight",
+        "definition_en": "Twelve o'clock at night",
+        "definition_fr": "Douze heures la nuit",
+        "example_en": "The party finishes at midnight.",
+        "example_fr": "La fête se termine à minuit."
+      }
+    ]
+  },
+  {
+    "id": "a1_c17",
+    "bloc": 4,
+    "title": "Present Progressive (Continu)",
+    "type": "grammar",
+    "rule": {
+      "en": "I am + verb-ing / She is + verb-ing — Action happening now. Spelling: run→running, write→writing, sit→sitting.",
+      "fr": "I am + verbe-ing / She is + verbe-ing — Action en cours maintenant. Orthographe : run→running, write→writing, sit→sitting."
+    },
+    "examples": [
+      {
+        "en": "She is running in the park.",
+        "fr": "Elle court dans le parc."
+      },
+      {
+        "en": "They are watching a film now.",
+        "fr": "Ils regardent un film maintenant."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "running",
+        "definition_en": "Moving quickly on foot (present participle of 'run')",
+        "definition_fr": "Se déplacer rapidement à pied (participe présent de 'run')",
+        "example_en": "He is running to catch the bus.",
+        "example_fr": "Il court pour attraper le bus."
+      },
+      {
+        "word": "walking",
+        "definition_en": "Moving at a regular pace on foot (present participle)",
+        "definition_fr": "Se déplacer à une allure régulière à pied (participe présent)",
+        "example_en": "She is walking to the office today.",
+        "example_fr": "Elle marche jusqu'au bureau aujourd'hui."
+      },
+      {
+        "word": "eating",
+        "definition_en": "Putting food into your mouth and swallowing (present participle)",
+        "definition_fr": "Mettre de la nourriture dans sa bouche et avaler (participe présent)",
+        "example_en": "They are eating dinner right now.",
+        "example_fr": "Ils sont en train de dîner en ce moment."
+      },
+      {
+        "word": "watching",
+        "definition_en": "Looking at something for a period of time (present participle)",
+        "definition_fr": "Regarder quelque chose pendant un certain temps (participe présent)",
+        "example_en": "We are watching a documentary.",
+        "example_fr": "Nous regardons un documentaire."
+      },
+      {
+        "word": "playing",
+        "definition_en": "Engaging in activity for enjoyment (present participle)",
+        "definition_fr": "S'engager dans une activité pour le plaisir (participe présent)",
+        "example_en": "The children are playing outside.",
+        "example_fr": "Les enfants jouent dehors."
+      },
+      {
+        "word": "talking",
+        "definition_en": "Speaking to someone (present participle)",
+        "definition_fr": "Parler à quelqu'un (participe présent)",
+        "example_en": "She is talking on the phone.",
+        "example_fr": "Elle est en train de parler au téléphone."
+      },
+      {
+        "word": "sleeping",
+        "definition_en": "Being in a state of rest (present participle)",
+        "definition_fr": "Être dans un état de repos (participe présent)",
+        "example_en": "The baby is sleeping now.",
+        "example_fr": "Le bébé dort en ce moment."
+      },
+      {
+        "word": "cooking",
+        "definition_en": "Preparing food by heating (present participle)",
+        "definition_fr": "Préparer des aliments en les chauffant (participe présent)",
+        "example_en": "My mother is cooking dinner.",
+        "example_fr": "Ma mère est en train de préparer le dîner."
+      },
+      {
+        "word": "swimming",
+        "definition_en": "Moving through water using arms and legs (present participle)",
+        "definition_fr": "Se déplacer dans l'eau en utilisant ses bras et ses jambes (participe présent)",
+        "example_en": "She is swimming in the lake.",
+        "example_fr": "Elle nage dans le lac."
+      }
+    ]
+  },
+  {
+    "id": "a1_c18",
+    "bloc": 4,
+    "title": "Present Simple vs Present Progressive",
+    "type": "grammar",
+    "rule": {
+      "en": "Habit/routine → Simple (every day, always) | Action happening now → Progressive (now, at the moment, currently).",
+      "fr": "Habitude/routine → Simple (every day, always) | Action en cours → Progressif (now, at the moment, currently)."
+    },
+    "examples": [
+      {
+        "en": "She usually reads at night, but now she is watching TV.",
+        "fr": "Elle lit habituellement le soir, mais maintenant elle regarde la télé."
+      },
+      {
+        "en": "He always works hard. He is working now.",
+        "fr": "Il travaille toujours dur. Il travaille en ce moment."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "usually",
+        "definition_en": "Under normal conditions; most of the time",
+        "definition_fr": "Dans des conditions normales ; la plupart du temps",
+        "example_en": "I usually wake up at seven.",
+        "example_fr": "Je me réveille habituellement à sept heures."
+      },
+      {
+        "word": "always",
+        "definition_en": "At all times; on every occasion",
+        "definition_fr": "Tout le temps ; à chaque occasion",
+        "example_en": "She always arrives on time.",
+        "example_fr": "Elle arrive toujours à l'heure."
+      },
+      {
+        "word": "often",
+        "definition_en": "Frequently; many times",
+        "definition_fr": "Fréquemment ; plusieurs fois",
+        "example_en": "They often eat together.",
+        "example_fr": "Ils mangent souvent ensemble."
+      },
+      {
+        "word": "now",
+        "definition_en": "At the present time or moment",
+        "definition_fr": "Au moment présent",
+        "example_en": "What are you doing now?",
+        "example_fr": "Que fais-tu en ce moment ?"
+      },
+      {
+        "word": "at the moment",
+        "definition_en": "Right now; at this particular time",
+        "definition_fr": "En ce moment ; à cet instant précis",
+        "example_en": "He is studying at the moment.",
+        "example_fr": "Il étudie en ce moment."
+      },
+      {
+        "word": "currently",
+        "definition_en": "At the present time",
+        "definition_fr": "Au moment actuel",
+        "example_en": "She is currently living in London.",
+        "example_fr": "Elle vit actuellement à Londres."
+      },
+      {
+        "word": "every day",
+        "definition_en": "Each day without exception",
+        "definition_fr": "Chaque jour sans exception",
+        "example_en": "I brush my teeth every day.",
+        "example_fr": "Je me brosse les dents chaque jour."
+      },
+      {
+        "word": "never",
+        "definition_en": "Not at any time; not ever",
+        "definition_fr": "Jamais ; à aucun moment",
+        "example_en": "He never arrives late.",
+        "example_fr": "Il n'arrive jamais en retard."
+      }
+    ]
+  },
+  {
+    "id": "a1_c19",
+    "bloc": 4,
+    "title": "Réponses courtes",
+    "type": "grammar",
+    "rule": {
+      "en": "Yes, I am / No, she isn't / Yes, they do / No, he doesn't — Never repeat the full verb in a short answer.",
+      "fr": "Yes, I am / No, she isn't / Yes, they do / No, he doesn't — Jamais répéter le verbe plein en réponse courte."
+    },
+    "examples": [
+      {
+        "en": "Are you a student? Yes, I am.",
+        "fr": "Es-tu étudiant ? Oui, je le suis."
+      },
+      {
+        "en": "Does she play tennis? No, she doesn't.",
+        "fr": "Joue-t-elle au tennis ? Non, elle n'y joue pas."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "football",
+        "definition_en": "A game played between two teams of eleven players with a round ball",
+        "definition_fr": "Un jeu joué entre deux équipes de onze joueurs avec un ballon rond",
+        "example_en": "Do you play football? Yes, I do.",
+        "example_fr": "Joues-tu au football ? Oui, j'y joue."
+      },
+      {
+        "word": "tennis",
+        "definition_en": "A sport played with rackets on a court",
+        "definition_fr": "Un sport joué avec des raquettes sur un court",
+        "example_en": "Is she good at tennis? Yes, she is.",
+        "example_fr": "Est-elle bonne au tennis ? Oui, elle l'est."
+      },
+      {
+        "word": "basketball",
+        "definition_en": "A team sport played by throwing a ball through a hoop",
+        "definition_fr": "Un sport d'équipe joué en lançant un ballon dans un panier",
+        "example_en": "Does he play basketball? No, he doesn't.",
+        "example_fr": "Joue-t-il au basketball ? Non, il n'y joue pas."
+      },
+      {
+        "word": "gym",
+        "definition_en": "A place where people exercise using equipment",
+        "definition_fr": "Un endroit où les gens font de l'exercice avec des équipements",
+        "example_en": "Do they go to the gym? Yes, they do.",
+        "example_fr": "Vont-ils à la salle de sport ? Oui, ils y vont."
+      },
+      {
+        "word": "team",
+        "definition_en": "A group of people working or playing together",
+        "definition_fr": "Un groupe de personnes travaillant ou jouant ensemble",
+        "example_en": "Is she in a team? Yes, she is.",
+        "example_fr": "Est-elle dans une équipe ? Oui, elle l'est."
+      },
+      {
+        "word": "match",
+        "definition_en": "A sports competition between two teams or players",
+        "definition_fr": "Une compétition sportive entre deux équipes ou joueurs",
+        "example_en": "Do you watch every match? No, I don't.",
+        "example_fr": "Regardes-tu chaque match ? Non, je ne le fais pas."
+      },
+      {
+        "word": "win",
+        "definition_en": "To be successful or to come first in a competition",
+        "definition_fr": "Avoir du succès ou arriver premier dans une compétition",
+        "example_en": "Did they win the game? Yes, they did.",
+        "example_fr": "Ont-ils gagné le match ? Oui, ils l'ont gagné."
+      },
+      {
+        "word": "player",
+        "definition_en": "A person who takes part in a sport or game",
+        "definition_fr": "Une personne qui participe à un sport ou un jeu",
+        "example_en": "Is she a good player? Yes, she is.",
+        "example_fr": "Est-elle une bonne joueuse ? Oui, elle l'est."
+      }
+    ]
+  },
+  {
+    "id": "a1_c20",
+    "bloc": 4,
+    "title": "Cas possessif et pronoms possessifs",
+    "type": "grammar",
+    "rule": {
+      "en": "Tom's book / the girl's bag — Possessive 's rule. Plurals: the boys' room. Pronouns: mine, yours, his, hers, ours, theirs.",
+      "fr": "Tom's book / the girl's bag — Règle du 's possessif. Pluriels : the boys' room. Pronoms : mine, yours, his, hers, ours, theirs."
+    },
+    "examples": [
+      {
+        "en": "That is Emma's jacket.",
+        "fr": "C'est la veste d'Emma."
+      },
+      {
+        "en": "Is this bag yours?",
+        "fr": "Ce sac est-il le vôtre ?"
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "shirt",
+        "definition_en": "A garment worn on the upper body with a collar and buttons",
+        "definition_fr": "Un vêtement porté sur la partie supérieure du corps avec un col et des boutons",
+        "example_en": "That is Tom's white shirt.",
+        "example_fr": "C'est la chemise blanche de Tom."
+      },
+      {
+        "word": "trousers",
+        "definition_en": "A piece of clothing covering the lower body and each leg",
+        "definition_fr": "Un vêtement couvrant la partie inférieure du corps et chaque jambe",
+        "example_en": "These trousers are mine.",
+        "example_fr": "Ce pantalon est le mien."
+      },
+      {
+        "word": "shoes",
+        "definition_en": "Coverings for the feet made of leather or other material",
+        "definition_fr": "Des couverts pour les pieds en cuir ou autre matière",
+        "example_en": "Are these shoes yours?",
+        "example_fr": "Ces chaussures sont-elles les vôtres ?"
+      },
+      {
+        "word": "dress",
+        "definition_en": "A piece of clothing for women covering the body to the knees",
+        "definition_fr": "Un vêtement pour femmes couvrant le corps jusqu'aux genoux",
+        "example_en": "That red dress is hers.",
+        "example_fr": "Cette robe rouge est la sienne."
+      },
+      {
+        "word": "hat",
+        "definition_en": "A covering for the head",
+        "definition_fr": "Un couvre-chef",
+        "example_en": "Is this hat yours or his?",
+        "example_fr": "Ce chapeau est-il le vôtre ou le sien ?"
+      },
+      {
+        "word": "coat",
+        "definition_en": "A long outer garment worn for warmth",
+        "definition_fr": "Un long vêtement extérieur porté pour se réchauffer",
+        "example_en": "The coat on the chair is mine.",
+        "example_fr": "Le manteau sur la chaise est le mien."
+      },
+      {
+        "word": "jacket",
+        "definition_en": "A short coat reaching the waist or hips",
+        "definition_fr": "Un manteau court atteignant la taille ou les hanches",
+        "example_en": "That is John's jacket.",
+        "example_fr": "C'est la veste de John."
+      },
+      {
+        "word": "scarf",
+        "definition_en": "A length of fabric worn around the neck",
+        "definition_fr": "Une longueur de tissu portée autour du cou",
+        "example_en": "This scarf is mine.",
+        "example_fr": "Cette écharpe est la mienne."
+      },
+      {
+        "word": "gloves",
+        "definition_en": "Coverings for the hands with separate parts for each finger",
+        "definition_fr": "Des couvre-mains avec des parties séparées pour chaque doigt",
+        "example_en": "Are these gloves theirs?",
+        "example_fr": "Ces gants sont-ils les leurs ?"
+      },
+      {
+        "word": "boots",
+        "definition_en": "Footwear covering the foot and ankle or lower leg",
+        "definition_fr": "Des chaussures couvrant le pied et la cheville ou le bas de la jambe",
+        "example_en": "Those boots are hers.",
+        "example_fr": "Ces bottes sont les siennes."
+      }
+    ]
+  },
+  {
+    "id": "a1_c21",
+    "bloc": 5,
+    "title": "Mois, saisons, prépositions de temps",
+    "type": "vocabulary_grammar",
+    "rule": {
+      "en": "January…December / Spring, Summer, Autumn, Winter. At (time) / On (day) / In (month, season, year).",
+      "fr": "January…December / Spring, Summer, Autumn, Winter. At (heure) / On (jour) / In (mois, saison, année)."
+    },
+    "examples": [
+      {
+        "en": "My birthday is in July.",
+        "fr": "Mon anniversaire est en juillet."
+      },
+      {
+        "en": "The hotel is on the beach.",
+        "fr": "L'hôtel est sur la plage."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "hotel",
+        "definition_en": "A building where people pay to sleep and eat during a journey",
+        "definition_fr": "Un bâtiment où les gens paient pour dormir et manger lors d'un voyage",
+        "example_en": "We are staying at a hotel in Rome.",
+        "example_fr": "Nous séjournons dans un hôtel à Rome."
+      },
+      {
+        "word": "airport",
+        "definition_en": "A place where aircraft take off and land",
+        "definition_fr": "Un endroit où les avions décollent et atterrissent",
+        "example_en": "The airport is very busy in summer.",
+        "example_fr": "L'aéroport est très animé en été."
+      },
+      {
+        "word": "passport",
+        "definition_en": "An official document for travelling abroad",
+        "definition_fr": "Un document officiel pour voyager à l'étranger",
+        "example_en": "Don't forget your passport at the airport.",
+        "example_fr": "N'oublie pas ton passeport à l'aéroport."
+      },
+      {
+        "word": "ticket",
+        "definition_en": "A piece of paper giving the right to travel or attend an event",
+        "definition_fr": "Un morceau de papier donnant le droit de voyager ou d'assister à un événement",
+        "example_en": "She booked her ticket in January.",
+        "example_fr": "Elle a réservé son billet en janvier."
+      },
+      {
+        "word": "suitcase",
+        "definition_en": "A large bag with a handle for carrying clothes when travelling",
+        "definition_fr": "Un grand sac avec une poignée pour transporter des vêtements en voyage",
+        "example_en": "His suitcase is very heavy.",
+        "example_fr": "Sa valise est très lourde."
+      },
+      {
+        "word": "journey",
+        "definition_en": "An act of travelling from one place to another",
+        "definition_fr": "Un acte de voyager d'un endroit à un autre",
+        "example_en": "The journey to Paris takes three hours.",
+        "example_fr": "Le voyage jusqu'à Paris prend trois heures."
+      },
+      {
+        "word": "beach",
+        "definition_en": "A sandy or pebbly area by the sea",
+        "definition_fr": "Une zone sablonneuse ou caillouteuse au bord de la mer",
+        "example_en": "They always go to the beach in summer.",
+        "example_fr": "Ils vont toujours à la plage en été."
+      },
+      {
+        "word": "mountain",
+        "definition_en": "A large natural elevation of the earth's surface",
+        "definition_fr": "Une grande élévation naturelle de la surface terrestre",
+        "example_en": "In winter, they ski in the mountains.",
+        "example_fr": "En hiver, ils font du ski dans les montagnes."
+      },
+      {
+        "word": "city",
+        "definition_en": "A large and important town",
+        "definition_fr": "Une grande et importante ville",
+        "example_en": "Which city do you live in?",
+        "example_fr": "Dans quelle ville habites-tu ?"
+      },
+      {
+        "word": "country",
+        "definition_en": "A nation with its own government",
+        "definition_fr": "Une nation avec son propre gouvernement",
+        "example_en": "France is a beautiful country.",
+        "example_fr": "La France est un beau pays."
+      }
+    ]
+  },
+  {
+    "id": "a1_c22",
+    "bloc": 5,
+    "title": "Météo et adjectifs climatiques",
+    "type": "vocabulary",
+    "rule": {
+      "en": "It is + adjective (hot, cold, warm, sunny, foggy). It is + -ing (raining, snowing). What's the weather like?",
+      "fr": "It is + adjectif (hot, cold, warm, sunny, foggy). It is + -ing (raining, snowing). What's the weather like?"
+    },
+    "examples": [
+      {
+        "en": "It is raining outside.",
+        "fr": "Il pleut dehors."
+      },
+      {
+        "en": "What's the weather like today? It's sunny and warm.",
+        "fr": "Quel temps fait-il aujourd'hui ? Il fait ensoleillé et chaud."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "sun",
+        "definition_en": "The star at the centre of our solar system that gives us light",
+        "definition_fr": "L'étoile au centre de notre système solaire qui nous donne de la lumière",
+        "example_en": "The sun is shining today.",
+        "example_fr": "Le soleil brille aujourd'hui."
+      },
+      {
+        "word": "rain",
+        "definition_en": "Water that falls from clouds in drops",
+        "definition_fr": "L'eau qui tombe des nuages en gouttes",
+        "example_en": "Is it going to rain tomorrow?",
+        "example_fr": "Va-t-il pleuvoir demain ?"
+      },
+      {
+        "word": "cloud",
+        "definition_en": "A visible mass of water vapour floating in the sky",
+        "definition_fr": "Une masse visible de vapeur d'eau flottant dans le ciel",
+        "example_en": "There are dark clouds in the sky.",
+        "example_fr": "Il y a des nuages sombres dans le ciel."
+      },
+      {
+        "word": "wind",
+        "definition_en": "The natural movement of air outdoors",
+        "definition_fr": "Le mouvement naturel de l'air à l'extérieur",
+        "example_en": "It is very windy today.",
+        "example_fr": "Il fait très venteux aujourd'hui."
+      },
+      {
+        "word": "snow",
+        "definition_en": "Frozen water that falls from the sky in white flakes",
+        "definition_fr": "L'eau gelée qui tombe du ciel en flocons blancs",
+        "example_en": "It is snowing in the mountains.",
+        "example_fr": "Il neige dans les montagnes."
+      },
+      {
+        "word": "temperature",
+        "definition_en": "The degree of heat or cold in a place",
+        "definition_fr": "Le degré de chaleur ou de froid dans un endroit",
+        "example_en": "The temperature is thirty degrees today.",
+        "example_fr": "La température est de trente degrés aujourd'hui."
+      },
+      {
+        "word": "umbrella",
+        "definition_en": "A device held over the head to protect from rain",
+        "definition_fr": "Un appareil tenu au-dessus de la tête pour se protéger de la pluie",
+        "example_en": "Take your umbrella, it is raining.",
+        "example_fr": "Prends ton parapluie, il pleut."
+      },
+      {
+        "word": "hot",
+        "definition_en": "Having a high temperature",
+        "definition_fr": "Ayant une haute température",
+        "example_en": "It is very hot in August.",
+        "example_fr": "Il fait très chaud en août."
+      },
+      {
+        "word": "cold",
+        "definition_en": "Having a low temperature",
+        "definition_fr": "Ayant une basse température",
+        "example_en": "It is cold and snowy in winter.",
+        "example_fr": "Il fait froid et neigeux en hiver."
+      },
+      {
+        "word": "warm",
+        "definition_en": "Having a comfortable temperature, not too hot or cold",
+        "definition_fr": "Ayant une température confortable, ni trop chaud ni trop froid",
+        "example_en": "The weather is warm and sunny today.",
+        "example_fr": "Le temps est chaud et ensoleillé aujourd'hui."
+      }
+    ]
+  },
+  {
+    "id": "a1_c23",
+    "bloc": 5,
+    "title": "Can / Can't — Capacité et permission",
+    "type": "grammar",
+    "rule": {
+      "en": "I can swim / Can you drive? / She can't speak French. Same form for all subjects. No -s at 3rd person.",
+      "fr": "I can swim / Can you drive? / She can't speak French. Même forme pour tous les sujets. Pas de -s à la 3e personne."
+    },
+    "examples": [
+      {
+        "en": "Can you drive a car?",
+        "fr": "Sais-tu conduire une voiture ?"
+      },
+      {
+        "en": "She can't speak Japanese.",
+        "fr": "Elle ne parle pas japonais."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "drive",
+        "definition_en": "To operate and control a motor vehicle",
+        "definition_fr": "Conduire et contrôler un véhicule motorisé",
+        "example_en": "Can you drive a truck?",
+        "example_fr": "Sais-tu conduire un camion ?"
+      },
+      {
+        "word": "sing",
+        "definition_en": "To make musical sounds with your voice",
+        "definition_fr": "Faire des sons musicaux avec sa voix",
+        "example_en": "She can sing very well.",
+        "example_fr": "Elle chante très bien."
+      },
+      {
+        "word": "speak",
+        "definition_en": "To use words to say something",
+        "definition_fr": "Utiliser des mots pour dire quelque chose",
+        "example_en": "Can he speak Spanish?",
+        "example_fr": "Parle-t-il espagnol ?"
+      },
+      {
+        "word": "understand",
+        "definition_en": "To know the meaning of what someone says",
+        "definition_fr": "Connaître le sens de ce que dit quelqu'un",
+        "example_en": "I can't understand this lesson.",
+        "example_fr": "Je ne comprends pas cette leçon."
+      },
+      {
+        "word": "help",
+        "definition_en": "To make it easier for someone to do something",
+        "definition_fr": "Faciliter la tâche à quelqu'un",
+        "example_en": "Can you help me with this exercise?",
+        "example_fr": "Peux-tu m'aider avec cet exercice ?"
+      },
+      {
+        "word": "pay",
+        "definition_en": "To give money in exchange for goods or services",
+        "definition_fr": "Donner de l'argent en échange de biens ou de services",
+        "example_en": "She can pay by credit card.",
+        "example_fr": "Elle peut payer par carte de crédit."
+      }
+    ]
+  },
+  {
+    "id": "a1_c24",
+    "bloc": 5,
+    "title": "Les impératifs",
+    "type": "grammar",
+    "rule": {
+      "en": "Use the base verb (Listen! / Sit down!) / Negative: Don't + verb (Don't run!). Used for instructions, directions, advice.",
+      "fr": "Verbe à la base (Listen! / Sit down!) / Négatif : Don't + verbe (Don't run!). Instructions, directions, conseils."
+    },
+    "examples": [
+      {
+        "en": "Turn left at the traffic lights.",
+        "fr": "Tournez à gauche aux feux de circulation."
+      },
+      {
+        "en": "Don't forget your passport.",
+        "fr": "N'oubliez pas votre passeport."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "turn left",
+        "definition_en": "To change direction to the left side",
+        "definition_fr": "Changer de direction vers le côté gauche",
+        "example_en": "Turn left at the next street.",
+        "example_fr": "Tournez à gauche à la prochaine rue."
+      },
+      {
+        "word": "turn right",
+        "definition_en": "To change direction to the right side",
+        "definition_fr": "Changer de direction vers le côté droit",
+        "example_en": "Turn right after the traffic lights.",
+        "example_fr": "Tournez à droite après les feux."
+      },
+      {
+        "word": "go straight",
+        "definition_en": "To continue in the same direction without turning",
+        "definition_fr": "Continuer dans la même direction sans tourner",
+        "example_en": "Go straight for two hundred metres.",
+        "example_fr": "Allez tout droit pendant deux cents mètres."
+      },
+      {
+        "word": "stop",
+        "definition_en": "To cease moving or doing something",
+        "definition_fr": "Cesser de bouger ou de faire quelque chose",
+        "example_en": "Stop at the red light.",
+        "example_fr": "Arrêtez-vous au feu rouge."
+      },
+      {
+        "word": "wait",
+        "definition_en": "To stay in one place until something happens",
+        "definition_fr": "Rester à un endroit jusqu'à ce que quelque chose se passe",
+        "example_en": "Wait here for five minutes.",
+        "example_fr": "Attendez ici cinq minutes."
+      },
+      {
+        "word": "open",
+        "definition_en": "To move so as to allow access",
+        "definition_fr": "Bouger de façon à permettre l'accès",
+        "example_en": "Open the door, please.",
+        "example_fr": "Ouvrez la porte, s'il vous plaît."
+      },
+      {
+        "word": "close",
+        "definition_en": "To move so as to cover an opening",
+        "definition_fr": "Bouger de façon à couvrir une ouverture",
+        "example_en": "Close the window before you leave.",
+        "example_fr": "Fermez la fenêtre avant de partir."
+      },
+      {
+        "word": "follow",
+        "definition_en": "To go after someone or something",
+        "definition_fr": "Aller après quelqu'un ou quelque chose",
+        "example_en": "Follow the signs to the airport.",
+        "example_fr": "Suivez les panneaux jusqu'à l'aéroport."
+      },
+      {
+        "word": "take",
+        "definition_en": "To carry or go with something from one place to another",
+        "definition_fr": "Porter ou aller avec quelque chose d'un endroit à un autre",
+        "example_en": "Take the first road on the left.",
+        "example_fr": "Prenez la première rue à gauche."
+      }
+    ]
+  },
+  {
+    "id": "a1_c25",
+    "bloc": 5,
+    "title": "Révision consolidée A1",
+    "type": "revision",
+    "rule": {
+      "en": "Revision of all A1 structures: to be, present simple, progressive, can, articles, possessives, prepositions.",
+      "fr": "Révision de toutes les structures A1 : to be, present simple, progressive, can, articles, possessifs, prépositions."
+    },
+    "examples": [
+      {
+        "en": "She is a teacher and she can speak three languages.",
+        "fr": "Elle est professeure et elle peut parler trois langues."
+      },
+      {
+        "en": "He is usually at home but now he is travelling.",
+        "fr": "Il est habituellement à la maison mais là il voyage."
+      }
+    ],
+    "vocabulary": [
+      {
+        "word": "introduce",
+        "definition_en": "To present yourself or someone else to others for the first time",
+        "definition_fr": "Se présenter ou présenter quelqu'un d'autre pour la première fois",
+        "example_en": "Let me introduce myself.",
+        "example_fr": "Permettez-moi de me présenter."
+      },
+      {
+        "word": "describe",
+        "definition_en": "To say what something or someone is like",
+        "definition_fr": "Dire à quoi ressemble quelque chose ou quelqu'un",
+        "example_en": "Can you describe your house?",
+        "example_fr": "Peux-tu décrire ta maison ?"
+      },
+      {
+        "word": "routine",
+        "definition_en": "A regular sequence of activities",
+        "definition_fr": "Une séquence régulière d'activités",
+        "example_en": "What is your daily routine?",
+        "example_fr": "Quelle est ta routine quotidienne ?"
+      },
+      {
+        "word": "hobby",
+        "definition_en": "An activity done regularly for pleasure in free time",
+        "definition_fr": "Une activité pratiquée régulièrement pour le plaisir dans son temps libre",
+        "example_en": "My hobby is painting.",
+        "example_fr": "Mon loisir est la peinture."
+      },
+      {
+        "word": "favourite",
+        "definition_en": "The thing you like most",
+        "definition_fr": "La chose que vous aimez le plus",
+        "example_en": "What is your favourite sport?",
+        "example_fr": "Quel est ton sport préféré ?"
+      },
+      {
+        "word": "nationality",
+        "definition_en": "The status of belonging to a particular country",
+        "definition_fr": "Le statut d'appartenir à un pays particulier",
+        "example_en": "What is your nationality?",
+        "example_fr": "Quelle est ta nationalité ?"
+      },
+      {
+        "word": "address",
+        "definition_en": "The details of where someone lives",
+        "definition_fr": "Les détails de l'endroit où quelqu'un vit",
+        "example_en": "What is your address?",
+        "example_fr": "Quelle est ton adresse ?"
+      },
+      {
+        "word": "language",
+        "definition_en": "A system of communication used by a particular country",
+        "definition_fr": "Un système de communication utilisé par un pays particulier",
+        "example_en": "How many languages can you speak?",
+        "example_fr": "Combien de langues parles-tu ?"
+      }
+    ]
+  }
+]

@@ -382,7 +382,7 @@ export default function DashboardPage() {
           // Explorer entries config
           const entries = [
             {
-              href: '/module/coffre',
+              href: `/module/coffre?courseId=${nextCourseInfo.url.split('courseId=')[1] || 'a1_c1'}`,
               bg: '#D9B438',
               icon: (
                 <svg viewBox="0 0 64 64" width="48" height="48" fill="none">

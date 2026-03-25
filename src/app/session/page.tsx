@@ -16,6 +16,7 @@ import {
   getReadingTexts, getSpeakingExercises, getWritingExercises,
   speakText, isCloseEnough, addToPersonalVocab,
 } from '@/lib/db/bankHelpers'
+import { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises } from '@/lib/db/bankA1Courses'
 import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, WritingExercise } from '@/lib/db/bankTypes'
 
 // ==========================================
@@ -305,78 +306,134 @@ function SessionContent() {
     const userId = currentUser.id
     const todayStr = new Date().toISOString().split('T')[0]
 
-    // STEP 1: Daily Words
-    const chestKey = `lingualearn_chest_${userId}_${todayStr}`
-    const chestOpened = localStorage.getItem(chestKey)
-    if (!chestOpened) {
-      const words = getVocabulary(activeLang, userThemes, userLevel)
-      const wordsPerDay = currentUser.settings.schedules?.[activeLang]?.wordsPerDay || 8
-      if (words.length > 0) {
-        // Generate vocab presentation + matching exercises
-        const dailyWords = words.slice(0, wordsPerDay)
-        allExercises.push(...generateVocabExercises(dailyWords, Math.min(3, wordsPerDay), isPathB))
+    // V3.20: Check if this is a real A1 course from the bank
+    const isA1BankCourse = courseId && /^a1_c\d+$/.test(courseId) && getA1CourseData(courseId)
+
+    if (isA1BankCourse && courseId) {
+      // ==========================================
+      // A1 BANK COURSE: use real course data
+      // ==========================================
+      const courseVocab = getA1CourseVocabulary(courseId)
+      const courseGrammarEx = getA1CourseGrammarExercises(courseId)
+
+      // STEP 1: Vocabulary exercises from course vocabulary
+      if (courseVocab.length > 0) {
+        allExercises.push(...generateVocabExercises(courseVocab, Math.min(5, courseVocab.length), isPathB))
         usedModules.push('vocabulaire')
       }
-      // Mark chest as opened
-      localStorage.setItem(chestKey, 'true')
-    }
 
-    // STEP 2: Grammar rule of the day
-    const grammarStarKey = `lingualearn_grammar_stars_${userId}_${activeLang}`
-    const grammarProgressStr = localStorage.getItem(grammarStarKey)
-    const grammarProgress = grammarProgressStr ? JSON.parse(grammarProgressStr) : {}
-
-    const rules = getGrammarRules(activeLang, userLevel)
-    const uncompleted = rules.find(r => !grammarProgress[r.id])
-    if (uncompleted) {
-      const gramExercises = getExercisesForRule(uncompleted.id)
-      if (gramExercises.length > 0) {
-        allExercises.push(...generateGrammarExercises(gramExercises, Math.min(3, gramExercises.length)))
+      // STEP 2: Grammar exercises from course rule + examples + vocabulary
+      if (courseGrammarEx.length > 0) {
+        allExercises.push(...generateGrammarExercises(courseGrammarEx, Math.min(5, courseGrammarEx.length)))
         usedModules.push('grammaire')
       }
-    }
 
-    // STEP 3: Objective exercise based on user intentions
-    const objectiveSet = new Set<string>(objectives as string[])
-    if (objectiveSet.has('oral')) {
-      const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
-      if (speakExercises.length > 0) {
-        allExercises.push(...generateSpeakingExercises(speakExercises, 2))
-        usedModules.push('oral')
+      // STEP 3: Objective exercises (oral, lecture, ecrit) — from generic banks
+      const objectiveSet = new Set<string>(objectives as string[])
+      if (objectiveSet.has('oral')) {
+        const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
+        if (speakExercises.length > 0) {
+          allExercises.push(...generateSpeakingExercises(speakExercises, 2))
+          usedModules.push('oral')
+        }
       }
-    }
-    if (objectiveSet.has('lecture')) {
-      const texts = getReadingTexts(activeLang, userThemes, userLevel)
-      const readEx = generateReadingExercise(texts, currentUser.settings.interfaceLang || 'fr')
-      if (readEx) {
-        allExercises.push(readEx)
-        usedModules.push('lecture')
+      if (objectiveSet.has('lecture')) {
+        const texts = getReadingTexts(activeLang, userThemes, userLevel)
+        const readEx = generateReadingExercise(texts, currentUser.settings.interfaceLang || 'fr')
+        if (readEx) {
+          allExercises.push(readEx)
+          usedModules.push('lecture')
+        }
       }
-    }
-    // BUG-57: Parcours B = NO written exercises, replace with oral/listening
-    if (objectiveSet.has('ecrit') && !isPathB) {
-      const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
-      if (writeExercises.length > 0) {
-        allExercises.push(...generateWritingExercises(writeExercises, 2))
-        usedModules.push('ecrit')
+      if (objectiveSet.has('ecrit') && !isPathB) {
+        const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
+        if (writeExercises.length > 0) {
+          allExercises.push(...generateWritingExercises(writeExercises, 2))
+          usedModules.push('ecrit')
+        }
       }
-    }
-    // BUG-57: For Parcours B, add extra oral exercises instead of writing
-    if (isPathB && !usedModules.includes('oral')) {
-      const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
-      if (speakExercises.length > 0) {
-        allExercises.push(...generateSpeakingExercises(speakExercises, 2))
-        usedModules.push('oral')
+      if (isPathB && !usedModules.includes('oral')) {
+        const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
+        if (speakExercises.length > 0) {
+          allExercises.push(...generateSpeakingExercises(speakExercises, 2))
+          usedModules.push('oral')
+        }
       }
-    }
 
-    // If no objective exercises added, default to vocab
-    if (!objectiveSet.has('oral') && !objectiveSet.has('lecture') && !objectiveSet.has('ecrit')) {
-      const words = getVocabulary(activeLang, userThemes, userLevel)
-      if (words.length > 0) {
-        allExercises.push(...generateVocabExercises(words, 3, isPathB))
-        if (!usedModules.includes('vocabulaire')) {
+    } else {
+      // ==========================================
+      // LEGACY: generic bank-based session (non-A1 courses, Parcours B, etc.)
+      // ==========================================
+
+      // STEP 1: Daily Words
+      const chestKey = `lingualearn_chest_${userId}_${todayStr}`
+      const chestOpened = localStorage.getItem(chestKey)
+      if (!chestOpened) {
+        const words = getVocabulary(activeLang, userThemes, userLevel)
+        const wordsPerDay = currentUser.settings.schedules?.[activeLang]?.wordsPerDay || 8
+        if (words.length > 0) {
+          const dailyWords = words.slice(0, wordsPerDay)
+          allExercises.push(...generateVocabExercises(dailyWords, Math.min(3, wordsPerDay), isPathB))
           usedModules.push('vocabulaire')
+        }
+        localStorage.setItem(chestKey, 'true')
+      }
+
+      // STEP 2: Grammar rule of the day
+      const grammarStarKey = `lingualearn_grammar_stars_${userId}_${activeLang}`
+      const grammarProgressStr = localStorage.getItem(grammarStarKey)
+      const grammarProgress = grammarProgressStr ? JSON.parse(grammarProgressStr) : {}
+
+      const rules = getGrammarRules(activeLang, userLevel)
+      const uncompleted = rules.find(r => !grammarProgress[r.id])
+      if (uncompleted) {
+        const gramExercises = getExercisesForRule(uncompleted.id)
+        if (gramExercises.length > 0) {
+          allExercises.push(...generateGrammarExercises(gramExercises, Math.min(3, gramExercises.length)))
+          usedModules.push('grammaire')
+        }
+      }
+
+      // STEP 3: Objective exercise based on user intentions
+      const objectiveSet = new Set<string>(objectives as string[])
+      if (objectiveSet.has('oral')) {
+        const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
+        if (speakExercises.length > 0) {
+          allExercises.push(...generateSpeakingExercises(speakExercises, 2))
+          usedModules.push('oral')
+        }
+      }
+      if (objectiveSet.has('lecture')) {
+        const texts = getReadingTexts(activeLang, userThemes, userLevel)
+        const readEx = generateReadingExercise(texts, currentUser.settings.interfaceLang || 'fr')
+        if (readEx) {
+          allExercises.push(readEx)
+          usedModules.push('lecture')
+        }
+      }
+      if (objectiveSet.has('ecrit') && !isPathB) {
+        const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
+        if (writeExercises.length > 0) {
+          allExercises.push(...generateWritingExercises(writeExercises, 2))
+          usedModules.push('ecrit')
+        }
+      }
+      if (isPathB && !usedModules.includes('oral')) {
+        const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
+        if (speakExercises.length > 0) {
+          allExercises.push(...generateSpeakingExercises(speakExercises, 2))
+          usedModules.push('oral')
+        }
+      }
+
+      // If no objective exercises added, default to vocab
+      if (!objectiveSet.has('oral') && !objectiveSet.has('lecture') && !objectiveSet.has('ecrit')) {
+        const words = getVocabulary(activeLang, userThemes, userLevel)
+        if (words.length > 0) {
+          allExercises.push(...generateVocabExercises(words, 3, isPathB))
+          if (!usedModules.includes('vocabulaire')) {
+            usedModules.push('vocabulaire')
+          }
         }
       }
     }
@@ -473,7 +530,8 @@ function SessionContent() {
     setSessionModules(Array.from(new Set(usedModules)))
     // V3.19 BUG-62: Mark session as ready so intro→lessonMap/summary transition waits
     setSessionReady(true)
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId])
 
   useEffect(() => {
     const currentUser = getCurrentUser()

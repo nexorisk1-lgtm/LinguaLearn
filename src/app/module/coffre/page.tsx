@@ -1,13 +1,14 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Volume2, Mic, MicOff, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { getCurrentUser, updateUserProgress, saveReviewItem } from '@/lib/db/localStorage';
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import { getVocabulary, speakText, isCloseEnough, addToPersonalVocab } from '@/lib/db/bankHelpers';
+import { getA1CourseVocabulary } from '@/lib/db/bankA1Courses';
 import { VocabWord } from '@/lib/db/bankTypes';
 
 // ==========================================
@@ -39,8 +40,10 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled;
 }
 
-export default function CoffrePage() {
+function CoffreContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const courseIdParam = searchParams.get('courseId');
   const [user, setUser] = useState<User | null>(null);
   const [lang, setLang] = useState<InterfaceLanguage>('fr');
   const [activeLang, setActiveLang] = useState<LearningLanguage>('en');
@@ -95,9 +98,11 @@ export default function CoffrePage() {
       setTotalCount(savedSession.totalCount || 0);
       setPhase('learning'); // Resume saved session
     } else {
-      // V3.15: New session — build exercises and go directly to learning (no welcome screen)
-      const themes = config?.themes || [];
-      const allVocab = getVocabulary(aLang, themes, 'A1');
+      // V3.20: Use course-specific vocabulary if courseId is a real A1 course
+      const isA1Course = courseIdParam && /^a1_c\d+$/.test(courseIdParam);
+      const allVocab = isA1Course
+        ? getA1CourseVocabulary(courseIdParam)
+        : getVocabulary(aLang, config?.themes || [], 'A1');
       const shuffled = shuffleArray(allVocab);
       const picked = shuffled.slice(0, Math.min(wordsPerDay, shuffled.length));
       setDailyWords(picked);
@@ -578,5 +583,18 @@ export default function CoffrePage() {
       </div>
       <BottomNav lang={lang} />
     </div>
+  );
+}
+
+// Wrap in Suspense for useSearchParams
+export default function CoffrePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-[#F0F0F0]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#002844]" />
+      </div>
+    }>
+      <CoffreContent />
+    </Suspense>
   );
 }

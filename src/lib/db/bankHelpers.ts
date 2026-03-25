@@ -19,6 +19,8 @@ import { BANK_SPEAKING } from './bankSpeaking';
 
 // Re-export BANK_VERB_EXERCISES for convenience
 export { BANK_VERB_EXERCISES } from './bankGrammar';
+// Re-export A1 course bank helpers
+export { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises } from './bankA1Courses';
 
 // ==========================================
 // LEVEL HELPERS
