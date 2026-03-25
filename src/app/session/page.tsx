@@ -7,7 +7,7 @@ import {
   Play, CheckCircle, XCircle, ArrowRight, Trophy, Flame,
   BookOpen, PenTool, Mic, Volume2, Pencil, Home, Volume, Star,
 } from 'lucide-react'
-import { getCurrentUser, updateUserProgress, saveReviewItem } from '@/lib/db/localStorage'
+import { getCurrentUser, updateUserProgress, saveReviewItem, addSessionDate } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningObjective } from '@/types'
 import BottomNav from '@/components/BottomNav'
 import PageHeader from '@/components/PageHeader'
@@ -763,6 +763,9 @@ function SessionContent() {
       dailyWordsCompleted: (currentProgress?.dailyWordsCompleted || 0) + results.filter(r => r.exercise.module === 'vocabulaire' && r.correct).length,
       objectiveProgress: newObjProgress,
     })
+
+    // V3.11: Persist completed day for planning calendar
+    addSessionDate(user.id, activeLang, todayStr)
 
     // BUG-24: Save vocabulary words seen to personal vocab
     for (const result of results) {

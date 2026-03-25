@@ -568,3 +568,28 @@ export function getDueReviews(userId: string, lang: string): ReviewItem[] {
   const todayStr = new Date().toISOString().split('T')[0];
   return items.filter(i => i.nextReviewDate <= todayStr);
 }
+
+// ==========================================
+// V3.11: SESSION HISTORY — persistent completed days
+// ==========================================
+
+export function getSessionHistory(userId: string, lang: string): string[] {
+  if (!isLocalStorageAvailable()) return [];
+  try {
+    const key = `lingualearn_session_history_${userId}_${lang}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+export function addSessionDate(userId: string, lang: string, dateStr: string): void {
+  if (!isLocalStorageAvailable()) return;
+  try {
+    const key = `lingualearn_session_history_${userId}_${lang}`;
+    const history: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!history.includes(dateStr)) {
+      history.push(dateStr);
+      localStorage.setItem(key, JSON.stringify(history));
+    }
+  } catch { /* ignore */ }
+}

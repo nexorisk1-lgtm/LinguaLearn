@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, setActiveLang, logoutUser, getAllUsers, getDueReviews } from '@/lib/db/localStorage'
+import { getCurrentUser, setActiveLang, logoutUser, getAllUsers, getDueReviews, getSessionHistory, addSessionDate } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
@@ -361,12 +361,11 @@ export default function DashboardPage() {
           </a>
         )}
 
-        {/* BLOC 3 — V3.11: Explorer carrousel horizontal, icônes 64px, indicateurs état */}
+        {/* BLOC 3 — V3.11: Explorer — icônes ≥64px, texte 15px bold, étoiles dorées, pleine largeur */}
         {(() => {
           const todayStr = new Date().toISOString().split('T')[0]
           const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
           const coffreDone = (progress?.dailyWordsCompleted || 0) > 0
-          // Check if today's course is completed
           const courseCompleted = (() => {
             try {
               const key = `lingualearn_course_scores_${user.id}_${activeLang}`
@@ -377,54 +376,58 @@ export default function DashboardPage() {
             } catch { return false }
           })()
 
+          // Persist today as completed if session done
+          if (sessionDoneToday) {
+            addSessionDate(user.id, activeLang, todayStr)
+          }
+
           return (
             <div className="rounded-2xl bg-white shadow-sm p-4 mb-4">
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
-                {/* 📦 Mes nouveaux mots */}
-                <a href="/module/coffre" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
-                  <div className="w-16 h-16 rounded-full bg-[#D9B438]/15 flex items-center justify-center">
-                    <span className="text-3xl">📦</span>
+              <div className="flex overflow-x-auto pb-2 -mx-1 px-1 gap-2" style={{ scrollSnapType: 'x mandatory' }}>
+                {/* 📦 Nouveaux mots */}
+                <a href="/module/coffre" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
+                  <div className="rounded-full bg-[#D9B438]/15 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
+                    <span style={{ fontSize: '28px' }}>📦</span>
                   </div>
-                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Nouveaux mots' : 'New words'}</p>
-                  <span className="text-xs" style={{ letterSpacing: '2px' }}>{coffreDone ? '★★★' : '☆☆☆'}</span>
+                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Nouveaux mots' : 'New words'}</p>
+                  <span style={{ letterSpacing: '2px', color: '#D9B438', fontSize: '12px' }}>{coffreDone ? '★★★' : '☆☆☆'}</span>
                 </a>
-                {/* 🔄 Mes révisions */}
-                <a href="/module/vocabulaire" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
-                  <div className="w-16 h-16 rounded-full bg-[#7B1FA2]/10 flex items-center justify-center relative">
-                    <span className="text-3xl">🔄</span>
+                {/* 🔄 Révisions → /module/revisions */}
+                <a href="/module/revisions" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
+                  <div className="rounded-full bg-[#7B1FA2]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
+                    <span style={{ fontSize: '28px' }}>🔄</span>
                   </div>
-                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Révisions' : 'Reviews'}</p>
-                  <span className="text-[11px] font-semibold text-[#7B1FA2]">{dueWordReviews > 0 ? `${dueWordReviews} ${lang === 'fr' ? 'mots' : 'words'}` : '✓'}</span>
+                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Révisions' : 'Reviews'}</p>
+                  <span className="font-semibold" style={{ fontSize: '12px', color: '#D9B438' }}>{dueWordReviews > 0 ? `${dueWordReviews} ${lang === 'fr' ? 'mots' : 'words'}` : '✓'}</span>
                 </a>
-                {/* ▶️ Mon cours du jour */}
-                <a href={nextCourseInfo.url} className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
-                  <div className="w-16 h-16 rounded-full bg-[#1976D2]/10 flex items-center justify-center">
-                    <span className="text-3xl">▶️</span>
+                {/* ▶️ Cours du jour */}
+                <a href={nextCourseInfo.url} className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
+                  <div className="rounded-full bg-[#1976D2]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
+                    <span style={{ fontSize: '28px' }}>▶️</span>
                   </div>
-                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Cours du jour' : "Today's course"}</p>
-                  <span className="text-xs font-semibold text-[#1976D2]">{courseCompleted ? '✓' : '★'}</span>
+                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Cours du jour' : "Today's"}</p>
+                  <span style={{ fontSize: '12px', color: '#D9B438' }}>{courseCompleted ? '✓' : '★'}</span>
                 </a>
-                {/* 📘 Mon parcours */}
-                <a href="/module/cours" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
-                  <div className="w-16 h-16 rounded-full bg-[#2E7D32]/10 flex items-center justify-center">
-                    <span className="text-3xl">📘</span>
+                {/* 📘 Parcours */}
+                <a href="/module/cours" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
+                  <div className="rounded-full bg-[#2E7D32]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
+                    <span style={{ fontSize: '28px' }}>📘</span>
                   </div>
-                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">
-                    {lang === 'fr'
-                      ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1')
-                      : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path')}
+                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>
+                    {lang === 'fr' ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1') : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path')}
                   </p>
-                  <span className="text-[11px] font-semibold text-[#2E7D32]">{nextCourseInfo.progress}</span>
+                  <span className="font-semibold" style={{ fontSize: '12px', color: '#D9B438' }}>{nextCourseInfo.progress}</span>
                 </a>
                 {/* 🎯 Entraînement */}
-                <a href="/module/entrainement" className="flex flex-col items-center gap-2 flex-shrink-0 active:scale-95 transition-transform" style={{ scrollSnapAlign: 'start', minWidth: '80px' }}>
-                  <div className="w-16 h-16 rounded-full bg-[#E65100]/10 flex items-center justify-center">
-                    <span className="text-3xl">🎯</span>
+                <a href="/module/entrainement" className="flex flex-col items-center gap-1.5 flex-1 min-w-0 active:scale-95 transition-transform py-2" style={{ scrollSnapAlign: 'start' }}>
+                  <div className="rounded-full bg-[#E65100]/10 flex items-center justify-center" style={{ width: '64px', height: '64px' }}>
+                    <span style={{ fontSize: '28px' }}>🎯</span>
                   </div>
-                  <p className="text-sm font-bold text-[#002844] text-center leading-tight whitespace-nowrap">{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
-                  {sessionDoneToday && <span className="w-3 h-3 rounded-full bg-green-500 mx-auto" />}
-                  {!sessionDoneToday && <span className="w-3 h-3 rounded-full bg-gray-200 mx-auto" />}
+                  <p className="font-bold text-[#002844] text-center leading-tight" style={{ fontSize: '13px' }}>{lang === 'fr' ? 'Entraînement' : 'Training'}</p>
+                  {sessionDoneToday
+                    ? <span className="w-3.5 h-3.5 rounded-full bg-green-500 mx-auto" />
+                    : <span className="w-3.5 h-3.5 rounded-full bg-gray-200 mx-auto" />}
                 </a>
               </div>
             </div>
@@ -465,18 +468,25 @@ export default function DashboardPage() {
                 </div>
               )
             })()}
-            {/* BLOC 4 left — V3.10: Planning hebdo (À réviser supprimé, intégré dans Explorer BLOC 3) */}
+            {/* Planning hebdo — V3.11: jours verts persistants */}
             {(() => {
               const sched = user.settings.schedules?.[activeLang] || user.settings.schedule
               const today = new Date()
               const todayStr = today.toISOString().split('T')[0]
-              const sessionDoneToday = progress?.lastActivityDate === todayStr
+              const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
+              // V3.11: Persistent completed days history
+              const sessionHistory = getSessionHistory(user.id, activeLang)
               const dayNames = lang === 'fr'
                 ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
                 : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
               const dayIds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
               const todayDayId = dayIds[today.getDay()]
               const isScheduledToday = sched?.days?.includes(todayDayId as DayOfWeek) || false
+
+              // Compute date for each day of current week (Sun-Sat)
+              const weekStart = new Date(today)
+              weekStart.setDate(today.getDate() - today.getDay()) // Sunday
+
               return (
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
@@ -490,15 +500,21 @@ export default function DashboardPage() {
                     {dayNames.map((name, i) => {
                       const isActive = sched?.days?.includes(dayIds[i] as DayOfWeek) || false
                       const isToday = i === today.getDay()
+                      // Check if this day was completed (persistent history)
+                      const dayDate = new Date(weekStart)
+                      dayDate.setDate(weekStart.getDate() + i)
+                      const dayDateStr = dayDate.toISOString().split('T')[0]
+                      const wasCompleted = sessionHistory.includes(dayDateStr)
+                      const isDoneToday = isToday && sessionDoneToday
                       return (
                         <div key={i} className={`flex-1 rounded-lg py-1.5 text-center text-[10px] font-bold transition-all ${
-                          isToday && isActive && sessionDoneToday ? 'bg-[#1A7A4A] text-white ring-2 ring-[#1A7A4A]/30' :
+                          wasCompleted || isDoneToday ? 'bg-[#1A7A4A] text-white ring-2 ring-[#1A7A4A]/30' :
                           isToday && isActive ? 'bg-[#D9B438] text-[#002844] ring-2 ring-[#D9B438]/30' :
                           isToday ? 'bg-[#002844]/10 text-[#002844] ring-2 ring-[#002844]/20' :
                           isActive ? 'bg-[#002844] text-white' :
                           'bg-[#F0F0F0] text-[#999]'
                         }`}>
-                          {isToday && isActive && sessionDoneToday ? '✓' : name}
+                          {wasCompleted || isDoneToday ? '✓' : name}
                         </div>
                       )
                     })}
