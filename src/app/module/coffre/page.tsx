@@ -21,7 +21,7 @@ import { VocabWord } from '@/lib/db/bankTypes';
 // ==========================================
 
 type CoffreStep = 'discovery' | 'recognition' | 'qcm_translation' | 'oral' | 'writing';
-type CoffrePhase = 'welcome' | 'learning' | 'summary';
+type CoffrePhase = 'learning' | 'summary'; // V3.15: 'welcome' removed
 
 interface WordExercise {
   word: VocabWord;
@@ -49,7 +49,8 @@ export default function CoffrePage() {
   const [dailyWords, setDailyWords] = useState<VocabWord[]>([]);
   const [exercises, setExercises] = useState<WordExercise[]>([]);
   const [currentExIdx, setCurrentExIdx] = useState(0);
-  const [phase, setPhase] = useState<CoffrePhase>('welcome');
+  // V3.15: Skip welcome phase — launch exercises directly
+  const [phase, setPhase] = useState<CoffrePhase>('learning');
   const [loading, setLoading] = useState(true);
 
   // Exercise state
@@ -92,9 +93,9 @@ export default function CoffrePage() {
       setCurrentExIdx(savedSession.exerciseIndex);
       setCorrectCount(savedSession.correctCount || 0);
       setTotalCount(savedSession.totalCount || 0);
-      setPhase('learning'); // Skip welcome, go straight to exercises
+      setPhase('learning'); // Resume saved session
     } else {
-      // New session: pick words and build exercises
+      // V3.15: New session — build exercises and go directly to learning (no welcome screen)
       const themes = config?.themes || [];
       const allVocab = getVocabulary(aLang, themes, 'A1');
       const shuffled = shuffleArray(allVocab);
@@ -115,6 +116,7 @@ export default function CoffrePage() {
         allExercises.push(...shuffleArray(stepExercises));
       }
       setExercises(allExercises);
+      setPhase('learning'); // V3.15: Direct start, no welcome
     }
 
     // Init speech recognition
@@ -128,15 +130,17 @@ export default function CoffrePage() {
 
   const currentExercise = exercises[currentExIdx];
 
-  // V3.11: Auto TTS in Discovery phase — speak word automatically when displayed
+  // V3.15: Auto TTS gated — only speak after user has interacted at least once
+  const [userInteracted, setUserInteracted] = useState(false);
   useEffect(() => {
+    if (!userInteracted) return; // V3.15: Don't auto-play TTS before first user click
     if (!currentExercise || currentExercise.step !== 'discovery') return;
     const timer = setTimeout(() => {
       speakText(currentExercise.word.word_target, activeLang);
-    }, 300); // small delay for smooth transition
+    }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentExIdx, currentExercise?.step]);
+  }, [currentExIdx, currentExercise?.step, userInteracted]);
 
   // Generate distractors for QCM
   const getDistractors = (correct: VocabWord, count: number): string[] => {
@@ -151,8 +155,16 @@ export default function CoffrePage() {
     return shuffled.slice(0, count).map(w => w.word_target);
   };
 
-  // V3.14: Save coffre position to localStorage after each exercise
-  const saveCoffrePosition = (nextIdx: number, newCorrect: number, newTotal: number) => {
+  // V3.15: Use refs for reliable save (avoids stale closure issues)
+  const correctCountRef = useRef(correctCount);
+  const totalCountRef = useRef(totalCount);
+  const currentExIdxRef = useRef(currentExIdx);
+  correctCountRef.current = correctCount;
+  totalCountRef.current = totalCount;
+  currentExIdxRef.current = currentExIdx;
+
+  // V3.15: Save coffre position to localStorage after each exercise
+  const saveCoffrePosition = (nextIdx: number) => {
     if (!user) return;
     const savedKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`;
     const todayStr = new Date().toISOString().split('T')[0];
@@ -162,8 +174,8 @@ export default function CoffrePage() {
         exerciseIndex: nextIdx,
         dailyWords,
         exercises,
-        correctCount: newCorrect,
-        totalCount: newTotal,
+        correctCount: correctCountRef.current,
+        totalCount: totalCountRef.current,
       }));
     } catch { /* ignore storage errors */ }
   };
@@ -192,6 +204,7 @@ export default function CoffrePage() {
   };
 
   const handleNextExercise = () => {
+    if (!userInteracted) setUserInteracted(true); // V3.15: mark first interaction
     setSelectedOption(null);
     setShowFeedback(false);
     setWritingInput('');
@@ -201,7 +214,6 @@ export default function CoffrePage() {
     if (currentExIdx + 1 >= exercises.length) {
       // Session complete — save final progress & clear saved position
       if (user) {
-        // Add all words to personal vocab + spaced repetition
         const scorePct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
         for (const w of dailyWords) {
           addToPersonalVocab(user.id, w.id, 'learned');
@@ -213,13 +225,14 @@ export default function CoffrePage() {
     } else {
       const nextIdx = currentExIdx + 1;
       setCurrentExIdx(nextIdx);
-      // V3.14: Save position after each advance
-      saveCoffrePosition(nextIdx, correctCount, totalCount);
+      // V3.15: Save position after each advance (uses refs for fresh values)
+      saveCoffrePosition(nextIdx);
     }
   };
 
   const handleQCMSelect = (option: string, correctAnswer: string) => {
     if (showFeedback) return;
+    if (!userInteracted) setUserInteracted(true);
     setSelectedOption(option);
     const correct = option.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
     setIsCorrect(correct);
@@ -281,62 +294,7 @@ export default function CoffrePage() {
     );
   }
 
-  // WELCOME PHASE — V3.12: Coffre illustration + bouton "Ouvrir"
-  if (phase === 'welcome') {
-    const wordsCount = dailyWords.length || (user.settings.schedules?.[activeLang]?.wordsPerDay || 8);
-    return (
-      <div className="min-h-screen bg-[#F0F0F0] pb-20">
-        <PageHeader title={lang === 'fr' ? 'Coffre du jour' : 'Daily chest'} backHref="/dashboard" />
-        <div className="flex flex-col items-center justify-center px-6 pt-12">
-          {/* Coffre illustration SVG */}
-          <div className="mb-8">
-            <svg viewBox="0 0 200 180" width="200" height="180" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Chest body */}
-              <rect x="30" y="70" width="140" height="90" rx="12" fill="#8B6914" />
-              <rect x="30" y="70" width="140" height="90" rx="12" stroke="#6B4F10" strokeWidth="3" />
-              {/* Wood grain lines */}
-              <line x1="50" y1="100" x2="150" y2="100" stroke="#6B4F10" strokeWidth="1.5" opacity="0.4" />
-              <line x1="50" y1="125" x2="150" y2="125" stroke="#6B4F10" strokeWidth="1.5" opacity="0.4" />
-              {/* Chest lid */}
-              <path d="M25 75 Q100 20 175 75" fill="#D9B438" stroke="#B8960F" strokeWidth="3" />
-              <rect x="30" y="60" width="140" height="20" rx="6" fill="#D9B438" />
-              <rect x="30" y="60" width="140" height="20" rx="6" stroke="#B8960F" strokeWidth="2" />
-              {/* Lock */}
-              <rect x="85" y="72" width="30" height="24" rx="5" fill="#6B4F10" />
-              <circle cx="100" cy="82" r="5" fill="#D9B438" />
-              <rect x="98" y="82" width="4" height="8" rx="1" fill="#D9B438" />
-              {/* Metal corners */}
-              <rect x="30" y="70" width="20" height="8" rx="2" fill="#B8960F" />
-              <rect x="150" y="70" width="20" height="8" rx="2" fill="#B8960F" />
-              <rect x="30" y="148" width="20" height="8" rx="2" fill="#B8960F" />
-              <rect x="150" y="148" width="20" height="8" rx="2" fill="#B8960F" />
-              {/* Sparkles */}
-              <circle cx="45" cy="45" r="3" fill="#D9B438" opacity="0.8" />
-              <circle cx="160" cy="35" r="2.5" fill="#D9B438" opacity="0.6" />
-              <circle cx="80" cy="30" r="2" fill="#D9B438" opacity="0.7" />
-              <circle cx="130" cy="25" r="3" fill="#D9B438" opacity="0.5" />
-              <path d="M55 38 l3-8 3 8 -8-5 10 0z" fill="#D9B438" opacity="0.6" />
-              <path d="M145 42 l2-6 2 6 -6-4 8 0z" fill="#D9B438" opacity="0.5" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-[#002844] mb-3 text-center">
-            {lang === 'fr' ? 'Coffre du jour' : 'Daily Chest'}
-          </h1>
-          <p className="text-[#555555] text-center mb-8 text-sm max-w-xs">
-            {lang === 'fr'
-              ? `Ouvre le coffre pour découvrir tes ${wordsCount} mots du jour`
-              : `Open the chest to discover your ${wordsCount} words of the day`}
-          </p>
-          <button onClick={() => setPhase('learning')}
-            className="px-10 py-4 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
-            style={{ backgroundColor: '#D9B438', color: '#002844' }}>
-            {lang === 'fr' ? 'Ouvrir' : 'Open'}
-          </button>
-        </div>
-        <BottomNav lang={lang} />
-      </div>
-    );
-  }
+  // V3.15: Welcome phase removed — exercises start directly
 
   // SUMMARY PHASE
   if (phase === 'summary') {
@@ -423,7 +381,7 @@ export default function CoffrePage() {
                   <p className="text-xs text-[#999] mt-2 uppercase tracking-wide">{word.theme} · {word.level}</p>
                 </div>
               </div>
-              <button onClick={handleNextExercise}
+              <button onClick={() => { incrementDailyWords(); handleNextExercise(); }}
                 className="w-full py-3.5 rounded-xl bg-[#002844] text-white font-bold text-sm flex items-center justify-center gap-2">
                 {lang === 'fr' ? 'Continuer' : 'Continue'}
                 <ChevronRight className="h-4 w-4" />

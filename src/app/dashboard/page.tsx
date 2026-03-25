@@ -21,6 +21,9 @@ export default function DashboardPage() {
   const [langSelectorOpen, setLangSelectorOpen] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tasksOpen, setTasksOpen] = useState(false)
+  // V3.15: "No session today" modal state
+  const [showNoSessionModal, setShowNoSessionModal] = useState(false)
+  const [noSessionNextUrl, setNoSessionNextUrl] = useState('')
 
   const loadUser = () => {
     const currentUser = getCurrentUser()
@@ -423,17 +426,27 @@ export default function DashboardPage() {
               bg: '#7B1FA2',
               icon: <span style={{ fontSize: '36px' }}>🔄</span>,
               label: lang === 'fr' ? 'Révisions' : 'Reviews',
-              indicator: dueWordReviews > 0
-                ? <span className="font-bold" style={{ fontSize: '16px', color: '#fff' }}>{dueWordReviews} {lang === 'fr' ? 'mots' : 'words'}</span>
-                : renderStars(3),
+              // V3.15: 0 étoiles si rien fait aujourd'hui, sinon afficher le nombre de mots dus
+              indicator: (() => {
+                // Check if any revision was done today
+                const sessionHistory = getSessionHistory(user.id, activeLang)
+                const todayDone = sessionHistory.includes(todayStr)
+                if (dueWordReviews > 0) {
+                  return <span className="font-bold" style={{ fontSize: '16px', color: '#fff' }}>{dueWordReviews} {lang === 'fr' ? 'mots' : 'words'}</span>
+                }
+                // If no revisions due AND session done today → 3 stars, otherwise 0
+                return renderStars(todayDone ? 3 : 0)
+              })(),
             },
             {
               href: nextCourseInfo.url,
+              // V3.15: Check if today is a planned course day
+              noSessionCheck: true,
               bg: '#1976D2',
               icon: <span style={{ fontSize: '36px' }}>▶️</span>,
               label: lang === 'fr' ? 'Cours du jour' : "Today's course",
               indicator: (() => {
-                // V3.14: progressive stars based on course score
+                // V3.15: progressive stars based on course score
                 try {
                   const key = `lingualearn_course_scores_${user.id}_${activeLang}`
                   const stored = localStorage.getItem(key)
@@ -461,25 +474,8 @@ export default function DashboardPage() {
               bg: '#E65100',
               icon: <span style={{ fontSize: '36px' }}>🎯</span>,
               label: lang === 'fr' ? 'Entraînement' : 'Training',
-              indicator: (() => {
-                // V3.14: progressive stars based on flashcard progress
-                if (sessionDoneToday) return renderStars(3)
-                try {
-                  const flashKey = `lingualearn_flashcard_progress_${user.id}_${activeLang}`
-                  const saved = localStorage.getItem(flashKey)
-                  if (saved) {
-                    const s = JSON.parse(saved)
-                    const todayStr2 = new Date().toISOString().split('T')[0]
-                    if (s.date === todayStr2 && s.cards?.length > 0) {
-                      const pct = Math.round((s.currentIndex / s.cards.length) * 100)
-                      if (pct >= 100) return renderStars(3)
-                      if (pct >= 66) return renderStars(2)
-                      if (pct >= 33) return renderStars(1)
-                    }
-                  }
-                } catch { /* ignore */ }
-                return renderStars(0)
-              })(),
+              // V3.15: No stars — free choice activity, show activity types instead
+              indicator: <span className="text-white/80 text-center leading-tight" style={{ fontSize: 'clamp(8px, 1.3vw, 12px)' }}>Flashcard · Quiz · Jeux</span>,
             },
           ]
 
@@ -488,25 +484,73 @@ export default function DashboardPage() {
               <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
               {/* V3.13: 5 ronds répartis uniformément sur toute la largeur */}
               <div className="flex justify-between items-center w-full overflow-x-auto pb-2">
-                {entries.map((entry, idx) => (
-                  <a key={idx} href={entry.href}
-                    className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
-                    style={{
-                      width: 'calc((100% - 2rem) / 5)',
-                      maxWidth: '200px',
-                      aspectRatio: '1',
-                      minWidth: '80px',
-                      background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
-                    }}>
-                    <div className="mb-1">{entry.icon}</div>
-                    <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(11px, 1.8vw, 20px)' }}>{entry.label}</p>
-                    <div className="mt-1">{entry.indicator}</div>
-                  </a>
-                ))}
+                {entries.map((entry, idx) => {
+                  // V3.15: Check if today is a planned day for "Cours du jour"
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const handleClick = (e: React.MouseEvent) => {
+                    if ((entry as Record<string, unknown>).noSessionCheck) {
+                      const schedule = user.settings.schedules?.[activeLang] || user.settings.schedule
+                      const days = schedule?.days || []
+                      const dayNames: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+                      const todayDay = dayNames[new Date().getDay()]
+                      const isTodayPlanned = days.length === 0 || days.includes(todayDay)
+                      if (!isTodayPlanned) {
+                        e.preventDefault()
+                        setNoSessionNextUrl(entry.href)
+                        setShowNoSessionModal(true)
+                        return
+                      }
+                    }
+                  }
+                  return (
+                    <a key={idx} href={entry.href} onClick={handleClick}
+                      className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
+                      style={{
+                        width: 'calc((100% - 2rem) / 5)',
+                        maxWidth: '200px',
+                        aspectRatio: '1',
+                        minWidth: '80px',
+                        background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
+                      }}>
+                      <div className="mb-1">{entry.icon}</div>
+                      <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(11px, 1.8vw, 20px)' }}>{entry.label}</p>
+                      <div className="mt-1">{entry.indicator}</div>
+                    </a>
+                  )
+                })}
               </div>
             </div>
           )
         })()}
+
+        {/* V3.15: Modal "No session planned today" */}
+        {showNoSessionModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl text-center">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+                <Calendar className="h-7 w-7 text-[#1976D2]" />
+              </div>
+              <h3 className="text-lg font-bold text-[#002844] mb-2">
+                {lang === 'fr' ? 'Pas de session prévue aujourd\'hui' : 'No session planned today'}
+              </h3>
+              <p className="text-sm text-[#555555] mb-6">
+                {lang === 'fr'
+                  ? 'Tu peux quand même continuer ton parcours !'
+                  : 'You can still continue your course!'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowNoSessionModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-[#555555]">
+                  {lang === 'fr' ? 'Fermer' : 'Close'}
+                </button>
+                <a href={noSessionNextUrl}
+                  className="flex-1 py-3 rounded-xl bg-[#002844] text-white text-sm font-bold text-center">
+                  {lang === 'fr' ? 'Continuer quand même →' : 'Continue anyway →'}
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* BLOC 4 — V3.10: Progression + Planning (gauche 60%) | Classement (droite 40%) */}
         <div className="md:grid md:grid-cols-5 md:gap-4">
