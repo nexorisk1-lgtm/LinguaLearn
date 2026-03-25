@@ -237,6 +237,8 @@ function SessionContent() {
   const [exercises, setExercises] = useState<SessionExercise[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [results, setResults] = useState<SessionResult[]>([])
+  // V3.19 BUG-62: Flag to prevent race condition intro→summary before buildSession completes
+  const [sessionReady, setSessionReady] = useState(false)
   const [userInput, setUserInput] = useState('')
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [showFeedback, setShowFeedback] = useState(false)
@@ -469,6 +471,8 @@ function SessionContent() {
     setExercises(allExercises)
     setLessons(sessionLessons)
     setSessionModules(Array.from(new Set(usedModules)))
+    // V3.19 BUG-62: Mark session as ready so intro→lessonMap/summary transition waits
+    setSessionReady(true)
   }, [])
 
   useEffect(() => {
@@ -477,12 +481,9 @@ function SessionContent() {
     if (!currentUser.onboardingCompleted && currentUser.role !== 'admin') { router.push('/onboarding'); return }
     setUser(currentUser)
     setLang(currentUser.settings.interfaceLang || 'fr')
-    buildSession(currentUser)
 
-    // BUG-58 V3.9: Robust resume — read saved position and apply immediately
+    // V3.19 BUG-72: Robust resume — restore full exercises/lessons/results state
     let shouldResume = false
-    let resumeExIdx = 0
-    let resumeLessonIdx = 0
     if (courseId) {
       try {
         const resumeKey = `lingualearn_resume_${currentUser.id}_${courseId}`
@@ -492,8 +493,16 @@ function SessionContent() {
           const savedAt = new Date(resume.savedAt).getTime()
           if (Date.now() - savedAt < 24 * 60 * 60 * 1000) {
             shouldResume = true
-            resumeExIdx = resume.exerciseIndex || 0
-            resumeLessonIdx = resume.lessonIndex || 0
+            // Restore full state if available (V3.19 BUG-72)
+            if (resume.exercises && resume.exercises.length > 0) {
+              setExercises(resume.exercises)
+              setLessons(resume.lessons || [])
+              setResults(resume.results || [])
+            }
+            setCurrentIdx(resume.exerciseIndex || 0)
+            setCurrentLessonIdx(resume.lessonIndex || 0)
+            setSessionReady(true)
+            setPhase('exercise')
           }
           // Clear resume data after loading
           localStorage.removeItem(resumeKey)
@@ -501,11 +510,9 @@ function SessionContent() {
       } catch { /* ignore */ }
     }
 
-    if (shouldResume) {
-      // Apply resume position synchronously, then skip intro
-      setCurrentIdx(resumeExIdx)
-      setCurrentLessonIdx(resumeLessonIdx)
-      setPhase('exercise')
+    // Only build fresh session if NOT resuming
+    if (!shouldResume) {
+      buildSession(currentUser)
     }
 
     // Init speech recognition
@@ -518,15 +525,15 @@ function SessionContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, buildSession])
 
-  // V3.11: Skip intro countdown — go directly to lessonMap (no intermediate screen)
+  // V3.19 BUG-62: Wait for sessionReady before transitioning — prevents race condition
   useEffect(() => {
-    if (phase !== 'intro') return
+    if (phase !== 'intro' || !sessionReady) return
     if (exercises.length > 0) {
       setPhase('lessonMap')
     } else {
       setPhase('summary')
     }
-  }, [phase, exercises.length])
+  }, [phase, exercises.length, sessionReady])
 
   const currentExercise = exercises[currentIdx]
 
@@ -825,11 +832,12 @@ function SessionContent() {
   }
 
   // BUG-58+59: Quit session — save streak/activity but NEVER mark course as completed
+  // V3.19 BUG-72: Save full exercises/lessons/results for exact resume
   const handleQuitSession = () => {
     if (results.length > 0) {
       finishSession(true) // isPartialQuit = true → no course score saved
     }
-    // BUG-58: Save resume position for this course
+    // Save resume position AND full session state for this course
     if (courseId && user) {
       try {
         const resumeKey = `lingualearn_resume_${user.id}_${courseId}`
@@ -837,6 +845,10 @@ function SessionContent() {
           lessonIndex: currentLessonIdx,
           exerciseIndex: currentIdx,
           savedAt: new Date().toISOString(),
+          // V3.19 BUG-72: Save full state for exact resume
+          exercises: exercises,
+          lessons: lessons,
+          results: results,
         }))
       } catch { /* ignore */ }
     }

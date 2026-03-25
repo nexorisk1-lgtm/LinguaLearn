@@ -367,13 +367,8 @@ export default function DashboardPage() {
         {/* BLOC 3 — V3.12: Explorer — grands ronds ≥120px, titre+étoiles à l'intérieur, couleurs par entrée */}
         {(() => {
           const todayStr = new Date().toISOString().split('T')[0]
-          const sessionDoneToday = progress?.lastActivityDate?.split('T')[0] === todayStr
-          // V3.16b: coffreDone now computed inline in indicator via fresh localStorage read
-
-          // Persist today as completed if session done
-          if (sessionDoneToday) {
-            addSessionDate(user.id, activeLang, todayStr)
-          }
+          // V3.19 BUG-66: Removed premature addSessionDate here (was using lastActivityDate alone).
+          // The planning section now handles persistence with proper trio validation.
 
           // Stars helper: grey ☆ or gold ★ — V3.13: 24px minimum
           const renderStars = (filled: number, total: number = 3) => (
@@ -599,9 +594,8 @@ export default function DashboardPage() {
           <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
             {/* V3.11: Objective blocks — empilés verticalement, 1 par ligne */}
             {(() => {
-              const visibleBlocks = moduleBlocks.filter(b =>
-                b.objective === 'grammaire' || b.objective === 'vocabulaire' || (objectives as string[]).includes(b.objective)
-              )
+              // V3.19 BUG-73: Always show all 5 progress bars on every path (A, B, C)
+              const visibleBlocks = moduleBlocks
               return (
                 <div className="space-y-2">
                   {visibleBlocks.map(block => {
@@ -656,6 +650,10 @@ export default function DashboardPage() {
                 } catch { return false }
               })()
               const sessionDoneToday = coffreDoneToday && courseDoneToday && revisionsDoneToday
+              // V3.19 BUG-66: Only persist today as completed when trio is validated
+              if (sessionDoneToday) {
+                addSessionDate(user.id, activeLang, todayStr)
+              }
               // V3.11: Persistent completed days history
               const sessionHistory = getSessionHistory(user.id, activeLang)
               const dayNames = lang === 'fr'
