@@ -44,27 +44,63 @@ export function getA1CourseData(courseId: string): A1CourseData | null {
  * Get vocabulary for a specific A1 course, converted to VocabWord-compatible format.
  * word_fr = trad_fr (the French translation), phonetic from V4 data.
  */
+// BUG-74: FR synonyms for words with multiple valid translations
+const FR_SYNONYMS: Record<string, string[]> = {
+  'please': ["s'il vous plaît", "s'il te plaît", "s'il vous plait", "s'il te plait", "svp"],
+  'hello': ['bonjour', 'salut', 'coucou'],
+  'hi': ['salut', 'bonjour', 'coucou'],
+  'goodbye': ['au revoir', 'salut', 'à bientôt', 'a bientot'],
+  'see you': ['à bientôt', 'a bientot', 'à plus', 'salut'],
+  'thank you': ['merci', 'merci beaucoup'],
+  'thanks': ['merci', 'merci beaucoup'],
+  'sorry': ['pardon', 'désolé', 'desole', 'excusez-moi'],
+  'excuse me': ['excusez-moi', 'pardon', 'désolé'],
+  'yes': ['oui', 'ouais'],
+  'no': ['non'],
+  'welcome': ['bienvenue', 'de rien'],
+  'good morning': ['bonjour', 'bon matin'],
+  'good evening': ['bonsoir'],
+  'bathroom': ['salle de bain', 'toilettes', 'wc'],
+  'shop': ['magasin', 'boutique'],
+  'car': ['voiture', 'auto', 'automobile'],
+  'phone': ['téléphone', 'portable', 'telephone'],
+  'happy': ['content', 'heureux', 'joyeux'],
+  'big': ['grand', 'gros', 'grande'],
+  'small': ['petit', 'petite'],
+  'nice': ['gentil', 'agréable', 'sympathique'],
+  'food': ['nourriture', 'repas', 'alimentation'],
+  'pretty': ['joli', 'jolie', 'beau', 'belle'],
+  'fast': ['rapide', 'vite'],
+  'movie': ['film', 'cinéma'],
+};
+
 export function getA1CourseVocabulary(courseId: string): VocabWord[] {
   const course = getA1CourseData(courseId);
   if (!course) return [];
-  return course.vocabulary.map((v, idx) => ({
-    id: `${courseId}_v${idx}`,
-    language: 'en',
-    word_target: v.word,
-    word_fr: v.trad_fr,
-    definition_en: v.definition_en,
-    definition_fr: v.trad_fr,
-    definition_lang: v.trad_fr,
-    example_en: v.example_en,
-    example_fr: v.example_fr,
-    theme: 'A1-course',
-    level: 'A1',
-    type: 'word',
-    phonetic: v.phonetic_fr,
-    is_grc: false,
-    accepted_answers: [v.word],
-    image: v.image || '',
-  }));
+  return course.vocabulary.map((v, idx) => {
+    const key = v.word.toLowerCase();
+    const frSynonyms = FR_SYNONYMS[key] || [];
+    // Build accepted_answers: target word + FR trad + FR synonyms (deduplicated)
+    const acceptedFr = new Set([v.trad_fr.toLowerCase(), ...frSynonyms.map(s => s.toLowerCase())]);
+    return {
+      id: `${courseId}_v${idx}`,
+      language: 'en',
+      word_target: v.word,
+      word_fr: v.trad_fr,
+      definition_en: v.definition_en,
+      definition_fr: v.trad_fr,
+      definition_lang: v.trad_fr,
+      example_en: v.example_en,
+      example_fr: v.example_fr,
+      theme: 'A1-course',
+      level: 'A1',
+      type: 'word',
+      phonetic: v.phonetic_fr,
+      is_grc: false,
+      accepted_answers: [v.word, ...Array.from(acceptedFr)],
+      image: v.image || '',
+    };
+  });
 }
 
 /**

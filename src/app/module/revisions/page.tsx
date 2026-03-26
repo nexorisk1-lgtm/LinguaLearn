@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, XCircle } from 'lucide-react';
-import { getCurrentUser, getDueReviews, saveReviewItem, ReviewItem } from '@/lib/db/localStorage';
+import { getCurrentUser, getDueReviews, getUpcomingReviews, saveReviewItem, ReviewItem } from '@/lib/db/localStorage';
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import PageHeader from '@/components/PageHeader';
 import { getVocabulary, speakText } from '@/lib/db/bankHelpers';
 import { VocabWord } from '@/lib/db/bankTypes';
+import { BANK_A1_COURSES, getA1CourseVocabulary } from '@/lib/db/bankA1Courses';
 
 // V3.11: Dedicated revision exercise flow
 // QCM format: word displayed + choose correct translation among 2-3 options
@@ -40,6 +41,9 @@ export default function RevisionsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [phase, setPhase] = useState<'exercise' | 'summary'>('exercise');
   const [dueItems, setDueItems] = useState<ReviewItem[]>([]);
+  // BUG-78: Track upcoming reviews
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [upcomingNextDate, setUpcomingNextDate] = useState<string | null>(null);
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -52,7 +56,13 @@ export default function RevisionsPage() {
 
     const config = currentUser.settings.languageConfigs?.[aLang];
     const themes = config?.themes || [];
-    const vocab = getVocabulary(aLang, themes, 'A1');
+    // BUG-77: Merge V4 course vocabulary + legacy vocabulary for full coverage
+    const legacyVocab = getVocabulary(aLang, themes, 'A1');
+    const a1Vocab: VocabWord[] = [];
+    for (const course of BANK_A1_COURSES) {
+      a1Vocab.push(...getA1CourseVocabulary(course.id));
+    }
+    const vocab = [...a1Vocab, ...legacyVocab];
     setAllVocab(vocab);
 
     // Get due review items
@@ -66,6 +76,12 @@ export default function RevisionsPage() {
       .filter((w): w is VocabWord => w !== undefined);
 
     setReviewWords(shuffleArray(wordsToReview));
+
+    // BUG-78: Get upcoming scheduled reviews
+    const upcoming = getUpcomingReviews(currentUser.id, aLang);
+    setUpcomingCount(upcoming.count);
+    setUpcomingNextDate(upcoming.nextDate);
+
     setLoading(false);
   }, [router]);
 
@@ -124,13 +140,22 @@ export default function RevisionsPage() {
             <CheckCircle className="h-10 w-10 text-green-500" />
           </div>
           <h2 className="text-xl font-bold text-[#002844] mb-2">
-            {lang === 'fr' ? 'Rien à réviser !' : 'Nothing to review!'}
+            {lang === 'fr' ? 'Rien à réviser aujourd\'hui !' : 'Nothing to review today!'}
           </h2>
-          <p className="text-sm text-[#555555] mb-6">
-            {lang === 'fr'
-              ? 'Tous tes mots sont à jour. Continue tes leçons pour alimenter tes révisions.'
-              : 'All your words are up to date. Keep doing lessons to build your review list.'}
-          </p>
+          {/* BUG-78: Show upcoming scheduled reviews */}
+          {upcomingCount > 0 ? (
+            <p className="text-sm text-[#555555] mb-6">
+              {lang === 'fr'
+                ? `${upcomingCount} mot${upcomingCount > 1 ? 's' : ''} à réviser ${upcomingNextDate === new Date(Date.now() + 86400000).toISOString().split('T')[0] ? 'demain' : `le ${upcomingNextDate}`}.`
+                : `${upcomingCount} word${upcomingCount > 1 ? 's' : ''} scheduled for review on ${upcomingNextDate}.`}
+            </p>
+          ) : (
+            <p className="text-sm text-[#555555] mb-6">
+              {lang === 'fr'
+                ? 'Tous tes mots sont à jour. Continue tes leçons pour alimenter tes révisions.'
+                : 'All your words are up to date. Keep doing lessons to build your review list.'}
+            </p>
+          )}
           <a href="/dashboard"
             className="inline-block px-6 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm">
             {lang === 'fr' ? 'Retour au dashboard' : 'Back to dashboard'}

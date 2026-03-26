@@ -17,6 +17,7 @@ import { BANK_VOCABULARY } from '@/lib/db/bankVocabulary'
 import { BANK_GRAMMAR } from '@/lib/db/bankGrammar'
 import { BANK_READING } from '@/lib/db/bankReading'
 import { InterfaceLanguage, User, ALL_THEMES } from '@/types'
+import { BANK_A1_COURSES } from '@/lib/db/bankA1Courses'
 import { t } from '@/lib/i18n'
 import {
   ArrowLeft, Download, Upload, FileText, CheckCircle, XCircle, BarChart3, Lock,
@@ -90,7 +91,7 @@ export default function AdminImportsPage() {
   const [, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'imports' | 'dashboard' | 'proposedWords' | 'utilisateurs'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'imports' | 'dashboard' | 'proposedWords' | 'utilisateurs' | 'images'>('dashboard')
   const [pendingWordsCount, setPendingWordsCount] = useState(0)
   const [users, setUsers] = useState<User[]>([])
   const [passwordVisibility, setPasswordVisibility] = useState<Record<string, boolean>>({})
@@ -880,6 +881,17 @@ export default function AdminImportsPage() {
           >
             {lang === 'fr' ? 'Imports' : 'Imports'}
           </button>
+          {/* BUG-80: Images tab */}
+          <button
+            onClick={() => setActiveTab('images')}
+            className={`px-4 py-3 font-semibold transition-all border-b-2 ${
+              activeTab === 'images'
+                ? 'border-[#002844] text-[#002844]'
+                : 'border-transparent text-[#555555] hover:text-[#002844]'
+            }`}
+          >
+            {lang === 'fr' ? 'Images Vocab' : 'Vocab Images'}
+          </button>
         </div>
 
         {/* Dashboard tab */}
@@ -1386,6 +1398,55 @@ export default function AdminImportsPage() {
                 </p>
               </div>
             )}
+          </div>
+        )}
+        {/* BUG-80: Images Vocab tab */}
+        {activeTab === 'images' && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-[#002844] flex items-center gap-2 mb-2">
+                🖼️ {lang === 'fr' ? 'Images vocabulaire V4' : 'V4 Vocabulary Images'}
+              </h2>
+              <p className="text-[#555555]">
+                {lang === 'fr'
+                  ? 'Ajoutez une URL d\'image (Unsplash/Pexels) pour chaque mot de vocabulaire.'
+                  : 'Add an image URL (Unsplash/Pexels) for each vocabulary word.'}
+              </p>
+            </div>
+            {BANK_A1_COURSES.map(course => (
+              <div key={course.id} className="mb-6 bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="text-sm font-bold text-[#002844] mb-3">
+                  Cours {course.number} — {course.title} ({course.vocabulary.length} mots)
+                </h3>
+                <div className="grid gap-2">
+                  {course.vocabulary.map((v, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {v.image
+                          ? <img src={v.image} alt={v.word} className="w-12 h-12 object-cover" />
+                          : <span className="text-xs text-gray-400">?</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-[#002844]">{v.word}</p>
+                        <p className="text-xs text-[#555555]">{v.trad_fr}</p>
+                      </div>
+                      <input
+                        type="url"
+                        placeholder="URL image..."
+                        defaultValue={v.image || ''}
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-[#002844] focus:outline-none"
+                        onBlur={(e) => {
+                          // Save image URL to localStorage for admin override
+                          const key = `lingualearn_vocab_image_${course.id}_${idx}`;
+                          if (e.target.value) localStorage.setItem(key, e.target.value);
+                          else localStorage.removeItem(key);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </main>

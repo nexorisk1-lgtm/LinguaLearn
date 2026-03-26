@@ -393,21 +393,63 @@ function CoffreContent() {
           {step === 'discovery' && (
             <div className="text-center">
               <div className="bg-white rounded-2xl p-8 shadow-sm mb-6">
-                <p className="text-4xl font-bold text-[#002844] mb-4">{word.word_target}</p>
+                <p className="text-4xl font-bold text-[#002844] mb-1">{word.word_target}</p>
+                {/* BUG-75: Phonétique visible sous le mot */}
+                {word.phonetic && (
+                  <p className="text-sm text-[#D9B438] font-semibold mb-4">/{word.phonetic}/</p>
+                )}
+                {!word.phonetic && <div className="mb-4" />}
                 <button onClick={() => speakText(word.word_target, activeLang)}
                   className="mx-auto mb-4 w-14 h-14 rounded-full bg-[#002844]/10 flex items-center justify-center hover:bg-[#002844]/20 transition-colors">
                   <Volume2 className="h-6 w-6 text-[#002844]" />
                 </button>
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-lg text-[#555555]">{word.word_fr}</p>
+                  {/* BUG-75: Image du mot si disponible */}
+                  {word.image && (
+                    <div className="mt-3">
+                      <img src={word.image} alt={word.word_target} className="w-24 h-24 object-cover rounded-lg mx-auto" />
+                    </div>
+                  )}
                   <p className="text-xs text-[#999] mt-2 uppercase tracking-wide">{word.theme} · {word.level}</p>
                 </div>
               </div>
-              <button onClick={() => { incrementDailyWords(); handleNextExercise(); }}
-                className="w-full py-3.5 rounded-xl bg-[#002844] text-white font-bold text-sm flex items-center justify-center gap-2">
-                {lang === 'fr' ? 'Continuer' : 'Continue'}
-                <ChevronRight className="h-4 w-4" />
-              </button>
+              {/* BUG-79: Bouton Répéter pour prononcer avant de continuer */}
+              <div className="flex gap-3">
+                <button onClick={() => {
+                  if (recognitionRef.current) {
+                    setIsRecording(true);
+                    setHeardText('');
+                    recognitionRef.current.lang = activeLang === 'en' ? 'en-US' : activeLang === 'fr' ? 'fr-FR' : activeLang;
+                    recognitionRef.current.onresult = (event: any) => {
+                      const transcript = event.results[0][0].transcript;
+                      setHeardText(transcript);
+                      setIsRecording(false);
+                    };
+                    recognitionRef.current.onerror = () => setIsRecording(false);
+                    recognitionRef.current.onend = () => setIsRecording(false);
+                    recognitionRef.current.start();
+                  } else {
+                    speakText(word.word_target, activeLang);
+                  }
+                }}
+                  className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${
+                    isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-[#D9B438] text-[#002844]'
+                  }`}>
+                  {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isRecording ? (lang === 'fr' ? 'Écoute...' : 'Listening...') : (lang === 'fr' ? 'Répéter' : 'Repeat')}
+                </button>
+                <button onClick={() => { incrementDailyWords(); handleNextExercise(); }}
+                  className="flex-1 py-3.5 rounded-xl bg-[#002844] text-white font-bold text-sm flex items-center justify-center gap-2">
+                  {lang === 'fr' ? 'Continuer' : 'Continue'}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              {heardText && (
+                <p className="mt-3 text-sm text-center text-[#555555]">
+                  {lang === 'fr' ? 'Entendu : ' : 'Heard: '}<span className="font-bold text-[#002844]">{heardText}</span>
+                </p>
+              )}
             </div>
           )}
 

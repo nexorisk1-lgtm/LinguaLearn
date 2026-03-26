@@ -569,6 +569,16 @@ export function getDueReviews(userId: string, lang: string): ReviewItem[] {
   return items.filter(i => i.nextReviewDate <= todayStr);
 }
 
+// BUG-78: Get upcoming reviews (scheduled but not yet due)
+export function getUpcomingReviews(userId: string, lang: string): { count: number; nextDate: string | null } {
+  const items = getReviewItems(userId, lang);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const upcoming = items.filter(i => i.nextReviewDate > todayStr);
+  if (upcoming.length === 0) return { count: 0, nextDate: null };
+  const sorted = upcoming.sort((a, b) => a.nextReviewDate.localeCompare(b.nextReviewDate));
+  return { count: upcoming.length, nextDate: sorted[0].nextReviewDate };
+}
+
 // ==========================================
 // V3.11: SESSION HISTORY — persistent completed days
 // ==========================================

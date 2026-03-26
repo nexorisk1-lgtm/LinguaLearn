@@ -20,6 +20,7 @@ export interface VocabWord {
   phonetic?: string;
   is_grc: boolean;
   accepted_answers?: string[]; // BUG-64 (V3.9): Synonymes valides
+  image?: string; // V4: Image URL for vocabulary word
 }
 
 // --- Grammaire ---

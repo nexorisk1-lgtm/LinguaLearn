@@ -1698,8 +1698,17 @@ function SessionContent() {
                   )}
                 </div>
               ) : (
-                // Display comprehension question
+                // Display comprehension question + BUG-76: text remains visible in accordion
                 <div>
+                  {/* BUG-76: Reference text in collapsible accordion */}
+                  <details className="mb-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <summary className="cursor-pointer p-3 text-sm font-semibold text-[#002844] flex items-center gap-2">
+                      📖 {lang === 'fr' ? 'Revoir le texte' : 'Review text'}
+                    </summary>
+                    <div className="px-4 pb-3 text-sm text-[#555555] leading-[1.8] max-h-[30vh] overflow-y-auto">
+                      {currentExercise.readingText}
+                    </div>
+                  </details>
                   {/* V3.16: question 28px bold */}
                   <h2 className="font-bold text-[#002844] mb-4" style={{ fontSize: '28px' }}>
                     {lang === 'fr' ? 'Question de compréhension :' : 'Reading comprehension:'}
