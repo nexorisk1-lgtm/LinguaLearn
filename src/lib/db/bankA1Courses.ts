@@ -1,5 +1,5 @@
 // ==========================================
-// A1 COURSE BANK — 25 real courses from lingualearn_bank_a1.json
+// A1 COURSE BANK — 40 courses from LinguaLearn_A1_FINAL_V4
 // ==========================================
 
 import bankData from './bankA1Courses.json';
@@ -7,26 +7,34 @@ import { VocabWord, GrammarExercise } from './bankTypes';
 
 export interface A1CourseVocabWord {
   word: string;
+  trad_fr: string;
+  phonetic_fr: string;
   definition_en: string;
   definition_fr: string;
   example_en: string;
   example_fr: string;
+  image: string;
 }
 
 export interface A1CourseData {
   id: string;
   bloc: number;
+  number: number;
   title: string;
   type: string;
+  scenario: string;
+  phrase_cle: string;
+  objectif: string[];
+  micro_reussite: string;
   rule: { en: string; fr: string };
   examples: { en: string; fr: string }[];
   vocabulary: A1CourseVocabWord[];
 }
 
-export const BANK_A1_COURSES: A1CourseData[] = bankData as A1CourseData[];
+export const BANK_A1_COURSES: A1CourseData[] = bankData as unknown as A1CourseData[];
 
 /**
- * Get course data by courseId (e.g. 'a1_c1' → 'a1_c25')
+ * Get course data by courseId (e.g. 'a1_c1' → 'a1_c40')
  */
 export function getA1CourseData(courseId: string): A1CourseData | null {
   return BANK_A1_COURSES.find(c => c.id === courseId) || null;
@@ -34,7 +42,7 @@ export function getA1CourseData(courseId: string): A1CourseData | null {
 
 /**
  * Get vocabulary for a specific A1 course, converted to VocabWord-compatible format.
- * word_fr = definition_fr (the French definition doubles as the "translation")
+ * word_fr = trad_fr (the French translation), phonetic from V4 data.
  */
 export function getA1CourseVocabulary(courseId: string): VocabWord[] {
   const course = getA1CourseData(courseId);
@@ -43,49 +51,39 @@ export function getA1CourseVocabulary(courseId: string): VocabWord[] {
     id: `${courseId}_v${idx}`,
     language: 'en',
     word_target: v.word,
-    word_fr: v.definition_fr,
+    word_fr: v.trad_fr,
     definition_en: v.definition_en,
-    definition_fr: v.definition_fr,
-    definition_lang: v.definition_fr,
+    definition_fr: v.trad_fr,
+    definition_lang: v.trad_fr,
     example_en: v.example_en,
     example_fr: v.example_fr,
     theme: 'A1-course',
     level: 'A1',
     type: 'word',
-    phonetic: '',
+    phonetic: v.phonetic_fr,
     is_grc: false,
     accepted_answers: [v.word],
+    image: v.image || '',
   }));
 }
 
 /**
- * Generate grammar exercises from a course's rule + examples + vocabulary.
- * Produces fill-the-blank / QCM exercises using course data.
+ * Generate grammar exercises from a course's rule + vocabulary.
+ * Produces QCM + fill-blank exercises using course data.
+ * Difficulty labels: Facile / Intermédiaire / Difficile
  */
 export function getA1CourseGrammarExercises(courseId: string): GrammarExercise[] {
   const course = getA1CourseData(courseId);
   if (!course) return [];
   const exercises: GrammarExercise[] = [];
 
-  // 1. Translation QCM from examples
-  course.examples.forEach((ex, idx) => {
-    exercises.push({
-      id: `${courseId}_gex_${idx}`,
-      grammar_rule_id: courseId,
-      type: 'multiple_choice',
-      question: `Traduisez : "${ex.fr}"`,
-      answer: ex.en,
-      options: [ex.en, ...generateExampleDistractors(ex.en, course.examples, idx)],
-    });
-  });
-
-  // 2. Vocabulary-based QCM: "What does X mean?"
+  // 1. Vocabulary-based QCM: "What does X mean?" (⭐⭐ Intermédiaire)
   const vocabSlice = course.vocabulary.slice(0, Math.min(6, course.vocabulary.length));
   vocabSlice.forEach((v, idx) => {
-    const correctDef = v.definition_fr;
+    const correctDef = v.trad_fr;
     const distractorPool = course.vocabulary
       .filter((_, i) => i !== idx)
-      .map(d => d.definition_fr)
+      .map(d => d.trad_fr)
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
     exercises.push({
@@ -98,7 +96,7 @@ export function getA1CourseGrammarExercises(courseId: string): GrammarExercise[]
     });
   });
 
-  // 3. Sentence completion from example_en (fill blank with target word)
+  // 2. Sentence completion from example_en (fill blank with target word) (⭐⭐ Intermédiaire)
   course.vocabulary.slice(0, 4).forEach((v, idx) => {
     if (v.example_en.toLowerCase().includes(v.word.toLowerCase())) {
       const blanked = v.example_en.replace(
@@ -121,17 +119,22 @@ export function getA1CourseGrammarExercises(courseId: string): GrammarExercise[]
     }
   });
 
-  return exercises;
-}
+  // 3. Translation QCM: example_fr → example_en (⭐⭐ Intermédiaire)
+  course.vocabulary.slice(0, 3).forEach((v, idx) => {
+    const distractors = course.vocabulary
+      .filter((_, i) => i !== idx)
+      .map(d => d.example_en)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+    exercises.push({
+      id: `${courseId}_gtq_${idx}`,
+      grammar_rule_id: courseId,
+      type: 'multiple_choice',
+      question: `Traduisez : "${v.example_fr}"`,
+      answer: v.example_en,
+      options: [v.example_en, ...distractors].sort(() => Math.random() - 0.5),
+    });
+  });
 
-function generateExampleDistractors(correct: string, allExamples: { en: string; fr: string }[], skipIdx: number): string[] {
-  const others = allExamples.filter((_, i) => i !== skipIdx).map(e => e.en);
-  // Add some generic distractors if not enough examples
-  const fallbacks = [
-    'I am very happy today.',
-    'She is a good student.',
-    'They are going to school.',
-    'We don\'t have any pets.',
-  ].filter(f => f !== correct);
-  return [...others, ...fallbacks].slice(0, 3);
+  return exercises;
 }

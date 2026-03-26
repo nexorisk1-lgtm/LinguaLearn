@@ -9,13 +9,13 @@ import PageHeader from '@/components/PageHeader';
 import BottomNav from '@/components/BottomNav';
 
 // ==========================================
-// A1 CURRICULUM DATA (from Curriculum V1.0)
+// A1 CURRICULUM DATA (from Curriculum V4 — 40 courses)
 // ==========================================
 
 interface CourseItem {
   id: string;
-  number: number; // 1-25 for courses, 0 for dialogue/checkpoint/cert
-  type: 'grammar' | 'vocabulary' | 'dialogue' | 'checkpoint' | 'revision' | 'certification';
+  number: number; // 1-40 for courses, 0 for checkpoint/cert
+  type: 'grammar' | 'vocabulary' | 'dialogue' | 'checkpoint' | 'revision' | 'certification' | 'communication';
   titleFr: string;
   titleEn: string;
   subtitleFr: string;
@@ -34,17 +34,32 @@ interface BlockData {
 
 const A1_BLOCKS: BlockData[] = [
   {
+    id: 0,
+    titleFr: 'Bloc 0 — Les bases de la communication',
+    titleEn: 'Block 0 — Communication basics',
+    icon: '💬',
+    courses: [
+      { id: 'a1_c1', number: 1, type: 'communication', titleFr: 'Salutations', titleEn: 'Greetings', subtitleFr: 'Hello! / Hi! / Goodbye!', subtitleEn: 'Hello! / Hi! / Goodbye!', icon: '👋', blockId: 0 },
+      { id: 'a1_c2', number: 2, type: 'communication', titleFr: 'Politesse essentielle', titleEn: 'Essential politeness', subtitleFr: 'Thank you! / Sorry! / Please.', subtitleEn: 'Thank you! / Sorry! / Please.', icon: '🙏', blockId: 0 },
+      { id: 'a1_c3', number: 3, type: 'communication', titleFr: 'Se présenter', titleEn: 'Introducing yourself', subtitleFr: "I'm Emma. I'm from France.", subtitleEn: "I'm Emma. I'm from France.", icon: '🤝', blockId: 0 },
+      { id: 'a1_c4', number: 4, type: 'communication', titleFr: 'Expressions clés du quotidien', titleEn: 'Key daily expressions', subtitleFr: "How are you? — I'm fine!", subtitleEn: "How are you? — I'm fine!", icon: '💬', blockId: 0 },
+      { id: 'a1_c5', number: 5, type: 'communication', titleFr: "Comprendre et demander de l'aide", titleEn: 'Understanding and asking for help', subtitleFr: "I don't understand. Repeat please.", subtitleEn: "I don't understand. Repeat please.", icon: '🆘', blockId: 0 },
+    ],
+  },
+  {
     id: 1,
     titleFr: 'Bloc 1 — Je me présente',
     titleEn: 'Block 1 — Introducing myself',
     icon: '👋',
     courses: [
-      { id: 'a1_c1', number: 1, type: 'grammar', titleFr: 'Verbe To Be : affirmation', titleEn: 'Verb To Be: affirmative', subtitleFr: 'I am / You are / He is', subtitleEn: 'I am / You are / He is', icon: '📐', blockId: 1 },
-      { id: 'a1_c2', number: 2, type: 'grammar', titleFr: 'Le pluriel des noms', titleEn: 'Plural nouns', subtitleFr: '+s / +es / +ies / irréguliers', subtitleEn: '+s / +es / +ies / irregular', icon: '📐', blockId: 1 },
-      { id: 'a1_c3', number: 3, type: 'grammar', titleFr: 'To Be : interrogation et négation', titleEn: 'To Be: questions and negation', subtitleFr: 'Is she...? / I am not', subtitleEn: 'Is she...? / I am not', icon: '📐', blockId: 1 },
-      { id: 'a1_c4', number: 4, type: 'grammar', titleFr: 'Articles A / An / The', titleEn: 'Articles A / An / The', subtitleFr: 'Voyelle → an / Consonne → a', subtitleEn: 'Vowel → an / Consonant → a', icon: '📐', blockId: 1 },
-      { id: 'a1_c5', number: 5, type: 'grammar', titleFr: 'Adjectifs possessifs', titleEn: 'Possessive adjectives', subtitleFr: 'my, your, his, her, our, their', subtitleEn: 'my, your, his, her, our, their', icon: '📐', blockId: 1 },
-      { id: 'a1_d1', number: 0, type: 'dialogue', titleFr: 'Dialogue : Bonjour, je m\'appelle...', titleEn: 'Dialogue: Hello, my name is...', subtitleFr: 'Première rencontre', subtitleEn: 'First meeting', icon: '🗣️', blockId: 1 },
+      { id: 'a1_c6', number: 6, type: 'grammar', titleFr: 'Verbe To Be : affirmation', titleEn: 'Verb To Be: affirmative', subtitleFr: "I'm happy. She's a teacher.", subtitleEn: "I'm happy. She's a teacher.", icon: '📐', blockId: 1 },
+      { id: 'a1_c7', number: 7, type: 'vocabulary', titleFr: 'Ma famille', titleEn: 'My family', subtitleFr: "This is my family. She's my sister!", subtitleEn: "This is my family. She's my sister!", icon: '👨‍👩‍👧', blockId: 1 },
+      { id: 'a1_c8', number: 8, type: 'vocabulary', titleFr: 'Adjectifs personnels', titleEn: 'Personal adjectives', subtitleFr: "She's very tall and beautiful!", subtitleEn: "She's very tall and beautiful!", icon: '📚', blockId: 1 },
+      { id: 'a1_c9', number: 9, type: 'grammar', titleFr: 'To Be : interrogation et négation', titleEn: 'To Be: questions and negation', subtitleFr: "Are you a doctor? No, I'm not.", subtitleEn: "Are you a doctor? No, I'm not.", icon: '📐', blockId: 1 },
+      { id: 'a1_c10', number: 10, type: 'grammar', titleFr: 'Adjectifs possessifs', titleEn: 'Possessive adjectives', subtitleFr: "My bag's blue. Her book's red.", subtitleEn: "My bag's blue. Her book's red.", icon: '📐', blockId: 1 },
+      { id: 'a1_c11', number: 11, type: 'vocabulary', titleFr: 'La famille élargie', titleEn: 'Extended family', subtitleFr: "This is my grandmother. She's wonderful!", subtitleEn: "This is my grandmother. She's wonderful!", icon: '👴', blockId: 1 },
+      { id: 'a1_c12', number: 12, type: 'grammar', titleFr: 'Articles A / An / The', titleEn: 'Articles A / An / The', subtitleFr: "I've got a book and an orange.", subtitleEn: "I've got a book and an orange.", icon: '📐', blockId: 1 },
+      { id: 'a1_c13', number: 13, type: 'grammar', titleFr: 'Le pluriel des noms', titleEn: 'Plural nouns', subtitleFr: "I've got two books and three bags.", subtitleEn: "I've got two books and three bags.", icon: '📐', blockId: 1 },
       { id: 'a1_cp1', number: 0, type: 'checkpoint', titleFr: 'Checkpoint 1', titleEn: 'Checkpoint 1', subtitleFr: '10 questions · 70% minimum', subtitleEn: '10 questions · 70% minimum', icon: '🏆', blockId: 1 },
     ],
   },
@@ -54,12 +69,14 @@ const A1_BLOCKS: BlockData[] = [
     titleEn: 'Block 2 — My daily life',
     icon: '🏠',
     courses: [
-      { id: 'a1_c6', number: 6, type: 'grammar', titleFr: 'Present Simple : affirmation', titleEn: 'Present Simple: affirmative', subtitleFr: 'I work / She works', subtitleEn: 'I work / She works', icon: '📐', blockId: 2 },
-      { id: 'a1_c7', number: 7, type: 'grammar', titleFr: 'Present Simple : interrogation', titleEn: 'Present Simple: questions', subtitleFr: 'Do you...? / Does she...?', subtitleEn: 'Do you...? / Does she...?', icon: '📐', blockId: 2 },
-      { id: 'a1_c8', number: 8, type: 'grammar', titleFr: 'Present Simple : négation', titleEn: 'Present Simple: negation', subtitleFr: 'I don\'t / She doesn\'t', subtitleEn: 'I don\'t / She doesn\'t', icon: '📐', blockId: 2 },
-      { id: 'a1_c9', number: 9, type: 'grammar', titleFr: 'Mots interrogatifs', titleEn: 'Question words', subtitleFr: 'What, Where, When, Who, How', subtitleEn: 'What, Where, When, Who, How', icon: '📐', blockId: 2 },
-      { id: 'a1_c10', number: 10, type: 'grammar', titleFr: 'Adverbes de fréquence', titleEn: 'Frequency adverbs', subtitleFr: 'always, usually, sometimes, never', subtitleEn: 'always, usually, sometimes, never', icon: '📐', blockId: 2 },
-      { id: 'a1_d2', number: 0, type: 'dialogue', titleFr: 'Dialogue : Qu\'est-ce que tu fais ?', titleEn: 'Dialogue: What do you do?', subtitleFr: 'Habitudes quotidiennes', subtitleEn: 'Daily habits', icon: '🗣️', blockId: 2 },
+      { id: 'a1_c14', number: 14, type: 'vocabulary', titleFr: 'Verbes essentiels du quotidien', titleEn: 'Essential daily verbs', subtitleFr: 'I go to school. I want a coffee.', subtitleEn: 'I go to school. I want a coffee.', icon: '📚', blockId: 2 },
+      { id: 'a1_c15', number: 15, type: 'grammar', titleFr: 'Present Simple : affirmation', titleEn: 'Present Simple: affirmative', subtitleFr: 'She works every day. He reads a lot.', subtitleEn: 'She works every day. He reads a lot.', icon: '📐', blockId: 2 },
+      { id: 'a1_c16', number: 16, type: 'grammar', titleFr: 'Present Simple : interrogation', titleEn: 'Present Simple: questions', subtitleFr: 'Do you eat bread? Does she drink?', subtitleEn: 'Do you eat bread? Does she drink?', icon: '📐', blockId: 2 },
+      { id: 'a1_c17', number: 17, type: 'grammar', titleFr: 'Present Simple : négation', titleEn: 'Present Simple: negation', subtitleFr: "I don't eat meat. She doesn't like music.", subtitleEn: "I don't eat meat. She doesn't like music.", icon: '📐', blockId: 2 },
+      { id: 'a1_c18', number: 18, type: 'grammar', titleFr: 'Mots interrogatifs', titleEn: 'Question words', subtitleFr: "Where do you live? What's your number?", subtitleEn: "Where do you live? What's your number?", icon: '📐', blockId: 2 },
+      { id: 'a1_c19', number: 19, type: 'grammar', titleFr: 'Adverbes de fréquence', titleEn: 'Frequency adverbs', subtitleFr: 'I always brush my teeth. Never late.', subtitleEn: 'I always brush my teeth. Never late.', icon: '📐', blockId: 2 },
+      { id: 'a1_c20', number: 20, type: 'vocabulary', titleFr: 'La nourriture 1', titleEn: 'Food 1', subtitleFr: 'I want some bread and water, please.', subtitleEn: 'I want some bread and water, please.', icon: '🍞', blockId: 2 },
+      { id: 'a1_c21', number: 21, type: 'vocabulary', titleFr: 'La nourriture 2 — Commander', titleEn: 'Food 2 — Ordering', subtitleFr: "I'd like a pizza, please. How much?", subtitleEn: "I'd like a pizza, please. How much?", icon: '🍕', blockId: 2 },
       { id: 'a1_cp2', number: 0, type: 'checkpoint', titleFr: 'Checkpoint 2', titleEn: 'Checkpoint 2', subtitleFr: '12 questions · 70% minimum', subtitleEn: '12 questions · 70% minimum', icon: '🏆', blockId: 2 },
     ],
   },
@@ -69,12 +86,13 @@ const A1_BLOCKS: BlockData[] = [
     titleEn: 'Block 3 — My world',
     icon: '🌍',
     courses: [
-      { id: 'a1_c11', number: 11, type: 'vocabulary', titleFr: 'Les nombres 1 à 100', titleEn: 'Numbers 1 to 100', subtitleFr: 'one, two... hundred', subtitleEn: 'one, two... hundred', icon: '🔢', blockId: 3 },
-      { id: 'a1_c12', number: 12, type: 'vocabulary', titleFr: 'Couleurs et adjectifs descriptifs', titleEn: 'Colors and descriptive adjectives', subtitleFr: 'Adjectif AVANT le nom', subtitleEn: 'Adjective BEFORE the noun', icon: '🎨', blockId: 3 },
-      { id: 'a1_c13', number: 13, type: 'grammar', titleFr: 'Verbe Have Got', titleEn: 'Verb Have Got', subtitleFr: 'I have got / She has got', subtitleEn: 'I have got / She has got', icon: '📐', blockId: 3 },
-      { id: 'a1_c14', number: 14, type: 'grammar', titleFr: 'Pronoms sujets et compléments', titleEn: 'Subject and object pronouns', subtitleFr: 'I→me, he→him, she→her', subtitleEn: 'I→me, he→him, she→her', icon: '📐', blockId: 3 },
-      { id: 'a1_c15', number: 15, type: 'grammar', titleFr: 'Prépositions de lieu', titleEn: 'Prepositions of place', subtitleFr: 'in, on, under, next to, between', subtitleEn: 'in, on, under, next to, between', icon: '📐', blockId: 3 },
-      { id: 'a1_d3', number: 0, type: 'dialogue', titleFr: 'Dialogue : Où est mon chat ?', titleEn: 'Dialogue: Where is my cat?', subtitleFr: 'Prépositions + have got', subtitleEn: 'Prepositions + have got', icon: '🗣️', blockId: 3 },
+      { id: 'a1_c22', number: 22, type: 'vocabulary', titleFr: 'Les nombres 1 à 100', titleEn: 'Numbers 1 to 100', subtitleFr: "It costs fifty euros. I'm sixteen.", subtitleEn: "It costs fifty euros. I'm sixteen.", icon: '🔢', blockId: 3 },
+      { id: 'a1_c23', number: 23, type: 'vocabulary', titleFr: 'Couleurs et adjectifs', titleEn: 'Colors and adjectives', subtitleFr: "I like the big blue bag. It's beautiful!", subtitleEn: "I like the big blue bag. It's beautiful!", icon: '🎨', blockId: 3 },
+      { id: 'a1_c24', number: 24, type: 'grammar', titleFr: 'Verbe Have Got — Animaux', titleEn: 'Have Got — Animals', subtitleFr: "Have you got a dog? I've got a cat.", subtitleEn: "Have you got a dog? I've got a cat.", icon: '🐾', blockId: 3 },
+      { id: 'a1_c25', number: 25, type: 'grammar', titleFr: 'Pronoms sujets et compléments', titleEn: 'Subject and object pronouns', subtitleFr: 'She likes him. The teacher helps us.', subtitleEn: 'She likes him. The teacher helps us.', icon: '📐', blockId: 3 },
+      { id: 'a1_c26', number: 26, type: 'vocabulary', titleFr: 'La maison — pièces et objets', titleEn: 'The house — rooms and objects', subtitleFr: "This is the kitchen. The sofa's here.", subtitleEn: "This is the kitchen. The sofa's here.", icon: '🏠', blockId: 3 },
+      { id: 'a1_c27', number: 27, type: 'grammar', titleFr: 'Prépositions de lieu', titleEn: 'Prepositions of place', subtitleFr: "The cat's under the table. Next to the sofa.", subtitleEn: "The cat's under the table. Next to the sofa.", icon: '📐', blockId: 3 },
+      { id: 'a1_c28', number: 28, type: 'vocabulary', titleFr: 'Les lieux du quotidien', titleEn: 'Everyday places', subtitleFr: "I go to school. The shop's on the street.", subtitleEn: "I go to school. The shop's on the street.", icon: '🗺️', blockId: 3 },
       { id: 'a1_cp3', number: 0, type: 'checkpoint', titleFr: 'Checkpoint 3', titleEn: 'Checkpoint 3', subtitleFr: '12 questions · 70% minimum', subtitleEn: '12 questions · 70% minimum', icon: '🏆', blockId: 3 },
     ],
   },
@@ -84,12 +102,13 @@ const A1_BLOCKS: BlockData[] = [
     titleEn: 'Block 4 — I communicate',
     icon: '💬',
     courses: [
-      { id: 'a1_c16', number: 16, type: 'vocabulary', titleFr: 'L\'heure et les jours', titleEn: 'Time and days', subtitleFr: 'What time is it? Half past...', subtitleEn: 'What time is it? Half past...', icon: '🕐', blockId: 4 },
-      { id: 'a1_c17', number: 17, type: 'grammar', titleFr: 'Present Progressive (Continu)', titleEn: 'Present Progressive (Continuous)', subtitleFr: 'I am + verbe-ing', subtitleEn: 'I am + verb-ing', icon: '📐', blockId: 4 },
-      { id: 'a1_c18', number: 18, type: 'grammar', titleFr: 'Simple vs Progressive', titleEn: 'Simple vs Progressive', subtitleFr: 'Habitude vs action en cours', subtitleEn: 'Habit vs ongoing action', icon: '📐', blockId: 4 },
-      { id: 'a1_c19', number: 19, type: 'grammar', titleFr: 'Réponses courtes', titleEn: 'Short answers', subtitleFr: 'Yes, I am / No, she isn\'t', subtitleEn: 'Yes, I am / No, she isn\'t', icon: '📐', blockId: 4 },
-      { id: 'a1_c20', number: 20, type: 'grammar', titleFr: 'Cas possessif et pronoms', titleEn: 'Possessive case and pronouns', subtitleFr: 'Tom\'s book / mine, yours', subtitleEn: 'Tom\'s book / mine, yours', icon: '📐', blockId: 4 },
-      { id: 'a1_d4', number: 0, type: 'dialogue', titleFr: 'Dialogue : C\'est à qui ?', titleEn: 'Dialogue: Whose is it?', subtitleFr: 'Cas possessif + pronoms', subtitleEn: 'Possessive case + pronouns', icon: '🗣️', blockId: 4 },
+      { id: 'a1_c29', number: 29, type: 'vocabulary', titleFr: "L'heure et les jours", titleEn: 'Time and days', subtitleFr: "It's quarter past three. See you Monday!", subtitleEn: "It's quarter past three. See you Monday!", icon: '⏰', blockId: 4 },
+      { id: 'a1_c30', number: 30, type: 'grammar', titleFr: 'Present Progressive', titleEn: 'Present Progressive', subtitleFr: "She's running. They're playing outside.", subtitleEn: "She's running. They're playing outside.", icon: '📐', blockId: 4 },
+      { id: 'a1_c31', number: 31, type: 'grammar', titleFr: 'Simple vs Progressive', titleEn: 'Simple vs Progressive', subtitleFr: "I usually read, but now I'm watching TV.", subtitleEn: "I usually read, but now I'm watching TV.", icon: '📐', blockId: 4 },
+      { id: 'a1_c32', number: 32, type: 'grammar', titleFr: 'Réponses courtes', titleEn: 'Short answers', subtitleFr: "Yes, I am. No, she doesn't.", subtitleEn: "Yes, I am. No, she doesn't.", icon: '📐', blockId: 4 },
+      { id: 'a1_c33', number: 33, type: 'grammar', titleFr: 'Cas possessif et pronoms possessifs', titleEn: 'Possessive case and pronouns', subtitleFr: "That's Tom's jacket. Is this yours?", subtitleEn: "That's Tom's jacket. Is this yours?", icon: '📐', blockId: 4 },
+      { id: 'a1_c34', number: 34, type: 'vocabulary', titleFr: 'Le transport', titleEn: 'Transport', subtitleFr: 'I go to school by bus. She takes the train.', subtitleEn: 'I go to school by bus. She takes the train.', icon: '🚌', blockId: 4 },
+      { id: 'a1_c35', number: 35, type: 'vocabulary', titleFr: 'Mois, saisons et prépositions de temps', titleEn: 'Months, seasons and time prepositions', subtitleFr: "My birthday's in July. On Monday at nine.", subtitleEn: "My birthday's in July. On Monday at nine.", icon: '📅', blockId: 4 },
       { id: 'a1_cp4', number: 0, type: 'checkpoint', titleFr: 'Checkpoint 4', titleEn: 'Checkpoint 4', subtitleFr: '15 questions · 70% minimum', subtitleEn: '15 questions · 70% minimum', icon: '🏆', blockId: 4 },
     ],
   },
@@ -99,12 +118,11 @@ const A1_BLOCKS: BlockData[] = [
     titleEn: 'Block 5 — I travel and discover',
     icon: '✈️',
     courses: [
-      { id: 'a1_c21', number: 21, type: 'vocabulary', titleFr: 'Mois, saisons, prépositions de temps', titleEn: 'Months, seasons, time prepositions', subtitleFr: 'At / On / In', subtitleEn: 'At / On / In', icon: '📅', blockId: 5 },
-      { id: 'a1_c22', number: 22, type: 'vocabulary', titleFr: 'Météo et adjectifs climatiques', titleEn: 'Weather and climate adjectives', subtitleFr: 'It is sunny / It is raining', subtitleEn: 'It is sunny / It is raining', icon: '🌤️', blockId: 5 },
-      { id: 'a1_c23', number: 23, type: 'grammar', titleFr: 'Can / Can\'t', titleEn: 'Can / Can\'t', subtitleFr: 'Capacité et permission', subtitleEn: 'Ability and permission', icon: '📐', blockId: 5 },
-      { id: 'a1_c24', number: 24, type: 'grammar', titleFr: 'Les impératifs', titleEn: 'Imperatives', subtitleFr: 'Listen! / Don\'t run!', subtitleEn: 'Listen! / Don\'t run!', icon: '📐', blockId: 5 },
-      { id: 'a1_c25', number: 25, type: 'revision', titleFr: 'Révision consolidée A1', titleEn: 'A1 consolidated revision', subtitleFr: 'Toutes les structures A1', subtitleEn: 'All A1 structures', icon: '📝', blockId: 5 },
-      { id: 'a1_d5', number: 0, type: 'dialogue', titleFr: 'Dialogue : À l\'aéroport', titleEn: 'Dialogue: At the airport', subtitleFr: 'Voyage et informations', subtitleEn: 'Travel and information', icon: '🗣️', blockId: 5 },
+      { id: 'a1_c36', number: 36, type: 'vocabulary', titleFr: 'La météo', titleEn: 'The weather', subtitleFr: "It's sunny today! Take your umbrella.", subtitleEn: "It's sunny today! Take your umbrella.", icon: '☀️', blockId: 5 },
+      { id: 'a1_c37', number: 37, type: 'grammar', titleFr: "Can / Can't", titleEn: "Can / Can't", subtitleFr: "I can swim. She can't drive. Can you sing?", subtitleEn: "I can swim. She can't drive. Can you sing?", icon: '📐', blockId: 5 },
+      { id: 'a1_c38', number: 38, type: 'grammar', titleFr: 'Les impératifs', titleEn: 'Imperatives', subtitleFr: "Turn left! Go straight! Don't run!", subtitleEn: "Turn left! Go straight! Don't run!", icon: '📐', blockId: 5 },
+      { id: 'a1_c39', number: 39, type: 'vocabulary', titleFr: 'Le voyage', titleEn: 'Travel', subtitleFr: "Don't forget your passport! Hotel's near.", subtitleEn: "Don't forget your passport! Hotel's near.", icon: '✈️', blockId: 5 },
+      { id: 'a1_c40', number: 40, type: 'revision', titleFr: 'Révision consolidée A1', titleEn: 'A1 consolidated revision', subtitleFr: "I'm Emma. I can speak English!", subtitleEn: "I'm Emma. I can speak English!", icon: '📝', blockId: 5 },
       { id: 'a1_cert', number: 0, type: 'certification', titleFr: 'Certification A1', titleEn: 'A1 Certification', subtitleFr: '40 questions · 75% minimum', subtitleEn: '40 questions · 75% minimum', icon: '🎓', blockId: 5 },
     ],
   },

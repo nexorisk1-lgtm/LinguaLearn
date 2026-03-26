@@ -23,7 +23,7 @@ import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, Writing
 // TYPES
 // ==========================================
 
-type SessionPhase = 'intro' | 'lessonMap' | 'exercise' | 'summary'
+type SessionPhase = 'intro' | 'objectif' | 'lessonMap' | 'exercise' | 'summary'
 
 interface SessionExercise {
   type: 'vocab_translate' | 'vocab_listen' | 'grammar_qcm' | 'reading_comprehension' | 'speaking_repeat' | 'writing_fill'
@@ -584,14 +584,21 @@ function SessionContent() {
   }, [router, buildSession])
 
   // V3.19 BUG-62: Wait for sessionReady before transitioning — prevents race condition
+  // V4: intro → objectif (for A1 courses) → lessonMap
   useEffect(() => {
     if (phase !== 'intro' || !sessionReady) return
     if (exercises.length > 0) {
-      setPhase('lessonMap')
+      // V4: Show objectif screen for A1 bank courses
+      const isA1 = courseId && /^a1_c\d+$/.test(courseId) && getA1CourseData(courseId)
+      if (isA1) {
+        setPhase('objectif')
+      } else {
+        setPhase('lessonMap')
+      }
     } else {
       setPhase('summary')
     }
-  }, [phase, exercises.length, sessionReady])
+  }, [phase, exercises.length, sessionReady, courseId])
 
   const currentExercise = exercises[currentIdx]
 
@@ -1175,6 +1182,61 @@ function SessionContent() {
   }
 
   // ==========================================
+  // PHASE: OBJECTIF DU COURS (V4 step 0)
+  // ==========================================
+  if (phase === 'objectif') {
+    const courseData = courseId ? getA1CourseData(courseId) : null
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#002844] to-[#003a5c] px-4 py-8">
+        <PageHeader title={lang === 'fr' ? 'Objectif du cours' : 'Course objective'} backHref="/dashboard" />
+        <div className="max-w-lg mx-auto mt-8">
+          {/* Course title */}
+          <div className="text-center mb-8">
+            <span className="inline-block bg-[#D9B438]/20 text-[#D9B438] text-xs font-bold px-3 py-1 rounded-full mb-3">
+              {lang === 'fr' ? `Cours ${courseData?.number || ''}` : `Course ${courseData?.number || ''}`}
+            </span>
+            <h1 className="text-2xl font-bold text-white mb-2">{courseData?.title}</h1>
+            {courseData?.scenario && (
+              <p className="text-white/60 text-sm italic">{courseData.scenario}</p>
+            )}
+          </div>
+
+          {/* Objectifs */}
+          <div className="rounded-2xl bg-white/10 backdrop-blur-sm p-6 mb-8">
+            <h2 className="text-[#D9B438] font-bold text-base mb-4">
+              {lang === 'fr' ? '🎯 À la fin de ce cours, tu sauras :' : '🎯 By the end of this course, you will know how to:'}
+            </h2>
+            <div className="space-y-3">
+              {courseData?.objectif?.map((obj, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="text-green-400 mt-0.5">✅</span>
+                  <span className="text-white text-sm">{obj}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Phrase clé */}
+          {courseData?.phrase_cle && (
+            <div className="rounded-2xl bg-white/5 p-4 mb-8 text-center">
+              <p className="text-white/40 text-xs mb-1">{lang === 'fr' ? '🔑 Phrase clé' : '🔑 Key phrase'}</p>
+              <p className="text-white font-medium text-lg">{courseData.phrase_cle}</p>
+            </div>
+          )}
+
+          {/* Start button */}
+          <button
+            onClick={() => setPhase('lessonMap')}
+            className="w-full py-4 rounded-2xl bg-[#D9B438] text-[#002844] font-bold text-lg shadow-lg hover:bg-[#c9a428] transition-all"
+          >
+            {lang === 'fr' ? "C'est parti ! 🚀" : "Let's go! 🚀"}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ==========================================
   // PHASE: LESSON MAP
   // ==========================================
   if (phase === 'lessonMap') {
@@ -1325,6 +1387,16 @@ function SessionContent() {
                   backgroundColor: stars >= 3 ? '#2E7D32' : stars >= 2 ? '#D9B438' : stars >= 1 ? '#E65100' : '#E53935',
                 }} />
             </div>
+
+            {/* V4: Micro-réussite celebration */}
+            {courseId && /^a1_c\d+$/.test(courseId) && (() => {
+              const cd = getA1CourseData(courseId)
+              return cd?.micro_reussite ? (
+                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-[#D9B438]/10 to-[#002844]/10 border border-[#D9B438]/20">
+                  <p className="text-lg font-bold text-[#002844]">🏆 {cd.micro_reussite}</p>
+                </div>
+              ) : null
+            })()}
 
             {/* Unlock indicators (for course sessions) */}
             {courseId && (
@@ -1509,7 +1581,7 @@ function SessionContent() {
 
         {/* Exercise card */}
         <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
-          {/* Exercise type badge */}
+          {/* Exercise type badge + difficulty */}
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#002844] text-white">
               {currentExercise.type === 'vocab_translate' ? (lang === 'fr' ? 'Traduction' : 'Translation') :
@@ -1517,6 +1589,19 @@ function SessionContent() {
                currentExercise.type === 'reading_comprehension' ? (lang === 'fr' ? 'Lecture' : 'Reading') :
                currentExercise.type === 'speaking_repeat' ? (lang === 'fr' ? 'Prononciation' : 'Pronunciation') :
                currentExercise.type === 'writing_fill' ? (lang === 'fr' ? 'Écriture' : 'Writing') : ''}
+            </span>
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              currentExercise.type === 'vocab_translate' || currentExercise.type === 'reading_comprehension'
+                ? 'bg-green-100 text-green-700'
+                : currentExercise.type === 'speaking_repeat'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-yellow-100 text-yellow-700'
+            }`}>
+              {currentExercise.type === 'vocab_translate' || currentExercise.type === 'reading_comprehension'
+                ? '⭐ Facile'
+                : currentExercise.type === 'speaking_repeat'
+                  ? '⭐⭐⭐ Difficile'
+                  : '⭐⭐ Intermédiaire'}
             </span>
           </div>
 
