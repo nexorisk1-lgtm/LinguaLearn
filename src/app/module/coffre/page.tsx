@@ -22,7 +22,7 @@ import { VocabWord } from '@/lib/db/bankTypes';
 // ==========================================
 
 type CoffreStep = 'discovery' | 'recognition' | 'qcm_translation' | 'oral' | 'writing';
-type CoffrePhase = 'learning' | 'summary'; // V3.15: 'welcome' removed
+type CoffrePhase = 'learning' | 'self_eval' | 'summary'; // V3.15: 'welcome' removed, BUG-84: self_eval added
 
 interface WordExercise {
   word: VocabWord;
@@ -66,6 +66,8 @@ function CoffreContent() {
   const recognitionRef = useRef<any>(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  // BUG-84: Self-evaluation per word
+  const [wordRatings, setWordRatings] = useState<Record<string, 'easy' | 'medium' | 'hard'>>({});
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -213,44 +215,51 @@ function CoffreContent() {
     setIsRecording(false);
 
     if (currentExIdx + 1 >= exercises.length) {
-      // Session complete — save final progress & clear saved position
-      if (user) {
-        const scorePct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
-        for (const w of dailyWords) {
-          addToPersonalVocab(user.id, w.id, 'learned');
-          saveReviewItem(user.id, activeLang, w.id, 'word', scorePct);
-        }
-        clearCoffrePosition();
-
-        // V3.18 BUG-70: Mark coffre as done today (reliable marker for dashboard stars)
-        try {
-          const todayStr = new Date().toISOString().split('T')[0];
-          localStorage.setItem(`lingualearn_coffre_done_today_${user.id}`, todayStr);
-        } catch { /* ignore */ }
-
-        // V3.18 BUG-71: Increment objectiveProgress.vocabulaire
-        // Coffre words count as vocabulary progress (5% per word learned)
-        try {
-          const freshUser = getCurrentUser();
-          const freshProgress = freshUser?.progress?.[activeLang];
-          const currentObjProgress = freshProgress?.objectiveProgress || {} as Record<string, number>;
-          const currentVocab = (currentObjProgress as Record<string, number>).vocabulaire || 0;
-          const increment = dailyWords.length * 5; // 5% per word, same as session/page.tsx
-          updateUserProgress(user.id, activeLang, {
-            objectiveProgress: {
-              ...currentObjProgress,
-              vocabulaire: Math.min(100, currentVocab + increment),
-            },
-          });
-        } catch { /* ignore */ }
-      }
-      setPhase('summary');
+      // BUG-84: Go to self-evaluation before summary
+      setPhase('self_eval');
     } else {
       const nextIdx = currentExIdx + 1;
       setCurrentExIdx(nextIdx);
       // V3.15: Save position after each advance (uses refs for fresh values)
       saveCoffrePosition(nextIdx);
     }
+  };
+
+  // BUG-84: Finalize coffre after self-evaluation
+  const finalizeCoffre = () => {
+    if (user) {
+      const scorePct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+      for (const w of dailyWords) {
+        // BUG-84: Adjust spaced repetition based on self-evaluation
+        const rating = wordRatings[w.id];
+        let adjustedScore = scorePct;
+        if (rating === 'easy') adjustedScore = Math.max(adjustedScore, 90); // Push to J+7
+        if (rating === 'hard') adjustedScore = Math.min(adjustedScore, 50); // Push to J+1
+        addToPersonalVocab(user.id, w.id, 'learned');
+        saveReviewItem(user.id, activeLang, w.id, 'word', adjustedScore);
+      }
+      clearCoffrePosition();
+
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        localStorage.setItem(`lingualearn_coffre_done_today_${user.id}`, todayStr);
+      } catch { /* ignore */ }
+
+      try {
+        const freshUser = getCurrentUser();
+        const freshProgress = freshUser?.progress?.[activeLang];
+        const currentObjProgress = freshProgress?.objectiveProgress || {} as Record<string, number>;
+        const currentVocab = (currentObjProgress as Record<string, number>).vocabulaire || 0;
+        const increment = dailyWords.length * 5;
+        updateUserProgress(user.id, activeLang, {
+          objectiveProgress: {
+            ...currentObjProgress,
+            vocabulaire: Math.min(100, currentVocab + increment),
+          },
+        });
+      } catch { /* ignore */ }
+    }
+    setPhase('summary');
   };
 
   const handleQCMSelect = (option: string, correctAnswer: string) => {
@@ -317,6 +326,62 @@ function CoffreContent() {
   }
 
   // V3.15: Welcome phase removed — exercises start directly
+
+  // BUG-84: SELF-EVALUATION PHASE
+  if (phase === 'self_eval') {
+    const allRated = dailyWords.every(w => wordRatings[w.id]);
+    return (
+      <div className="min-h-screen bg-[#F0F0F0] px-4 py-6">
+        <PageHeader title={lang === 'fr' ? 'Auto-évaluation' : 'Self-evaluation'} backHref="/dashboard" />
+        <div className="max-w-lg mx-auto">
+          <h2 className="text-xl font-bold text-[#002844] mb-2 text-center">
+            {lang === 'fr' ? 'Comment te sens-tu avec ces mots ?' : 'How do you feel about these words?'}
+          </h2>
+          <p className="text-sm text-[#555555] mb-6 text-center">
+            {lang === 'fr' ? 'Évalue chaque mot pour personnaliser tes révisions' : 'Rate each word to personalize your reviews'}
+          </p>
+          <div className="space-y-3">
+            {dailyWords.map(w => (
+              <div key={w.id} className="bg-white rounded-xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="font-bold text-[#002844]">{w.word_target}</p>
+                    <p className="text-xs text-[#555555]">{w.word_fr}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setWordRatings(prev => ({ ...prev, [w.id]: 'easy' }))}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                      wordRatings[w.id] === 'easy' ? 'bg-green-500 text-white' : 'bg-green-50 text-green-700 border border-green-200'
+                    }`}>
+                    🟢 {lang === 'fr' ? 'Facile' : 'Easy'}
+                  </button>
+                  <button onClick={() => setWordRatings(prev => ({ ...prev, [w.id]: 'medium' }))}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                      wordRatings[w.id] === 'medium' ? 'bg-yellow-500 text-white' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                    }`}>
+                    🟡 {lang === 'fr' ? 'Moyen' : 'Medium'}
+                  </button>
+                  <button onClick={() => setWordRatings(prev => ({ ...prev, [w.id]: 'hard' }))}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                      wordRatings[w.id] === 'hard' ? 'bg-red-500 text-white' : 'bg-red-50 text-red-700 border border-red-200'
+                    }`}>
+                    🔴 {lang === 'fr' ? 'Difficile' : 'Hard'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={finalizeCoffre} disabled={!allRated}
+            className="w-full mt-6 py-3.5 rounded-xl bg-[#002844] text-white font-bold text-sm disabled:opacity-50 transition-all">
+            {allRated
+              ? (lang === 'fr' ? 'Terminer le coffre' : 'Finish chest')
+              : (lang === 'fr' ? `Évalue tous les mots (${Object.keys(wordRatings).length}/${dailyWords.length})` : `Rate all words (${Object.keys(wordRatings).length}/${dailyWords.length})`)}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // SUMMARY PHASE
   if (phase === 'summary') {

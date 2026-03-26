@@ -7,7 +7,7 @@ import { getCurrentUser, getDueReviews, getUpcomingReviews, saveReviewItem, Revi
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import PageHeader from '@/components/PageHeader';
-import { getVocabulary, speakText } from '@/lib/db/bankHelpers';
+import { speakText } from '@/lib/db/bankHelpers';
 import { VocabWord } from '@/lib/db/bankTypes';
 import { BANK_A1_COURSES, getA1CourseVocabulary } from '@/lib/db/bankA1Courses';
 
@@ -54,15 +54,12 @@ export default function RevisionsPage() {
     const aLang = (currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en') as LearningLanguage;
     setActiveLang(aLang);
 
-    const config = currentUser.settings.languageConfigs?.[aLang];
-    const themes = config?.themes || [];
-    // BUG-77: Merge V4 course vocabulary + legacy vocabulary for full coverage
-    const legacyVocab = getVocabulary(aLang, themes, 'A1');
+    // BUG-77 (V2): ONLY V4 course vocabulary — purge ALL legacy mocked words
     const a1Vocab: VocabWord[] = [];
     for (const course of BANK_A1_COURSES) {
       a1Vocab.push(...getA1CourseVocabulary(course.id));
     }
-    const vocab = [...a1Vocab, ...legacyVocab];
+    const vocab = a1Vocab; // No legacy vocab — only V4 course words
     setAllVocab(vocab);
 
     // Get due review items

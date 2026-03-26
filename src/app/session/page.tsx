@@ -16,7 +16,7 @@ import {
   getReadingTexts, getSpeakingExercises, getWritingExercises,
   speakText, isCloseEnough, addToPersonalVocab,
 } from '@/lib/db/bankHelpers'
-import { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises } from '@/lib/db/bankA1Courses'
+import { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises, getMicroReussite } from '@/lib/db/bankA1Courses'
 import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, WritingExercise } from '@/lib/db/bankTypes'
 
 // ==========================================
@@ -26,7 +26,7 @@ import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, Writing
 type SessionPhase = 'intro' | 'objectif' | 'lessonMap' | 'exercise' | 'summary'
 
 interface SessionExercise {
-  type: 'vocab_translate' | 'vocab_listen' | 'grammar_qcm' | 'reading_comprehension' | 'speaking_repeat' | 'writing_fill'
+  type: 'vocab_translate' | 'vocab_listen' | 'grammar_qcm' | 'reading_comprehension' | 'speaking_repeat' | 'writing_fill' | 'word_order'
   module: LearningObjective
   data: any
   question: string
@@ -259,6 +259,10 @@ function SessionContent() {
   const [isRecording, setIsRecording] = useState(false)
   const [heardText, setHeardText] = useState('')
 
+  // BUG-83: Word order exercise state
+  const [wordOrderSelected, setWordOrderSelected] = useState<string[]>([])
+  const [wordOrderPool, setWordOrderPool] = useState<string[]>([])
+
   // BUG-33: TTS audio + speed control + word highlight
   const [readingSpeed, setReadingSpeed] = useState(1)
   const [highlightWordIndex, setHighlightWordIndex] = useState<number | null>(null)
@@ -312,51 +316,58 @@ function SessionContent() {
     if (isA1BankCourse && courseId) {
       // ==========================================
       // A1 BANK COURSE: use real course data
+      // BUG-82: ALL exercises MUST use ONLY words from this course's vocabulary
+      // No generic bank exercises — everything is course-scoped
       // ==========================================
       const courseVocab = getA1CourseVocabulary(courseId)
-      const courseGrammarEx = getA1CourseGrammarExercises(courseId)
 
-      // STEP 1: Vocabulary exercises from course vocabulary
+      // STEP 1: Vocabulary translation exercises (all course words)
       if (courseVocab.length > 0) {
-        allExercises.push(...generateVocabExercises(courseVocab, Math.min(5, courseVocab.length), isPathB))
+        allExercises.push(...generateVocabExercises(courseVocab, courseVocab.length, isPathB))
         usedModules.push('vocabulaire')
       }
 
-      // STEP 2: Grammar exercises from course rule + examples + vocabulary
+      // STEP 2: Grammar exercises from course vocabulary ONLY
+      // These are QCM and fill-blank based on the same course words
+      const courseGrammarEx = getA1CourseGrammarExercises(courseId)
       if (courseGrammarEx.length > 0) {
         allExercises.push(...generateGrammarExercises(courseGrammarEx, Math.min(5, courseGrammarEx.length)))
         usedModules.push('grammaire')
       }
 
-      // STEP 3: Objective exercises (oral, lecture, ecrit) — from generic banks
-      const objectiveSet = new Set<string>(objectives as string[])
-      if (objectiveSet.has('oral')) {
-        const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
-        if (speakExercises.length > 0) {
-          allExercises.push(...generateSpeakingExercises(speakExercises, 2))
-          usedModules.push('oral')
-        }
+      // STEP 3: Speaking exercise using course vocabulary words (not generic bank)
+      if (courseVocab.length > 0) {
+        const courseSpeak: SessionExercise[] = courseVocab.slice(0, 2).map(w => ({
+          type: 'speaking_repeat' as const,
+          module: 'oral',
+          data: w,
+          question: lang === 'fr' ? `Prononcez : "${w.word_target}"` : `Say: "${w.word_target}"`,
+          answer: w.word_target,
+        }))
+        allExercises.push(...courseSpeak)
+        usedModules.push('oral')
       }
-      if (objectiveSet.has('lecture')) {
-        const texts = getReadingTexts(activeLang, userThemes, userLevel)
-        const readEx = generateReadingExercise(texts, currentUser.settings.interfaceLang || 'fr')
-        if (readEx) {
-          allExercises.push(readEx)
-          usedModules.push('lecture')
-        }
-      }
-      if (objectiveSet.has('ecrit') && !isPathB) {
-        const writeExercises = getWritingExercises(activeLang, userThemes, userLevel)
-        if (writeExercises.length > 0) {
-          allExercises.push(...generateWritingExercises(writeExercises, 2))
-          usedModules.push('ecrit')
-        }
-      }
-      if (isPathB && !usedModules.includes('oral')) {
-        const speakExercises = getSpeakingExercises(activeLang, userThemes, userLevel)
-        if (speakExercises.length > 0) {
-          allExercises.push(...generateSpeakingExercises(speakExercises, 2))
-          usedModules.push('oral')
+
+      // BUG-83: STEP 4: Word ordering exercise instead of free-text writing
+      if (!isPathB && courseVocab.length > 0) {
+        const cd = getA1CourseData(courseId)
+        if (cd) {
+          // Generate word-ordering exercises from course examples
+          const orderExercises: SessionExercise[] = cd.vocabulary
+            .filter(v => v.example_en.split(' ').length >= 3 && v.example_en.split(' ').length <= 7)
+            .slice(0, 2)
+            .map((v) => ({
+              type: 'word_order' as const,
+              module: 'ecrit',
+              data: { ...v, courseId },
+              question: lang === 'fr' ? `Remettez les mots dans le bon ordre :` : `Put the words in the correct order:`,
+              answer: v.example_en,
+              options: v.example_en.split(' ').sort(() => Math.random() - 0.5),
+            }))
+          if (orderExercises.length > 0) {
+            allExercises.push(...orderExercises)
+            usedModules.push('ecrit')
+          }
         }
       }
 
@@ -701,6 +712,9 @@ function SessionContent() {
     } else if (currentExercise.type === 'reading_comprehension') {
       // For comprehension, check against comprehensionAnswer
       correct = userAnswer === currentExercise.comprehensionAnswer
+    } else if (currentExercise.type === 'word_order') {
+      // BUG-83: Word ordering — compare joined words to expected sentence
+      correct = userAnswer.toLowerCase().trim() === currentExercise.answer.toLowerCase().trim()
     } else if (currentExercise.type === 'speaking_repeat') {
       // Oral: 20% tolerance (speech recognition is less precise)
       const maxDist = Math.max(1, Math.floor(currentExercise.answer.length * 0.2))
@@ -789,6 +803,8 @@ function SessionContent() {
     setWordDefinition(null)
     setShowWhyWrong(false)
     setUserAudioUrl(null) // V3.16: Reset audio to prevent residual oral buttons
+    setWordOrderSelected([]) // BUG-83: Reset word order
+    setWordOrderPool([])
 
     // Capture current results (including the one just answered) for auto-save
     const currentResults = [...results]
@@ -1388,12 +1404,12 @@ function SessionContent() {
                 }} />
             </div>
 
-            {/* V4: Micro-réussite celebration */}
+            {/* V4: Micro-réussite celebration — BUG-81: localized to interface language */}
             {courseId && /^a1_c\d+$/.test(courseId) && (() => {
-              const cd = getA1CourseData(courseId)
-              return cd?.micro_reussite ? (
+              const microText = getMicroReussite(courseId, lang)
+              return microText ? (
                 <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-[#D9B438]/10 to-[#002844]/10 border border-[#D9B438]/20">
-                  <p className="text-lg font-bold text-[#002844]">🏆 {cd.micro_reussite}</p>
+                  <p className="text-lg font-bold text-[#002844]">🏆 {microText}</p>
                 </div>
               ) : null
             })()}
@@ -1588,7 +1604,8 @@ function SessionContent() {
                currentExercise.type === 'grammar_qcm' ? 'QCM' :
                currentExercise.type === 'reading_comprehension' ? (lang === 'fr' ? 'Lecture' : 'Reading') :
                currentExercise.type === 'speaking_repeat' ? (lang === 'fr' ? 'Prononciation' : 'Pronunciation') :
-               currentExercise.type === 'writing_fill' ? (lang === 'fr' ? 'Écriture' : 'Writing') : ''}
+               currentExercise.type === 'writing_fill' ? (lang === 'fr' ? 'Écriture' : 'Writing') :
+               currentExercise.type === 'word_order' ? (lang === 'fr' ? 'Ordre des mots' : 'Word Order') : ''}
             </span>
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
               currentExercise.type === 'vocab_translate' || currentExercise.type === 'reading_comprehension'
@@ -1601,7 +1618,9 @@ function SessionContent() {
                 ? '⭐ Facile'
                 : currentExercise.type === 'speaking_repeat'
                   ? '⭐⭐⭐ Difficile'
-                  : '⭐⭐ Intermédiaire'}
+                  : currentExercise.type === 'word_order'
+                    ? '⭐ Facile'
+                    : '⭐⭐ Intermédiaire'}
             </span>
           </div>
 
@@ -1719,6 +1738,16 @@ function SessionContent() {
                 </div>
               )}
             </div>
+          ) : currentExercise.type === 'word_order' ? (
+            <div>
+              {/* BUG-83: Word ordering exercise */}
+              <h2 className="font-bold text-[#002844] mb-2" style={{ fontSize: '28px' }}>
+                {lang === 'fr' ? 'Remettez les mots dans le bon ordre :' : 'Put the words in the correct order:'}
+              </h2>
+              {currentExercise.data?.example_fr && (
+                <p className="text-sm text-[#555555] mb-4 italic">💡 {currentExercise.data.example_fr}</p>
+              )}
+            </div>
           ) : currentExercise.type === 'speaking_repeat' ? (
             <div>
               {/* V3.16: question 28px bold */}
@@ -1805,6 +1834,52 @@ function SessionContent() {
                     }`}>
                     <Mic className="h-4 w-4" />
                     {isRecording ? (lang === 'fr' ? 'Écoute en cours...' : 'Listening...') : (lang === 'fr' ? 'Enregistrer' : 'Record')}
+                  </button>
+                </div>
+              ) : currentExercise.type === 'word_order' ? (
+                // BUG-83: Word ordering — tap words to build sentence
+                <div>
+                  {/* Selected words (answer zone) */}
+                  <div className="min-h-[52px] p-3 mb-3 rounded-xl border-2 border-[#D9B438] bg-[#D9B438]/5 flex flex-wrap gap-2">
+                    {wordOrderSelected.length === 0 && (
+                      <span className="text-sm text-[#999] italic">{lang === 'fr' ? 'Tapez les mots ci-dessous...' : 'Tap words below...'}</span>
+                    )}
+                    {wordOrderSelected.map((w, i) => (
+                      <button key={`sel-${i}`} onClick={() => {
+                        setWordOrderSelected(prev => prev.filter((_, idx) => idx !== i))
+                        setWordOrderPool(prev => [...prev, w])
+                      }}
+                        className="px-3 py-1.5 rounded-lg bg-[#002844] text-white text-sm font-bold hover:bg-red-500 transition-colors">
+                        {w}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Available words pool */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(wordOrderPool.length === 0 && wordOrderSelected.length === 0
+                      ? (currentExercise.options || currentExercise.answer.split(' ').sort(() => Math.random() - 0.5))
+                      : wordOrderPool
+                    ).map((w, i) => {
+                      // Init pool on first render
+                      if (wordOrderPool.length === 0 && wordOrderSelected.length === 0 && i === 0) {
+                        const initPool = currentExercise.options || currentExercise.answer.split(' ').sort(() => Math.random() - 0.5)
+                        setTimeout(() => setWordOrderPool(initPool), 0)
+                      }
+                      return (
+                        <button key={`pool-${i}`} onClick={() => {
+                          setWordOrderSelected(prev => [...prev, w])
+                          setWordOrderPool(prev => prev.filter((_, idx) => idx !== i))
+                        }}
+                          className="px-3 py-1.5 rounded-lg bg-white border-2 border-gray-200 text-[#002844] text-sm font-bold hover:border-[#D9B438] transition-colors">
+                          {w}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <button onClick={() => handleSubmitAnswer(wordOrderSelected.join(' '))}
+                    disabled={wordOrderSelected.length === 0}
+                    className="w-full py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:bg-[#003a5c] transition-colors disabled:opacity-50">
+                    {lang === 'fr' ? 'Valider' : 'Submit'}
                   </button>
                 </div>
               ) : (

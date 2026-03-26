@@ -82,6 +82,14 @@ export function getA1CourseVocabulary(courseId: string): VocabWord[] {
     const frSynonyms = FR_SYNONYMS[key] || [];
     // Build accepted_answers: target word + FR trad + FR synonyms (deduplicated)
     const acceptedFr = new Set([v.trad_fr.toLowerCase(), ...frSynonyms.map(s => s.toLowerCase())]);
+    // BUG-85: Check admin-uploaded image in localStorage first
+    let imageUrl = v.image || '';
+    if (typeof window !== 'undefined') {
+      try {
+        const adminImage = localStorage.getItem(`lingualearn_vocab_image_${courseId}_${idx}`);
+        if (adminImage) imageUrl = adminImage;
+      } catch { /* ignore */ }
+    }
     return {
       id: `${courseId}_v${idx}`,
       language: 'en',
@@ -98,9 +106,65 @@ export function getA1CourseVocabulary(courseId: string): VocabWord[] {
       phonetic: v.phonetic_fr,
       is_grc: false,
       accepted_answers: [v.word, ...Array.from(acceptedFr)],
-      image: v.image || '',
+      image: imageUrl,
     };
   });
+}
+
+// BUG-81: French translations of micro_reussite — interface language must match
+const MICRO_REUSSITE_FR: Record<string, string> = {
+  'a1_c1': 'Tu sais maintenant saluer en anglais ! 🎉',
+  'a1_c2': 'Tu sais maintenant être poli en anglais ! 🙏',
+  'a1_c3': 'Tu sais maintenant te présenter en anglais ! 🙌',
+  'a1_c4': 'Tu sais maintenant faire la conversation en anglais ! 💬',
+  'a1_c5': 'Tu sais maintenant demander de l\'aide en anglais ! 🆘',
+  'a1_c6': 'Tu sais maintenant dire qui tu es en anglais ! ⭐',
+  'a1_c7': 'Tu sais maintenant parler de ta famille en anglais ! 👨‍👩‍👧',
+  'a1_c8': 'Tu sais maintenant décrire des personnes en anglais ! 👀',
+  'a1_c9': 'Tu sais maintenant poser et répondre à des questions avec "to be" ! ❓',
+  'a1_c10': 'Tu sais maintenant dire à qui appartient quoi ! 🎒',
+  'a1_c11': 'Tu sais maintenant parler de toute ta famille ! 👴👵',
+  'a1_c12': 'Tu sais maintenant utiliser les articles en anglais ! 📚',
+  'a1_c13': 'Tu sais maintenant parler de quantités en anglais ! 🔢',
+  'a1_c14': 'Tu sais maintenant exprimer tes actions quotidiennes en anglais ! ✅',
+  'a1_c15': 'Tu sais maintenant parler de tes habitudes et routines ! 📅',
+  'a1_c16': 'Tu sais maintenant poser des questions sur les habitudes ! ❓',
+  'a1_c17': 'Tu sais maintenant dire ce que tu n\'aimes pas ! 🚫',
+  'a1_c18': 'Tu sais maintenant poser n\'importe quelle question en anglais ! 🔍',
+  'a1_c19': 'Tu sais maintenant décrire ta semaine ! 🗓️',
+  'a1_c20': 'Tu sais maintenant faire des courses en anglais ! 🛒',
+  'a1_c21': 'Tu sais maintenant commander au restaurant ! 🍕',
+  'a1_c22': 'Tu sais maintenant utiliser les chiffres dans la vie réelle ! 🔢',
+  'a1_c23': 'Tu sais maintenant décrire les objets avec des couleurs ! 🎨',
+  'a1_c24': 'Tu sais maintenant parler de ce que tu as ! 🐾',
+  'a1_c25': 'Tu sais maintenant utiliser les pronoms comme un natif ! 🔄',
+  'a1_c26': 'Tu sais maintenant décrire ta maison en anglais ! 🏠',
+  'a1_c27': 'Tu sais maintenant décrire où se trouvent les choses ! 📍',
+  'a1_c28': 'Tu sais maintenant te repérer dans une ville ! 🗺️',
+  'a1_c29': 'Tu sais maintenant fixer des rendez-vous en anglais ! ⏰',
+  'a1_c30': 'Tu sais maintenant décrire des actions en cours ! 👀',
+  'a1_c31': 'Tu sais maintenant parler des habitudes ET du moment présent ! 🔄',
+  'a1_c32': 'Tu sais maintenant répondre vite et naturellement ! ⚡',
+  'a1_c33': 'Tu sais maintenant dire à qui appartient quoi ! 👜',
+  'a1_c34': 'Tu sais maintenant parler des transports ! 🚌',
+  'a1_c35': 'Tu sais maintenant parler des dates et des saisons ! 📅',
+  'a1_c36': 'Tu sais maintenant parler de la météo ! ☀️',
+  'a1_c37': 'Tu sais maintenant parler de tes capacités ! 💪',
+  'a1_c38': 'Tu sais maintenant donner des instructions et des directions ! 🗺️',
+  'a1_c39': 'Tu sais maintenant préparer un voyage à l\'étranger ! ✈️',
+  'a1_c40': 'Félicitations ! Tu sais maintenant communiquer en anglais au niveau A1 ! 🏆',
+};
+
+/**
+ * Get micro-réussite text in the correct interface language
+ */
+export function getMicroReussite(courseId: string, interfaceLang: string): string | null {
+  const course = getA1CourseData(courseId);
+  if (!course?.micro_reussite) return null;
+  if (interfaceLang === 'fr') {
+    return MICRO_REUSSITE_FR[courseId] || course.micro_reussite;
+  }
+  return course.micro_reussite;
 }
 
 /**
