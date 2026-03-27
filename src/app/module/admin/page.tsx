@@ -21,7 +21,7 @@ import { BANK_A1_COURSES } from '@/lib/db/bankA1Courses'
 import { t } from '@/lib/i18n'
 import {
   ArrowLeft, Download, Upload, FileText, CheckCircle, XCircle, BarChart3, Lock,
-  Users, Eye, EyeOff, UserPlus, Trash2, Shield,
+  Users, Eye, EyeOff, UserPlus, Trash2, Shield, ImageIcon, Pencil, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 
@@ -99,8 +99,10 @@ export default function AdminImportsPage() {
   const [createFormData, setCreateFormData] = useState({ firstName: '', email: '', password: '', role: 'user' as 'user' | 'admin' })
   const [createError, setCreateError] = useState('')
   const [detailView, setDetailView] = useState<'vocab' | 'reading' | 'grammar' | null>(null)
+  const [detailFilter, setDetailFilter] = useState<string | null>(null)
   const [editingWordId, setEditingWordId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Record<string, string>>({})
+  const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({ niveau_a1: true })
   const [tabState, setTabState] = useState<TabState>({
     selectedType: null,
     file: null,
@@ -541,7 +543,7 @@ export default function AdminImportsPage() {
         </div>
 
         {/* Detail View Section */}
-        {detailView && (
+        {detailView && !detailFilter && (
           <div className="mt-8 rounded-2xl bg-white p-6 shadow-lg">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#002844]">
@@ -590,9 +592,178 @@ export default function AdminImportsPage() {
                     return levels.map((level) => (
                       <tr key={level} className="border-b border-gray-200 hover:bg-blue-50">
                         <td className="px-4 py-3 font-semibold text-[#002844]">{level}</td>
-                        <td className="px-4 py-3 text-[#555555]">{counts[level]}</td>
+                        <td
+                          className="px-4 py-3 text-[#555555] cursor-pointer hover:text-[#002844] hover:font-semibold transition-colors"
+                          onClick={() => setDetailFilter(level)}
+                        >
+                          {counts[level]} {level}
+                        </td>
                       </tr>
                     ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Detail View - Full List with Filter */}
+        {detailView && detailFilter && (
+          <div className="mt-8 rounded-2xl bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-[#002844]">
+                {detailView === 'vocab' && (lang === 'fr' ? `Vocabulaire - ${detailFilter}` : `Vocabulary - ${detailFilter}`)}
+                {detailView === 'reading' && (lang === 'fr' ? `Lectures - ${detailFilter}` : `Readings - ${detailFilter}`)}
+                {detailView === 'grammar' && (lang === 'fr' ? `Grammaire - ${detailFilter}` : `Grammar - ${detailFilter}`)}
+              </h3>
+              <button
+                onClick={() => setDetailFilter(null)}
+                className="px-4 py-2 rounded-lg bg-[#002844] text-white font-semibold hover:opacity-90 transition-opacity"
+              >
+                {lang === 'fr' ? 'Retour' : 'Back'}
+              </button>
+            </div>
+
+            {/* Full list with modify/delete */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: '#E8F4F8' }}>
+                    {detailView === 'vocab' && (
+                      <>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Mot cible' : 'Target Word'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Français' : 'French'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Phonétique' : 'Phonetic'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Niveau' : 'Level'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Cours' : 'Course'}</th>
+                        <th className="px-4 py-3 text-center font-semibold text-[#002844]">{lang === 'fr' ? 'Actions' : 'Actions'}</th>
+                      </>
+                    )}
+                    {detailView === 'grammar' && (
+                      <>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Règle' : 'Rule'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Langue' : 'Language'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Niveau' : 'Level'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Définition' : 'Definition'}</th>
+                        <th className="px-4 py-3 text-center font-semibold text-[#002844]">{lang === 'fr' ? 'Actions' : 'Actions'}</th>
+                      </>
+                    )}
+                    {detailView === 'reading' && (
+                      <>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Titre' : 'Title'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Langue' : 'Language'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Niveau' : 'Level'}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-[#002844]">{lang === 'fr' ? 'Thème' : 'Theme'}</th>
+                        <th className="px-4 py-3 text-center font-semibold text-[#002844]">{lang === 'fr' ? 'Actions' : 'Actions'}</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    let items: any[] = [];
+                    if (detailView === 'vocab') items = (BANK_VOCABULARY || []).filter(v => v.level === detailFilter);
+                    else if (detailView === 'reading') items = (BANK_READING || []).filter(r => r.level === detailFilter);
+                    else if (detailView === 'grammar') items = (BANK_GRAMMAR || []).filter(g => g.level === detailFilter);
+
+                    return items.map((item, idx) => {
+                      const isDeleted = localStorage.getItem(`lingualearn_deleted_${detailView}_${idx}`) === 'true';
+                      if (isDeleted) return null;
+
+                      return (
+                        <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50">
+                          {detailView === 'vocab' && (
+                            <>
+                              <td className="px-4 py-3 text-[#002844]">{item.word_target}</td>
+                              <td className="px-4 py-3 text-[#555555]">{item.word_fr}</td>
+                              <td className="px-4 py-3 text-[#555555]">{item.phonetic || '-'}</td>
+                              <td className="px-4 py-3 text-[#002844]">{item.level}</td>
+                              <td className="px-4 py-3 text-[#555555]">{item.course || '-'}</td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingWordId(`${detailView}_${idx}`);
+                                      setEditForm(item);
+                                    }}
+                                    className="p-1.5 text-[#002844] hover:bg-[#002844]/10 rounded transition-colors"
+                                    title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true')}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                          {detailView === 'grammar' && (
+                            <>
+                              <td className="px-4 py-3 text-[#002844]">{item.rule_name}</td>
+                              <td className="px-4 py-3 text-[#555555]">{item.language}</td>
+                              <td className="px-4 py-3 text-[#002844]">{item.level}</td>
+                              <td className="px-4 py-3 text-[#555555] text-xs max-w-xs truncate">{item.definition_fr}</td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingWordId(`${detailView}_${idx}`);
+                                      setEditForm(item);
+                                    }}
+                                    className="p-1.5 text-[#002844] hover:bg-[#002844]/10 rounded transition-colors"
+                                    title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true')}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                          {detailView === 'reading' && (
+                            <>
+                              <td className="px-4 py-3 text-[#002844]">{item.title}</td>
+                              <td className="px-4 py-3 text-[#555555]">{item.language}</td>
+                              <td className="px-4 py-3 text-[#002844]">{item.level}</td>
+                              <td className="px-4 py-3 text-[#555555]">{item.theme}</td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingWordId(`${detailView}_${idx}`);
+                                      setEditForm(item);
+                                    }}
+                                    className="p-1.5 text-[#002844] hover:bg-[#002844]/10 rounded transition-colors"
+                                    title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true')}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    });
                   })()}
                 </tbody>
               </table>
@@ -1400,53 +1571,139 @@ export default function AdminImportsPage() {
             )}
           </div>
         )}
-        {/* BUG-80: Images Vocab tab */}
+        {/* BUG-80/86: Images Vocab tab with accordion structure and file upload */}
         {activeTab === 'images' && (
           <div>
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-[#002844] flex items-center gap-2 mb-2">
-                🖼️ {lang === 'fr' ? 'Images vocabulaire V4' : 'V4 Vocabulary Images'}
+                <ImageIcon className="h-8 w-8 text-[#D9B438]" />
+                {lang === 'fr' ? 'Images vocabulaire V4' : 'V4 Vocabulary Images'}
               </h2>
               <p className="text-[#555555]">
                 {lang === 'fr'
-                  ? 'Ajoutez une URL d\'image (Unsplash/Pexels) pour chaque mot de vocabulaire.'
-                  : 'Add an image URL (Unsplash/Pexels) for each vocabulary word.'}
+                  ? 'Téléchargez une image (PNG/JPG/WEBP, max 2MB) pour chaque mot de vocabulaire.'
+                  : 'Upload an image (PNG/JPG/WEBP, max 2MB) for each vocabulary word.'}
               </p>
             </div>
-            {BANK_A1_COURSES.map(course => (
-              <div key={course.id} className="mb-6 bg-white rounded-2xl p-4 shadow-sm">
-                <h3 className="text-sm font-bold text-[#002844] mb-3">
-                  Cours {course.number} — {course.title} ({course.vocabulary.length} mots)
+
+            {/* Niveau A1 Accordion */}
+            <div className="mb-6 bg-white rounded-2xl shadow-sm overflow-hidden">
+              <button
+                onClick={() => setExpandedAccordions(prev => ({ ...prev, niveau_a1: !prev.niveau_a1 }))}
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+              >
+                <h3 className="text-lg font-bold text-[#002844]">
+                  {lang === 'fr' ? 'Niveau A1' : 'Level A1'}
                 </h3>
-                <div className="grid gap-2">
-                  {course.vocabulary.map((v, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {v.image
-                          ? <img src={v.image} alt={v.word} className="w-12 h-12 object-cover" />
-                          : <span className="text-xs text-gray-400">?</span>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-[#002844]">{v.word}</p>
-                        <p className="text-xs text-[#555555]">{v.trad_fr}</p>
-                      </div>
-                      <input
-                        type="url"
-                        placeholder="URL image..."
-                        defaultValue={v.image || ''}
-                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-[#002844] focus:outline-none"
-                        onBlur={(e) => {
-                          // Save image URL to localStorage for admin override
-                          const key = `lingualearn_vocab_image_${course.id}_${idx}`;
-                          if (e.target.value) localStorage.setItem(key, e.target.value);
-                          else localStorage.removeItem(key);
-                        }}
-                      />
+                {expandedAccordions.niveau_a1 ? (
+                  <ChevronDown className="h-5 w-5 text-[#002844]" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-[#002844]" />
+                )}
+              </button>
+
+              {expandedAccordions.niveau_a1 && (
+                <div className="border-t border-gray-200">
+                  {BANK_A1_COURSES.map(course => (
+                    <div key={course.id} className="border-b border-gray-100 last:border-b-0">
+                      <button
+                        onClick={() => setExpandedAccordions(prev => ({ ...prev, [course.id]: !prev[course.id] }))}
+                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <h4 className="text-sm font-semibold text-[#002844]">
+                          {lang === 'fr' ? 'Cours' : 'Course'} {course.number} — {course.title} ({course.vocabulary.length} {lang === 'fr' ? 'mots' : 'words'})
+                        </h4>
+                        {expandedAccordions[course.id] ? (
+                          <ChevronDown className="h-4 w-4 text-[#002844]" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-[#002844]" />
+                        )}
+                      </button>
+
+                      {expandedAccordions[course.id] && (
+                        <div className="bg-gray-50 p-4 grid gap-3">
+                          {course.vocabulary.map((v, idx) => {
+                            const storageKey = `lingualearn_vocab_image_${course.id}_${idx}`;
+                            const storedImage = localStorage.getItem(storageKey);
+                            const displayImage = storedImage || v.image;
+
+                            return (
+                              <div key={idx} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                                <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  {displayImage ? (
+                                    <img src={displayImage} alt={v.word} className="w-16 h-16 object-cover" />
+                                  ) : (
+                                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-[#002844]">{v.word}</p>
+                                  <p className="text-xs text-[#555555]">{v.trad_fr}</p>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <label className="flex items-center gap-2 px-3 py-1.5 bg-[#002844] text-white text-xs font-semibold rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
+                                      <ImageIcon className="h-3.5 w-3.5" />
+                                      {lang === 'fr' ? 'Télécharger' : 'Upload'}
+                                      <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+
+                                          // Check file size (max 2MB)
+                                          if (file.size > 2 * 1024 * 1024) {
+                                            alert(lang === 'fr' ? 'L\'image dépasse 2MB' : 'Image exceeds 2MB');
+                                            return;
+                                          }
+
+                                          // Check file type
+                                          if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+                                            alert(lang === 'fr' ? 'Seuls PNG, JPG et WEBP sont acceptés' : 'Only PNG, JPG, and WEBP are accepted');
+                                            return;
+                                          }
+
+                                          // Convert to base64
+                                          const reader = new FileReader();
+                                          reader.onload = (event) => {
+                                            const base64 = event.target?.result as string;
+                                            localStorage.setItem(storageKey, base64);
+                                            // Force re-render by toggling accordion
+                                            setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
+                                            setTimeout(() => {
+                                              setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
+                                            }, 100);
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }}
+                                      />
+                                    </label>
+                                    {displayImage && (
+                                      <button
+                                        onClick={() => {
+                                          localStorage.removeItem(storageKey);
+                                          setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
+                                          setTimeout(() => {
+                                            setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
+                                          }, 100);
+                                        }}
+                                        className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                                      >
+                                        {lang === 'fr' ? 'Supprimer' : 'Remove'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         )}
       </main>

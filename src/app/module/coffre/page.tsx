@@ -470,12 +470,19 @@ function CoffreContent() {
                 </button>
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-lg text-[#555555]">{word.word_fr}</p>
-                  {/* BUG-75: Image du mot si disponible */}
-                  {word.image && (
-                    <div className="mt-3">
+                  {/* BUG-75 + BUG-87: Image du mot ou placeholder */}
+                  <div className="mt-3">
+                    {word.image ? (
                       <img src={word.image} alt={word.word_target} className="w-24 h-24 object-cover rounded-lg mx-auto" />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="w-24 h-24 rounded-lg mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
+                        <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10px] text-gray-400 mt-1">Image</span>
+                      </div>
+                    )}
+                  </div>
                   <p className="text-xs text-[#999] mt-2 uppercase tracking-wide">{word.theme} · {word.level}</p>
                 </div>
               </div>
