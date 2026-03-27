@@ -8,7 +8,7 @@ import { getCurrentUser, updateUserProgress, saveReviewItem } from '@/lib/db/loc
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import { getVocabulary, speakText, isCloseEnough, addToPersonalVocab } from '@/lib/db/bankHelpers';
-import { getA1CourseVocabulary } from '@/lib/db/bankA1Courses';
+import { getA1CourseVocabulary, BANK_A1_COURSES } from '@/lib/db/bankA1Courses';
 import { VocabWord } from '@/lib/db/bankTypes';
 
 // ==========================================
@@ -101,10 +101,22 @@ function CoffreContent() {
       setPhase('learning'); // Resume saved session
     } else {
       // V3.20: Use course-specific vocabulary if courseId is a real A1 course
+      // BUG-95: Path B courses use all V4 vocabulary pool
       const isA1Course = courseIdParam && /^a1_c\d+$/.test(courseIdParam);
-      const allVocab = isA1Course
-        ? getA1CourseVocabulary(courseIdParam)
-        : getVocabulary(aLang, config?.themes || [], 'A1');
+      const isBCourse = courseIdParam && /^b_/.test(courseIdParam);
+      let allVocab: VocabWord[] = [];
+
+      if (isA1Course) {
+        allVocab = getA1CourseVocabulary(courseIdParam);
+      } else if (isBCourse) {
+        // BUG-95: Path B users get all V4 vocabulary
+        for (const course of BANK_A1_COURSES) {
+          allVocab.push(...getA1CourseVocabulary(course.id));
+        }
+      } else {
+        allVocab = getVocabulary(aLang, config?.themes || [], 'A1');
+      }
+
       const shuffled = shuffleArray(allVocab);
       const picked = shuffled.slice(0, Math.min(wordsPerDay, shuffled.length));
       setDailyWords(picked);

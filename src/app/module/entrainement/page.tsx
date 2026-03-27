@@ -8,6 +8,7 @@ import { getCurrentUser, saveReviewItem } from '@/lib/db/localStorage'
 import { User } from '@/types'
 import BottomNav from '@/components/BottomNav'
 import { getVocabulary, speakText } from '@/lib/db/bankHelpers'
+import { getA1CourseVocabulary, BANK_A1_COURSES } from '@/lib/db/bankA1Courses'
 import { VocabWord } from '@/lib/db/bankTypes'
 
 type TrainingTab = 'flashcards' | 'quiz' | 'jeux'
@@ -56,7 +57,15 @@ export default function EntrainementPage() {
     } catch { /* ignore */ }
 
     if (!resumed) {
-      const vocab = getVocabulary(aLang, themes, level)
+      let vocab = getVocabulary(aLang, themes, level)
+      // BUG-96: If no words found (path B or theme mismatch), use all V4 vocabulary
+      if (vocab.length === 0) {
+        const a1Vocab: VocabWord[] = [];
+        for (const course of BANK_A1_COURSES) {
+          a1Vocab.push(...getA1CourseVocabulary(course.id));
+        }
+        vocab = a1Vocab;
+      }
       const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
       setCards(shuffled.map(w => ({ word: w, flipped: false })))
     }

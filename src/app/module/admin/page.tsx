@@ -18,6 +18,7 @@ import { BANK_GRAMMAR } from '@/lib/db/bankGrammar'
 import { BANK_READING } from '@/lib/db/bankReading'
 import { InterfaceLanguage, User, ALL_THEMES } from '@/types'
 import { BANK_A1_COURSES } from '@/lib/db/bankA1Courses'
+import type { A1CourseData } from '@/lib/db/bankA1Courses'
 import { t } from '@/lib/i18n'
 import {
   ArrowLeft, Download, Upload, FileText, CheckCircle, XCircle, BarChart3, Lock,
@@ -671,6 +672,52 @@ export default function AdminImportsPage() {
                       const isDeleted = localStorage.getItem(`lingualearn_deleted_${detailView}_${idx}`) === 'true';
                       if (isDeleted) return null;
 
+                      // BUG-92: Show inline edit form if this item is being edited
+                      if (editingWordId === `${detailView}_${idx}`) {
+                        return (
+                          <tr key={idx} className="border-b border-gray-200 bg-yellow-50">
+                            <td colSpan={6} className="p-4">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                                {Object.entries(editForm)
+                                  .filter(([k]) => !['id', 'accepted_answers', 'image', 'is_grc'].includes(k))
+                                  .map(([key, val]) => (
+                                    <div key={key}>
+                                      <label className="block text-xs font-semibold text-[#002844] mb-1 capitalize">{key}</label>
+                                      <input
+                                        type="text"
+                                        value={val || ''}
+                                        onChange={e => setEditForm(prev => ({ ...prev, [key]: e.target.value }))}
+                                        className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                                      />
+                                    </div>
+                                  ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    localStorage.setItem(`lingualearn_edited_${detailView}_${idx}`, JSON.stringify(editForm));
+                                    setEditingWordId(null);
+                                    setEditForm({});
+                                  }}
+                                  className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                                >
+                                  {lang === 'fr' ? 'Sauvegarder' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingWordId(null);
+                                    setEditForm({});
+                                  }}
+                                  className="px-3 py-1.5 bg-gray-400 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                                >
+                                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
                       return (
                         <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50">
                           {detailView === 'vocab' && (
@@ -679,7 +726,18 @@ export default function AdminImportsPage() {
                               <td className="px-4 py-3 text-[#555555]">{item.word_fr}</td>
                               <td className="px-4 py-3 text-[#555555]">{item.phonetic || '-'}</td>
                               <td className="px-4 py-3 text-[#002844]">{item.level}</td>
-                              <td className="px-4 py-3 text-[#555555]">{item.course || '-'}</td>
+                              <td className="px-4 py-3 text-[#555555]">
+                                {(() => {
+                                  // BUG-93: Extract course from word id (format: a1_c1_v0)
+                                  const match = item.id?.match(/^(a1_c\d+)/);
+                                  if (match) {
+                                    const courseNum = match[1].replace('a1_c', '');
+                                    const courseData = BANK_A1_COURSES.find((c: A1CourseData) => c.id === match[1]);
+                                    return `Cours ${courseNum}${courseData ? ` — ${courseData.title}` : ''}`;
+                                  }
+                                  return '-';
+                                })()}
+                              </td>
                               <td className="px-4 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                   <button
@@ -1663,16 +1721,35 @@ export default function AdminImportsPage() {
                                             return;
                                           }
 
-                                          // Convert to base64
+                                          // BUG-94: Compress image before storing to avoid localStorage quota exceeded
+                                          const canvas = document.createElement('canvas');
+                                          const ctx = canvas.getContext('2d');
+                                          if (!ctx) {
+                                            alert(lang === 'fr' ? 'Erreur canvas' : 'Canvas error');
+                                            return;
+                                          }
+                                          const img = new Image();
+                                          img.onload = () => {
+                                            const maxSize = 200;
+                                            const scale = Math.min(maxSize / img.width, maxSize / img.height);
+                                            canvas.width = img.width * scale;
+                                            canvas.height = img.height * scale;
+                                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                                            try {
+                                              localStorage.setItem(storageKey, compressedBase64);
+                                              // Force re-render by toggling accordion
+                                              setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
+                                              setTimeout(() => {
+                                                setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
+                                              }, 100);
+                                            } catch {
+                                              alert(lang === 'fr' ? 'Stockage plein. Supprimez des images.' : 'Storage full. Delete some images.');
+                                            }
+                                          };
                                           const reader = new FileReader();
                                           reader.onload = (event) => {
-                                            const base64 = event.target?.result as string;
-                                            localStorage.setItem(storageKey, base64);
-                                            // Force re-render by toggling accordion
-                                            setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
-                                            setTimeout(() => {
-                                              setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
-                                            }, 100);
+                                            img.src = event.target?.result as string;
                                           };
                                           reader.readAsDataURL(file);
                                         }}
@@ -1701,6 +1778,49 @@ export default function AdminImportsPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* BUG-86: A2 and B1 levels (placeholder — no courses yet) */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setExpandedAccordions(prev => ({ ...prev, niveau_a2: !prev.niveau_a2 }))}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <h3 className="text-lg font-semibold text-[#002844]">
+                  {lang === 'fr' ? 'Niveau A2' : 'Level A2'}
+                </h3>
+                {expandedAccordions.niveau_a2 ? (
+                  <ChevronDown className="h-5 w-5 text-[#002844]" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-[#002844]" />
+                )}
+              </button>
+              {expandedAccordions.niveau_a2 && (
+                <div className="p-4 text-center text-[#555555]">
+                  {lang === 'fr' ? 'Aucun cours disponible' : 'No courses available'}
+                </div>
+              )}
+            </div>
+
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setExpandedAccordions(prev => ({ ...prev, niveau_b1: !prev.niveau_b1 }))}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <h3 className="text-lg font-semibold text-[#002844]">
+                  {lang === 'fr' ? 'Niveau B1' : 'Level B1'}
+                </h3>
+                {expandedAccordions.niveau_b1 ? (
+                  <ChevronDown className="h-5 w-5 text-[#002844]" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-[#002844]" />
+                )}
+              </button>
+              {expandedAccordions.niveau_b1 && (
+                <div className="p-4 text-center text-[#555555]">
+                  {lang === 'fr' ? 'Aucun cours disponible' : 'No courses available'}
                 </div>
               )}
             </div>
