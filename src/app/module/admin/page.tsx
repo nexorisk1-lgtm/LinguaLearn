@@ -103,6 +103,9 @@ export default function AdminImportsPage() {
   const [detailFilter, setDetailFilter] = useState<string | null>(null)
   const [editingWordId, setEditingWordId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Record<string, string>>({})
+  // BUG-92: Track deletions to trigger re-render
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [deletedItems, setDeletedItems] = useState<string[]>([])
   const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({ niveau_a1: true })
   const [tabState, setTabState] = useState<TabState>({
     selectedType: null,
@@ -751,7 +754,11 @@ export default function AdminImportsPage() {
                                     <Pencil className="h-4 w-4" />
                                   </button>
                                   <button
-                                    onClick={() => localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true')}
+                                    onClick={() => {
+                                      localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true');
+                                      // BUG-92: Trigger re-render by updating state
+                                      setDeletedItems(prev => [...prev, `${detailView}_${idx}`]);
+                                    }}
                                     className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
                                     title={lang === 'fr' ? 'Supprimer' : 'Delete'}
                                   >
@@ -780,7 +787,11 @@ export default function AdminImportsPage() {
                                     <Pencil className="h-4 w-4" />
                                   </button>
                                   <button
-                                    onClick={() => localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true')}
+                                    onClick={() => {
+                                      localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true');
+                                      // BUG-92: Trigger re-render by updating state
+                                      setDeletedItems(prev => [...prev, `${detailView}_${idx}`]);
+                                    }}
                                     className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
                                     title={lang === 'fr' ? 'Supprimer' : 'Delete'}
                                   >
@@ -809,7 +820,11 @@ export default function AdminImportsPage() {
                                     <Pencil className="h-4 w-4" />
                                   </button>
                                   <button
-                                    onClick={() => localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true')}
+                                    onClick={() => {
+                                      localStorage.setItem(`lingualearn_deleted_${detailView}_${idx}`, 'true');
+                                      // BUG-92: Trigger re-render by updating state
+                                      setDeletedItems(prev => [...prev, `${detailView}_${idx}`]);
+                                    }}
                                     className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
                                     title={lang === 'fr' ? 'Supprimer' : 'Delete'}
                                   >

@@ -8,7 +8,7 @@ import { getCurrentUser, updateUserProgress, saveReviewItem } from '@/lib/db/loc
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import { getVocabulary, speakText, isCloseEnough, addToPersonalVocab } from '@/lib/db/bankHelpers';
-import { getA1CourseVocabulary, BANK_A1_COURSES } from '@/lib/db/bankA1Courses';
+import { getA1CourseVocabulary } from '@/lib/db/bankA1Courses';
 import { VocabWord } from '@/lib/db/bankTypes';
 
 // ==========================================
@@ -109,9 +109,16 @@ function CoffreContent() {
       if (isA1Course) {
         allVocab = getA1CourseVocabulary(courseIdParam);
       } else if (isBCourse) {
-        // BUG-95: Path B users get all V4 vocabulary
-        for (const course of BANK_A1_COURSES) {
-          allVocab.push(...getA1CourseVocabulary(course.id));
+        // BUG-95: Path B courses map to A1 course vocabulary
+        // b_b1_c1 → a1_c1, b_b1_c2 → a1_c2, etc.
+        const bMatch = courseIdParam.match(/b_b\d+_c(\d+)/);
+        if (bMatch) {
+          const a1CourseId = `a1_c${bMatch[1]}`;
+          allVocab = getA1CourseVocabulary(a1CourseId);
+        }
+        // Fallback: if mapping fails, use first A1 course
+        if (allVocab.length === 0) {
+          allVocab = getA1CourseVocabulary('a1_c1');
         }
       } else {
         allVocab = getVocabulary(aLang, config?.themes || [], 'A1');

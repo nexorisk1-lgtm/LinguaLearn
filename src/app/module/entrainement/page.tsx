@@ -31,6 +31,18 @@ export default function EntrainementPage() {
   const [sessionDone, setSessionDone] = useState(false)
   const [isFlipping, setIsFlipping] = useState(false)
 
+  // Quiz state
+  const [quizWords, setQuizWords] = useState<VocabWord[]>([])
+  const [quizIndex, setQuizIndex] = useState(0)
+  const [quizDone, setQuizDone] = useState(false)
+  const [quizScore, setQuizScore] = useState(0)
+
+  // Jeux state
+  const [gameWords, setGameWords] = useState<VocabWord[]>([])
+  const [gameIndex, setGameIndex] = useState(0)
+  const [gameScore, setGameScore] = useState(0)
+  const [gameDone, setGameDone] = useState(false)
+
   useEffect(() => {
     const u = getCurrentUser()
     if (!u) { router.push('/auth'); return }
@@ -136,12 +148,58 @@ export default function EntrainementPage() {
   const restartSession = () => {
     const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
     const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
-    const vocab = getVocabulary(activeLang, themes, level)
+    let vocab = getVocabulary(activeLang, themes, level)
+    // BUG-96: Fallback to V4 vocabulary if theme filter returns nothing
+    if (vocab.length === 0) {
+      const a1Vocab: VocabWord[] = [];
+      for (const course of BANK_A1_COURSES) {
+        a1Vocab.push(...getA1CourseVocabulary(course.id));
+      }
+      vocab = a1Vocab;
+    }
     const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
     setCards(shuffled.map(w => ({ word: w, flipped: false })))
     setCurrentIndex(0)
     setSessionDone(false)
     clearFlashcardPosition() // V3.14: clear saved position on restart
+  }
+
+  // Initialize quiz mode
+  const startQuiz = () => {
+    const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
+    const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
+    let vocab = getVocabulary(activeLang, themes, level)
+    if (vocab.length === 0) {
+      const a1Vocab: VocabWord[] = [];
+      for (const course of BANK_A1_COURSES) {
+        a1Vocab.push(...getA1CourseVocabulary(course.id));
+      }
+      vocab = a1Vocab;
+    }
+    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 10)
+    setQuizWords(shuffled)
+    setQuizIndex(0)
+    setQuizDone(false)
+    setQuizScore(0)
+  }
+
+  // Initialize game mode
+  const startGame = () => {
+    const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
+    const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
+    let vocab = getVocabulary(activeLang, themes, level)
+    if (vocab.length === 0) {
+      const a1Vocab: VocabWord[] = [];
+      for (const course of BANK_A1_COURSES) {
+        a1Vocab.push(...getA1CourseVocabulary(course.id));
+      }
+      vocab = a1Vocab;
+    }
+    const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
+    setGameWords(shuffled)
+    setGameIndex(0)
+    setGameScore(0)
+    setGameDone(false)
   }
 
   const tabs = [
@@ -164,7 +222,11 @@ export default function EntrainementPage() {
         {tabs.map(tab => {
           const Icon = tab.icon
           return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => {
+              setActiveTab(tab.id)
+              if (tab.id === 'quiz' && quizWords.length === 0) startQuiz()
+              if (tab.id === 'jeux' && gameWords.length === 0) startGame()
+            }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab.id ? 'bg-[#002844] text-white' : 'bg-[#F0F0F0] text-[#555555]'}`}>
               <Icon className="h-4 w-4" />
               {tab.label}
@@ -338,22 +400,144 @@ export default function EntrainementPage() {
           </div>
         )}
 
-        {/* QUIZ TAB */}
+        {/* QUIZ TAB — Listening Recognition */}
         {activeTab === 'quiz' && (
-          <div className="text-center py-12 rounded-2xl bg-white shadow-sm">
-            <Zap className="h-12 w-12 mx-auto mb-3 text-[#D9B438]" />
-            <h2 className="text-lg font-bold text-[#002844] mb-2">{lang === 'fr' ? 'Quiz Vocabulaire' : 'Vocabulary Quiz'}</h2>
-            <p className="text-sm text-[#555555] mb-1">20 questions — 60 secondes</p>
-            <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Bientôt disponible' : 'Coming soon'}</p>
+          <div className="max-w-md mx-auto">
+            {quizDone ? (
+              <div className="rounded-2xl bg-white p-6 shadow-sm text-center">
+                <Trophy className="h-12 w-12 mx-auto mb-3" style={{ color: quizScore >= 7 ? '#D9B438' : '#555555' }} />
+                <h2 className="text-xl font-bold text-[#002844] mb-2">
+                  {lang === 'fr' ? 'Quiz terminé !' : 'Quiz complete!'}
+                </h2>
+                <p className="text-lg font-bold text-[#002844] mb-6">
+                  {quizScore}/{quizWords.length} {lang === 'fr' ? 'correctes' : 'correct'}
+                </p>
+                <button onClick={() => startQuiz()}
+                  className="w-full py-3 rounded-xl font-bold"
+                  style={{ backgroundColor: '#D9B438', color: '#002844' }}>
+                  {lang === 'fr' ? 'Rejouer' : 'Play again'}
+                </button>
+              </div>
+            ) : quizWords.length > 0 && quizIndex < quizWords.length ? (
+              <div className="rounded-2xl bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm font-semibold text-[#555555]">
+                    {quizIndex + 1}/{quizWords.length}
+                  </span>
+                  <div className="w-20 h-2 bg-[#E5E7EB] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#D9B438]" style={{ width: `${(quizIndex / quizWords.length) * 100}%` }} />
+                  </div>
+                </div>
+                <p className="text-center text-sm font-semibold text-[#555555] mb-4">
+                  {lang === 'fr' ? 'Écoute et sélectionne la bonne traduction' : 'Listen and select the correct translation'}
+                </p>
+                <button onClick={() => speakText(quizWords[quizIndex].word_target, activeLang)}
+                  className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 mb-6"
+                  style={{ backgroundColor: '#002844', color: 'white' }}>
+                  <Volume2 className="h-5 w-5" />
+                  {lang === 'fr' ? 'Écouter' : 'Listen'}
+                </button>
+                <div className="space-y-2">
+                  {[quizWords[quizIndex], quizWords[(quizIndex + 1) % quizWords.length], quizWords[(quizIndex + 2) % quizWords.length]].map((word, i) => (
+                    <button key={i} onClick={() => {
+                      if (word.id === quizWords[quizIndex].id) {
+                        setQuizScore(quizScore + 1)
+                        saveReviewItem(user.id, activeLang, word.id, 'word', 95)
+                      } else {
+                        saveReviewItem(user.id, activeLang, word.id, 'word', 30)
+                      }
+                      if (quizIndex + 1 >= quizWords.length) {
+                        setQuizDone(true)
+                      } else {
+                        setQuizIndex(quizIndex + 1)
+                      }
+                    }}
+                      className="w-full p-3 rounded-lg text-left font-medium transition-all hover:border-[#002844] border-2 border-[#E5E7EB] text-[#555555]">
+                      {word.word_fr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 rounded-2xl bg-white shadow-sm">
+                <Zap className="h-12 w-12 mx-auto mb-3 text-[#D9B438]" />
+                <p className="text-sm text-[#555555] mb-4">{lang === 'fr' ? 'Quiz Vocabulaire' : 'Vocabulary Quiz'}</p>
+                <button onClick={() => startQuiz()}
+                  className="px-6 py-2 rounded-lg font-bold"
+                  style={{ backgroundColor: '#D9B438', color: '#002844' }}>
+                  {lang === 'fr' ? 'Commencer' : 'Start'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* JEUX TAB */}
+        {/* JEUX TAB — Visual Matching Game */}
         {activeTab === 'jeux' && (
-          <div className="text-center py-12 rounded-2xl bg-white shadow-sm">
-            <Trophy className="h-12 w-12 mx-auto mb-3 text-[#D9B438]" />
-            <h2 className="text-lg font-bold text-[#002844] mb-2">{lang === 'fr' ? 'Jeux' : 'Games'}</h2>
-            <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Bientôt disponible' : 'Coming soon'}</p>
+          <div className="max-w-md mx-auto">
+            {gameDone ? (
+              <div className="rounded-2xl bg-white p-6 shadow-sm text-center">
+                <Trophy className="h-12 w-12 mx-auto mb-3" style={{ color: gameScore >= 6 ? '#D9B438' : '#555555' }} />
+                <h2 className="text-xl font-bold text-[#002844] mb-2">
+                  {lang === 'fr' ? 'Jeu terminé !' : 'Game complete!'}
+                </h2>
+                <p className="text-lg font-bold text-[#002844] mb-6">
+                  {gameScore}/{gameWords.length} {lang === 'fr' ? 'correctes' : 'correct'}
+                </p>
+                <button onClick={() => startGame()}
+                  className="w-full py-3 rounded-xl font-bold"
+                  style={{ backgroundColor: '#D9B438', color: '#002844' }}>
+                  {lang === 'fr' ? 'Rejouer' : 'Play again'}
+                </button>
+              </div>
+            ) : gameWords.length > 0 && gameIndex < gameWords.length ? (
+              <div className="rounded-2xl bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm font-semibold text-[#555555]">
+                    {gameIndex + 1}/{gameWords.length}
+                  </span>
+                  <div className="w-20 h-2 bg-[#E5E7EB] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#D9B438]" style={{ width: `${(gameIndex / gameWords.length) * 100}%` }} />
+                  </div>
+                </div>
+                <p className="text-center text-sm font-semibold text-[#555555] mb-4">
+                  {lang === 'fr' ? 'Associe le mot à sa traduction' : 'Match the word to its translation'}
+                </p>
+                <div className="mb-6 p-4 rounded-xl bg-[#F0F0F0] text-center">
+                  <p className="text-2xl font-bold text-[#002844]">{gameWords[gameIndex].word_fr}</p>
+                </div>
+                <div className="space-y-2">
+                  {[gameWords[gameIndex], gameWords[(gameIndex + 1) % gameWords.length], gameWords[(gameIndex + 2) % gameWords.length]].map((word, i) => (
+                    <button key={i} onClick={() => {
+                      if (word.id === gameWords[gameIndex].id) {
+                        setGameScore(gameScore + 1)
+                        saveReviewItem(user.id, activeLang, word.id, 'word', 95)
+                      } else {
+                        saveReviewItem(user.id, activeLang, word.id, 'word', 30)
+                      }
+                      if (gameIndex + 1 >= gameWords.length) {
+                        setGameDone(true)
+                      } else {
+                        setGameIndex(gameIndex + 1)
+                      }
+                    }}
+                      className="w-full p-3 rounded-lg text-left font-medium transition-all hover:border-[#002844] border-2 border-[#E5E7EB] text-[#555555]">
+                      {word.word_target}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 rounded-2xl bg-white shadow-sm">
+                <Trophy className="h-12 w-12 mx-auto mb-3 text-[#D9B438]" />
+                <p className="text-sm text-[#555555] mb-4">{lang === 'fr' ? 'Jeux de Vocabulaire' : 'Vocabulary Games'}</p>
+                <button onClick={() => startGame()}
+                  className="px-6 py-2 rounded-lg font-bold"
+                  style={{ backgroundColor: '#D9B438', color: '#002844' }}>
+                  {lang === 'fr' ? 'Commencer' : 'Start'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>

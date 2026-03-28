@@ -23,7 +23,7 @@ import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, Writing
 // TYPES
 // ==========================================
 
-type SessionPhase = 'intro' | 'objectif' | 'lessonMap' | 'exercise' | 'summary'
+type SessionPhase = 'intro' | 'objectif' | 'preactivation' | 'rule_display' | 'lessonMap' | 'exercise' | 'summary'
 
 interface SessionExercise {
   type: 'vocab_translate' | 'vocab_listen' | 'grammar_qcm' | 'reading_comprehension' | 'speaking_repeat' | 'writing_fill' | 'word_order'
@@ -1242,12 +1242,126 @@ function SessionContent() {
 
           {/* Start button */}
           <button
-            onClick={() => setPhase('lessonMap')}
+            onClick={() => setPhase('preactivation')}
             className="w-full py-4 rounded-2xl bg-[#D9B438] text-[#002844] font-bold text-lg shadow-lg hover:bg-[#c9a428] transition-all"
           >
             {lang === 'fr' ? "C'est parti ! 🚀" : "Let's go! 🚀"}
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // ==========================================
+  // PHASE: PREACTIVATION (V4 step 1)
+  // ==========================================
+  if (phase === 'preactivation') {
+    const courseVocab = courseId ? getA1CourseVocabulary(courseId) : []
+    const activeLang = user?.activeLang || user?.settings.learningLangs[0] || 'en'
+    return (
+      <div className="min-h-screen bg-[#F0F0F0] pb-20">
+        <PageHeader title={lang === 'fr' ? 'Pré-activation' : 'Pre-activation'} backHref="/dashboard" />
+        <main className="px-4 pt-6 max-w-lg mx-auto">
+          <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
+            <h2 className="text-xl font-bold text-[#002844] mb-2">
+              {lang === 'fr' ? 'Découvre les mots du cours' : 'Discover the course words'}
+            </h2>
+            <p className="text-sm text-[#555555] mb-4">
+              {lang === 'fr' ? 'Écoute et familiarise-toi avec ces mots avant de commencer.' : 'Listen and get familiar with these words before starting.'}
+            </p>
+            <div className="space-y-3">
+              {courseVocab.slice(0, 8).map((w, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0]">
+                  {w.image ? (
+                    <img src={w.image} alt={w.word_target} className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📝</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-bold text-[#002844]">{w.word_target}</p>
+                    <p className="text-xs text-[#555555]">{w.word_fr}</p>
+                    {w.phonetic && <p className="text-xs text-[#888888] italic">/{w.phonetic}/</p>}
+                  </div>
+                  <button
+                    onClick={() => speakText(w.word_target, activeLang)}
+                    className="p-2 rounded-full bg-[#002844] text-white hover:opacity-90 transition-opacity"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => setPhase('rule_display')}
+            className="w-full py-3 rounded-xl bg-[#002844] text-white font-semibold text-lg hover:opacity-90 transition-opacity"
+          >
+            {lang === 'fr' ? 'Voir la règle de grammaire' : 'See the grammar rule'}
+          </button>
+        </main>
+        <BottomNav lang={lang} />
+      </div>
+    )
+  }
+
+  // ==========================================
+  // PHASE: RULE DISPLAY (V4 step 2)
+  // ==========================================
+  if (phase === 'rule_display') {
+    const courseData = courseId ? getA1CourseData(courseId) : null
+    const activeLang = user?.activeLang || user?.settings.learningLangs[0] || 'en'
+    return (
+      <div className="min-h-screen bg-[#F0F0F0] pb-20">
+        <PageHeader title={lang === 'fr' ? 'Règle de grammaire' : 'Grammar Rule'} backHref="/dashboard" />
+        <main className="px-4 pt-6 max-w-lg mx-auto">
+          <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
+            {courseData?.rule ? (
+              <>
+                <h2 className="text-xl font-bold text-[#002844] mb-4">
+                  {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
+                </h2>
+                <button
+                  onClick={() => speakText(courseData.rule.en, activeLang)}
+                  className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-[#E8F4F8] text-[#002844] text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  <Volume2 className="h-4 w-4" /> {lang === 'fr' ? 'Écouter la règle' : 'Listen to the rule'}
+                </button>
+                {courseData.examples && courseData.examples.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-bold text-[#002844] mb-2">
+                      {lang === 'fr' ? 'Exemples' : 'Examples'}
+                    </h3>
+                    <div className="space-y-2">
+                      {courseData.examples.map((ex, i) => (
+                        <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[#F0F0F0]">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-[#002844]">{ex.en}</p>
+                            <p className="text-xs text-[#555555]">{ex.fr}</p>
+                          </div>
+                          <button
+                            onClick={() => speakText(ex.en, activeLang)}
+                            className="p-1.5 rounded-full bg-[#002844] text-white hover:opacity-90 transition-opacity"
+                          >
+                            <Volume2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-[#555555]">{lang === 'fr' ? 'Aucune règle disponible pour ce cours.' : 'No rule available for this course.'}</p>
+            )}
+          </div>
+          <button
+            onClick={() => setPhase('lessonMap')}
+            className="w-full py-3 rounded-xl bg-[#002844] text-white font-semibold text-lg hover:opacity-90 transition-opacity"
+          >
+            {lang === 'fr' ? 'Commencer les exercices' : 'Start exercises'}
+          </button>
+        </main>
+        <BottomNav lang={lang} />
       </div>
     )
   }
