@@ -7,11 +7,12 @@ import PageHeader from '@/components/PageHeader'
 import { getCurrentUser, saveReviewItem } from '@/lib/db/localStorage'
 import { User } from '@/types'
 import BottomNav from '@/components/BottomNav'
-import { getVocabulary, speakText } from '@/lib/db/bankHelpers'
+import { speakText } from '@/lib/db/bankHelpers'
 import { getA1CourseVocabulary, BANK_A1_COURSES } from '@/lib/db/bankA1Courses'
 import { VocabWord } from '@/lib/db/bankTypes'
 
 type TrainingTab = 'flashcards' | 'quiz' | 'jeux'
+type TrainingMode = 'guided' | 'free'
 
 interface FlashCard {
   word: VocabWord
@@ -24,6 +25,9 @@ export default function EntrainementPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TrainingTab>('flashcards')
+  // V2.1.1: Mode guidé (cours complétés) / libre (cours 1-3, hors progression)
+  const [trainingMode, setTrainingMode] = useState<TrainingMode>('guided')
+  const [modeLabel, setModeLabel] = useState('')
 
   // Flashcard state
   const [cards, setCards] = useState<FlashCard[]>([])
@@ -49,8 +53,7 @@ export default function EntrainementPage() {
     setUser(u)
 
     const aLang = u.activeLang || u.settings.learningLangs[0] || 'en'
-    const themes = u.settings.languageConfigs?.[aLang]?.themes || ['travel']
-    const level = u.progress?.[aLang]?.levelCecrl || 'A1'
+    const interfaceLang = u.settings.interfaceLang || 'fr'
 
     // V3.14: Check for saved flashcard session to resume
     const savedKey = `lingualearn_flashcard_progress_${u.id}_${aLang}`
@@ -69,14 +72,35 @@ export default function EntrainementPage() {
     } catch { /* ignore */ }
 
     if (!resumed) {
-      let vocab = getVocabulary(aLang, themes, level)
-      // BUG-96: If no words found (path B or theme mismatch), use all V4 vocabulary
-      if (vocab.length === 0) {
-        const a1Vocab: VocabWord[] = [];
-        for (const course of BANK_A1_COURSES) {
-          a1Vocab.push(...getA1CourseVocabulary(course.id));
+      // V2.1.1: Mode guidé — mots des cours complétés uniquement
+      const completedScoresKey = `lingualearn_course_scores_${u.id}_${aLang}`
+      let completedCourseIds: string[] = []
+      try {
+        const scoresStr = localStorage.getItem(completedScoresKey)
+        if (scoresStr) completedCourseIds = Object.keys(JSON.parse(scoresStr))
+      } catch { /* ignore */ }
+
+      const vocab: VocabWord[] = []
+      if (completedCourseIds.length > 0) {
+        // Mode guidé : mots des cours complétés
+        for (const cId of completedCourseIds) {
+          vocab.push(...getA1CourseVocabulary(cId))
         }
-        vocab = a1Vocab;
+        setModeLabel('')
+      } else {
+        // Aucun cours complété → mode libre automatique (cours 1-3)
+        setTrainingMode('free')
+        for (let i = 1; i <= 3; i++) {
+          vocab.push(...getA1CourseVocabulary(`a1_c${i}`))
+        }
+        setModeLabel(interfaceLang === 'fr' ? 'Mode exploration — hors progression' : 'Exploration mode — no scoring')
+      }
+
+      if (vocab.length === 0) {
+        // Dernier recours : tout le vocabulaire V4
+        for (const course of BANK_A1_COURSES) {
+          vocab.push(...getA1CourseVocabulary(course.id))
+        }
       }
       const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
       setCards(shuffled.map(w => ({ word: w, flipped: false })))
@@ -145,37 +169,43 @@ export default function EntrainementPage() {
     }, 300)
   }
 
-  const restartSession = () => {
-    const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
-    const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
-    let vocab = getVocabulary(activeLang, themes, level)
-    // BUG-96: Fallback to V4 vocabulary if theme filter returns nothing
-    if (vocab.length === 0) {
-      const a1Vocab: VocabWord[] = [];
-      for (const course of BANK_A1_COURSES) {
-        a1Vocab.push(...getA1CourseVocabulary(course.id));
-      }
-      vocab = a1Vocab;
+  // V2.1.1: Centralized vocab loading based on training mode
+  const getTrainingVocab = (mode: TrainingMode): VocabWord[] => {
+    let vocab: VocabWord[] = []
+    if (mode === 'guided') {
+      // Mode guidé : mots des cours complétés
+      try {
+        const scoresStr = localStorage.getItem(`lingualearn_course_scores_${user.id}_${activeLang}`)
+        if (scoresStr) {
+          const completedIds = Object.keys(JSON.parse(scoresStr))
+          for (const cId of completedIds) {
+            vocab.push(...getA1CourseVocabulary(cId))
+          }
+        }
+      } catch { /* ignore */ }
     }
+    if (mode === 'free' || vocab.length === 0) {
+      // Mode libre : cours 1-3
+      vocab = []
+      for (let i = 1; i <= 3; i++) {
+        vocab.push(...getA1CourseVocabulary(`a1_c${i}`))
+      }
+    }
+    return vocab
+  }
+
+  const restartSession = () => {
+    const vocab = getTrainingVocab(trainingMode)
     const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
     setCards(shuffled.map(w => ({ word: w, flipped: false })))
     setCurrentIndex(0)
     setSessionDone(false)
-    clearFlashcardPosition() // V3.14: clear saved position on restart
+    clearFlashcardPosition()
   }
 
   // Initialize quiz mode
   const startQuiz = () => {
-    const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
-    const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
-    let vocab = getVocabulary(activeLang, themes, level)
-    if (vocab.length === 0) {
-      const a1Vocab: VocabWord[] = [];
-      for (const course of BANK_A1_COURSES) {
-        a1Vocab.push(...getA1CourseVocabulary(course.id));
-      }
-      vocab = a1Vocab;
-    }
+    const vocab = getTrainingVocab(trainingMode)
     const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 10)
     setQuizWords(shuffled)
     setQuizIndex(0)
@@ -185,16 +215,7 @@ export default function EntrainementPage() {
 
   // Initialize game mode
   const startGame = () => {
-    const themes = user.settings.languageConfigs?.[activeLang]?.themes || ['travel']
-    const level = user.progress?.[activeLang]?.levelCecrl || 'A1'
-    let vocab = getVocabulary(activeLang, themes, level)
-    if (vocab.length === 0) {
-      const a1Vocab: VocabWord[] = [];
-      for (const course of BANK_A1_COURSES) {
-        a1Vocab.push(...getA1CourseVocabulary(course.id));
-      }
-      vocab = a1Vocab;
-    }
+    const vocab = getTrainingVocab(trainingMode)
     const shuffled = [...vocab].sort(() => Math.random() - 0.5).slice(0, 8)
     setGameWords(shuffled)
     setGameIndex(0)
@@ -216,6 +237,27 @@ export default function EntrainementPage() {
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
       <PageHeader title={lang === 'fr' ? 'Entraînement' : 'Training'} backHref="/dashboard" />
+
+      {/* V2.1.1: Mode toggle guidé/libre */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2 bg-white border-b">
+        <button
+          onClick={() => { setTrainingMode('guided'); setModeLabel(''); restartSession() }}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${trainingMode === 'guided' ? 'bg-[#002844] text-white' : 'bg-gray-100 text-[#555]'}`}
+        >
+          {lang === 'fr' ? '🎯 Guidé' : '🎯 Guided'}
+        </button>
+        <button
+          onClick={() => { setTrainingMode('free'); setModeLabel(lang === 'fr' ? 'Mode exploration — hors progression' : 'Exploration mode — no scoring'); restartSession() }}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${trainingMode === 'free' ? 'bg-[#002844] text-white' : 'bg-gray-100 text-[#555]'}`}
+        >
+          {lang === 'fr' ? '🔓 Libre' : '🔓 Free'}
+        </button>
+      </div>
+      {modeLabel && (
+        <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-200">
+          <p className="text-xs text-amber-700 font-medium text-center">{modeLabel}</p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 px-4 pt-3 pb-2 bg-white border-b">
@@ -239,7 +281,24 @@ export default function EntrainementPage() {
         {/* FLASHCARDS TAB — V3.12: Flip recto/verso + 3 boutons auto-évaluation */}
         {activeTab === 'flashcards' && (
           <div className="max-w-md mx-auto">
-            {sessionDone ? (
+            {/* V2.1.1: EmptyState mode guidé si aucun cours complété */}
+            {trainingMode === 'guided' && cards.length === 0 && !sessionDone ? (
+              <div className="rounded-2xl bg-white p-8 shadow-sm text-center">
+                <Brain className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <h2 className="text-lg font-bold text-[#002844] mb-2">
+                  {lang === 'fr' ? 'Termine ton premier cours' : 'Complete your first course'}
+                </h2>
+                <p className="text-sm text-[#555] mb-6">
+                  {lang === 'fr'
+                    ? "L'entraînement guidé utilise les mots que tu as déjà appris en cours. Termine un cours pour débloquer !"
+                    : 'Guided training uses words you already learned in courses. Complete a course to unlock!'}
+                </p>
+                <button onClick={() => router.push('/module/cours')}
+                  className="w-full py-3 rounded-xl font-bold text-white bg-[#002844] hover:bg-[#003a5c] transition-colors">
+                  {lang === 'fr' ? '📚 Aller aux cours' : '📚 Go to courses'}
+                </button>
+              </div>
+            ) : sessionDone ? (
               /* Summary */
               <div className="rounded-2xl bg-white p-6 shadow-sm text-center">
                 <Trophy className="h-12 w-12 mx-auto mb-3" style={{ color: knewCount >= 5 ? '#D9B438' : '#555555' }} />
