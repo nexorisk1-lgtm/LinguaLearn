@@ -551,7 +551,7 @@ function SessionContent() {
     setUser(currentUser)
     setLang(currentUser.settings.interfaceLang || 'fr')
 
-    // V3.19 BUG-72: Robust resume — restore full exercises/lessons/results state
+    // V2.1.1: Robust resume — restore full state INCLUDING exact phase
     let shouldResume = false
     if (courseId) {
       try {
@@ -562,7 +562,7 @@ function SessionContent() {
           const savedAt = new Date(resume.savedAt).getTime()
           if (Date.now() - savedAt < 24 * 60 * 60 * 1000) {
             shouldResume = true
-            // Restore full state if available (V3.19 BUG-72)
+            // Restore full state if available
             if (resume.exercises && resume.exercises.length > 0) {
               setExercises(resume.exercises)
               setLessons(resume.lessons || [])
@@ -571,10 +571,11 @@ function SessionContent() {
             setCurrentIdx(resume.exerciseIndex || 0)
             setCurrentLessonIdx(resume.lessonIndex || 0)
             setSessionReady(true)
-            setPhase('exercise')
+            // V2.1.1 FIX: Restore exact phase instead of always jumping to 'exercise'
+            const savedPhase = resume.phase || 'exercise'
+            setPhase(savedPhase as SessionPhase)
+            console.log('[Engine:Session] Resumed at phase:', savedPhase, 'idx:', resume.exerciseIndex)
           }
-          // V3.19b: Don't clear resume on load — clear on session completion instead
-          // This protects against page refresh during resume
         }
       } catch { /* ignore */ }
     }
@@ -594,16 +595,17 @@ function SessionContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, buildSession])
 
-  // V3.19 BUG-62: Wait for sessionReady before transitioning — prevents race condition
-  // V4: intro → objectif (for A1 courses) → lessonMap
+  // V2.1.1: Universal pedagogical flow — ALL courses go through objectif phase
+  // Supprimé le bypass isA1 → tous les parcours suivent le même flux
   useEffect(() => {
     if (phase !== 'intro' || !sessionReady) return
     if (exercises.length > 0) {
-      // V4: Show objectif screen for A1 bank courses
-      const isA1 = courseId && /^a1_c\d+$/.test(courseId) && getA1CourseData(courseId)
-      if (isA1) {
+      // V2.1.1 FIX: Flux universel — tous les cours passent par objectif
+      // Le moteur central décide du contenu, pas le pattern courseId
+      if (courseId) {
         setPhase('objectif')
       } else {
+        // Session générique sans courseId → lessonMap direct
         setPhase('lessonMap')
       }
     } else {
@@ -775,6 +777,7 @@ function SessionContent() {
       localStorage.setItem(resumeKey, JSON.stringify({
         lessonIndex: nextLessonIdx,
         exerciseIndex: nextExIdx,
+        phase: phase, // V2.1.1: Save current phase for exact resume
         savedAt: new Date().toISOString(),
         exercises,
         lessons,
@@ -967,8 +970,8 @@ function SessionContent() {
         localStorage.setItem(resumeKey, JSON.stringify({
           lessonIndex: currentLessonIdx,
           exerciseIndex: currentIdx,
+          phase: phase, // V2.1.1: Save current phase for exact resume
           savedAt: new Date().toISOString(),
-          // V3.19 BUG-72: Save full state for exact resume
           exercises: exercises,
           lessons: lessons,
           results: results,
