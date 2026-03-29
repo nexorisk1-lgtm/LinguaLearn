@@ -92,7 +92,7 @@ export default function AdminImportsPage() {
   const [, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'imports' | 'dashboard' | 'proposedWords' | 'utilisateurs' | 'images'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'imports' | 'dashboard' | 'proposedWords' | 'utilisateurs' | 'images' | 'translations'>('dashboard')
   const [pendingWordsCount, setPendingWordsCount] = useState(0)
   const [users, setUsers] = useState<User[]>([])
   const [passwordVisibility, setPasswordVisibility] = useState<Record<string, boolean>>({})
@@ -360,11 +360,56 @@ export default function AdminImportsPage() {
     document.body.removeChild(link)
   }
 
+  // V2.1.1 Phase 9: Validate mandatory fields + reject orphan content
+  const validateImportRows = (rows: Record<string, string>[], type: string): string | null => {
+    // Vocabulary: 4 mandatory fields
+    if (type === 'vocabulary') {
+      const mandatory = ['word_target', 'word_fr', 'theme', 'level']
+      for (let i = 0; i < rows.length; i++) {
+        for (const field of mandatory) {
+          if (!rows[i][field]?.trim()) {
+            return lang === 'fr'
+              ? `Ligne ${i + 1} : champ obligatoire "${field}" manquant`
+              : `Row ${i + 1}: mandatory field "${field}" missing`
+          }
+        }
+      }
+    }
+    // Grammar: rule_name + level mandatory
+    if (type === 'grammar') {
+      for (let i = 0; i < rows.length; i++) {
+        if (!rows[i]['rule_name']?.trim() || !rows[i]['level']?.trim()) {
+          return lang === 'fr'
+            ? `Ligne ${i + 1} : rule_name et level sont obligatoires`
+            : `Row ${i + 1}: rule_name and level are mandatory`
+        }
+      }
+    }
+    // Orphan content rejection: if courseId is specified, it must exist
+    const validCourseIds = new Set(BANK_A1_COURSES.map(c => c.id))
+    for (let i = 0; i < rows.length; i++) {
+      const cid = rows[i]['courseId'] || rows[i]['course_id']
+      if (cid?.trim() && !validCourseIds.has(cid.trim())) {
+        return lang === 'fr'
+          ? `Ligne ${i + 1} : courseId "${cid}" n'existe pas (contenu orphelin rejeté)`
+          : `Row ${i + 1}: courseId "${cid}" does not exist (orphan content rejected)`
+      }
+    }
+    return null
+  }
+
   // Confirm import
   const confirmImport = () => {
     if (!tabState.csvData || !tabState.selectedType) return
 
     try {
+      // V2.1.1: Validate before import
+      const validationError = validateImportRows(tabState.csvData.rows, tabState.selectedType)
+      if (validationError) {
+        setTabState(prev => ({ ...prev, validationError, errorMessage: validationError }))
+        return
+      }
+
       const storageKey = `lingualearn_imported_${tabState.selectedType}`
       localStorage.setItem(storageKey, JSON.stringify(tabState.csvData.rows))
 
@@ -1136,6 +1181,17 @@ export default function AdminImportsPage() {
           >
             {lang === 'fr' ? 'Images Vocab' : 'Vocab Images'}
           </button>
+          {/* V2.1.1 Phase 9: Translations tab */}
+          <button
+            onClick={() => setActiveTab('translations')}
+            className={`px-4 py-3 font-semibold transition-all border-b-2 ${
+              activeTab === 'translations'
+                ? 'border-[#002844] text-[#002844]'
+                : 'border-transparent text-[#555555] hover:text-[#002844]'
+            }`}
+          >
+            {lang === 'fr' ? 'Traductions' : 'Translations'}
+          </button>
         </div>
 
         {/* Dashboard tab */}
@@ -1842,6 +1898,46 @@ export default function AdminImportsPage() {
                   {lang === 'fr' ? 'Aucun cours disponible' : 'No courses available'}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {/* V2.1.1 Phase 9: Translations tab */}
+        {activeTab === 'translations' && (
+          <div className="px-4 pt-4 pb-8">
+            <h2 className="text-lg font-bold text-[#002844] mb-4">
+              {lang === 'fr' ? 'Gestion des traductions' : 'Translation Management'}
+            </h2>
+            <div className="rounded-xl bg-white p-6 shadow-sm mb-4">
+              <p className="text-sm text-[#555] mb-4">
+                {lang === 'fr'
+                  ? 'Phase 14 activera le système CanonicalContent + LocalizedContent pour gérer les traductions dans 7 langues (en, es, ko, ar, zh, ja, fr).'
+                  : 'Phase 14 will enable the CanonicalContent + LocalizedContent system for managing translations in 7 languages (en, es, ko, ar, zh, ja, fr).'}
+              </p>
+              <div className="space-y-3">
+                {['en', 'es', 'ko', 'ar', 'zh', 'ja', 'fr'].map(langCode => {
+                  const flags: Record<string, string> = { en: '🇬🇧', es: '🇪🇸', ko: '🇰🇷', ar: '🇸🇦', zh: '🇨🇳', ja: '🇯🇵', fr: '🇫🇷' }
+                  const names: Record<string, string> = { en: 'English', es: 'Español', ko: '한국어', ar: 'العربية', zh: '中文', ja: '日本語', fr: 'Français' }
+                  const isReady = langCode === 'en'
+                  return (
+                    <div key={langCode} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{flags[langCode]}</span>
+                        <span className="text-sm font-semibold text-[#002844]">{names[langCode]}</span>
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${isReady ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                        {isReady ? (lang === 'fr' ? 'Actif' : 'Active') : (lang === 'fr' ? 'Phase 14' : 'Phase 14')}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+              <p className="text-xs text-amber-700 font-medium">
+                {lang === 'fr'
+                  ? '⚠️ Seul l\'anglais (EN) est actuellement actif. Les autres langues seront activées avec l\'architecture CanonicalContent (Phase 14).'
+                  : '⚠️ Only English (EN) is currently active. Other languages will be enabled with the CanonicalContent architecture (Phase 14).'}
+              </p>
             </div>
           </div>
         )}
