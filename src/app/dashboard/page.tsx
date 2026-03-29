@@ -8,12 +8,14 @@ import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
 import {
   Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Calendar, Clock,
-  BookOpen, PenTool, Languages, Mic, Pencil, LogOut,
+  BookOpen, PenTool, Languages, Mic, Pencil, LogOut, Sparkles,
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
+import { useEngine } from '@/lib/engine/useEngine'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const engine = useEngine()
   const [user, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
@@ -383,6 +385,53 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* V2.1.1: Engine-driven recommended next step */}
+        {engine.progress && (() => {
+          const step = engine.getNextStep()
+          if (!step || step.reason === 'Loading...') return null
+          const stepHref = step.type === 'revision' ? '/module/revisions'
+            : step.type === 'course' && step.courseId ? `/session?courseId=${step.courseId}`
+            : step.type === 'coach' ? '/module/oral'
+            : '/module/entrainement'
+          const stepIcon = step.type === 'revision' ? '🔄' : step.type === 'course' ? '▶️' : step.type === 'coach' ? '🎙️' : '🎯'
+          return (
+            <a href={stepHref} className="block mb-4 rounded-xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{stepIcon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-[#D9B438] mb-0.5">
+                    <Sparkles className="h-3 w-3 inline mr-1" />
+                    {lang === 'fr' ? 'Prochaine étape recommandée' : 'Recommended next step'}
+                  </p>
+                  <p className="text-sm font-bold text-white truncate">{step.reason}</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-white/60 flex-shrink-0" />
+              </div>
+            </a>
+          )
+        })()}
+
+        {/* V2.1.1: 3 scores display (learningScore, gameScore, battleScore) */}
+        {engine.progress && (
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1 rounded-xl bg-white p-3 shadow-sm text-center">
+              <GraduationCap className="h-4 w-4 mx-auto text-[#002844] mb-1" />
+              <p className="text-lg font-bold text-[#002844]">{engine.progress.learningScore}</p>
+              <p className="text-[10px] font-semibold text-[#555]">{lang === 'fr' ? 'Apprentissage' : 'Learning'}</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-white p-3 shadow-sm text-center">
+              <Trophy className="h-4 w-4 mx-auto text-[#D9B438] mb-1" />
+              <p className="text-lg font-bold text-[#D9B438]">{engine.progress.gameScore}</p>
+              <p className="text-[10px] font-semibold text-[#555]">{lang === 'fr' ? 'Jeu' : 'Game'}</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-white p-3 shadow-sm text-center">
+              <Flame className="h-4 w-4 mx-auto text-[#E65100] mb-1" />
+              <p className="text-lg font-bold text-[#E65100]">{engine.progress.battleScore}</p>
+              <p className="text-[10px] font-semibold text-[#555]">{lang === 'fr' ? 'Battle' : 'Battle'}</p>
+            </div>
+          </div>
+        )}
+
         {/* Diagnostic banner */}
         {progress && !progress.diagnosticCompleted && (
           <a href="/onboarding/diagnostic"
@@ -639,14 +688,23 @@ export default function DashboardPage() {
           {/* Left column (60%) — Objectifs + Planning */}
           <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
             {/* V3.11: Objective blocks — empilés verticalement, 1 par ligne */}
+            {/* V2.1.1: Engine-driven module blocks — Path B = no écrit */}
             {(() => {
-              // V3.19 BUG-73: Always show all 5 progress bars on every path (A, B, C)
-              const visibleBlocks = moduleBlocks
+              // Use engine modules if available, fallback to legacy
+              const engineModules = engine.progress ? engine.getModules() : null
+              const allowedIds = engineModules
+                ? engineModules.modules.map(m => m.id)
+                : moduleBlocks.map(b => b.id) // fallback: all 5
+              const visibleBlocks = moduleBlocks.filter(b => allowedIds.includes(b.objective))
               return (
                 <div className="space-y-2">
                   {visibleBlocks.map(block => {
                     const Icon = block.icon
-                    const pct = progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress] || 0
+                    // V2.1.1: Read from engine modulePercent if available
+                    const engineMod = engineModules?.modules.find(m => m.id === block.objective)
+                    const pct = engineMod?.percent
+                      ?? progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress]
+                      ?? 0
                     return (
                       <a key={block.id} href={block.href}
                         className="flex items-center gap-3 rounded-xl p-3 shadow-sm transition-transform active:scale-[0.98]"
