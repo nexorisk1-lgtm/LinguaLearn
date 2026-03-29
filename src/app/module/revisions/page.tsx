@@ -66,12 +66,17 @@ export default function RevisionsPage() {
     const aLang = (currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en') as LearningLanguage;
     setActiveLang(aLang);
 
-    // BUG-77 (V2): ONLY V4 course vocabulary — purge ALL legacy mocked words
+    // P0-8: ONLY completed course vocabulary — filter to courses with score >= 60
+    const scoreKey = `lingualearn_course_scores_${currentUser.id}_${aLang}`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scores: Record<string, any> = (() => { try { return JSON.parse(localStorage.getItem(scoreKey) || '{}'); } catch { return {}; } })();
     const a1Vocab: VocabWord[] = [];
     for (const course of BANK_A1_COURSES) {
-      a1Vocab.push(...getA1CourseVocabulary(course.id));
+      if (scores[course.id] && scores[course.id].score >= 60) {
+        a1Vocab.push(...getA1CourseVocabulary(course.id));
+      }
     }
-    const vocab = a1Vocab; // No legacy vocab — only V4 course words
+    const vocab = a1Vocab; // Only completed course vocabulary
     setAllVocab(vocab);
 
     // Get due review items
@@ -239,33 +244,47 @@ export default function RevisionsPage() {
 
           {/* Session stats grid */}
           <div className="space-y-3 mb-8">
-            {/* Réussis */}
+            {/* P1-2: "Mots révisés" instead of "Items réussis" */}
             <div className="bg-white rounded-xl p-4 border-l-4 border-green-500">
               <p className="text-xs text-[#999] font-semibold uppercase tracking-wide mb-1">
-                {lang === 'fr' ? 'Items réussis' : 'Successful items'}
+                {lang === 'fr' ? 'Mots révisés avec succès' : 'Words reviewed successfully'}
               </p>
-              <p className="text-2xl font-bold text-green-600">{correctCount}</p>
+              <p className="text-2xl font-bold text-green-600">{correctCount}/{totalCount}</p>
               <p className="text-xs text-[#555] mt-1">
                 {lang === 'fr'
-                  ? "Ne seront pas posés avant quelques jours"
-                  : "Won't be asked again for several days"}
+                  ? "Ces mots sont renforcés dans ta mémoire."
+                  : "These words are reinforced in your memory."}
               </p>
             </div>
 
-            {/* Reprogrammés */}
+            {/* P1-2: Reprogrammed wording */}
             {reprogrammedCount > 0 && (
               <div className="bg-white rounded-xl p-4 border-l-4 border-orange-500">
                 <p className="text-xs text-[#999] font-semibold uppercase tracking-wide mb-1">
-                  {lang === 'fr' ? 'Items reprogrammés' : 'Rescheduled items'}
+                  {lang === 'fr' ? 'Mots à retravailler' : 'Words to review again'}
                 </p>
                 <p className="text-2xl font-bold text-orange-600">{reprogrammedCount}</p>
                 <p className="text-xs text-[#555] mt-1">
                   {lang === 'fr'
-                    ? `Révision prévue pour ${nextReviewDateStr}`
-                    : `Scheduled for review on ${nextReviewDateStr}`}
+                    ? `Prochaine révision : ${nextReviewDateStr}`
+                    : `Next review: ${nextReviewDateStr}`}
                 </p>
               </div>
             )}
+
+            {/* P1-2: Coach encouragement message */}
+            <div className="bg-white rounded-xl p-4 border-l-4 border-purple-400">
+              <p className="text-xs text-[#999] font-semibold uppercase tracking-wide mb-1">
+                🤖 Coach
+              </p>
+              <p className="text-sm text-[#002844]">
+                {pct >= 80
+                  ? (lang === 'fr' ? 'Excellent travail ! Ta mémoire se consolide bien.' : 'Excellent work! Your memory is getting stronger.')
+                  : pct >= 50
+                    ? (lang === 'fr' ? 'Bonne session ! Continue à réviser régulièrement.' : 'Good session! Keep reviewing regularly.')
+                    : (lang === 'fr' ? 'Pas de souci, la répétition est la clé. On y retourne demain !' : "No worries, repetition is key. Let's try again tomorrow!")}
+              </p>
+            </div>
 
             {/* Faiblesses identifiées */}
             {weakWords.length > 0 && (

@@ -408,8 +408,18 @@ export default function DashboardPage() {
             {visibleModules.map(block => {
               const Icon = block.icon
               const engineMod = engineModules?.modules.find(m => m.id === block.id)
-              const pct = engineMod?.percent
+              // P0-1: For vocabulary, read from direct localStorage key as fallback
+              let pct = engineMod?.percent
                 ?? (progress?.objectiveProgress?.[block.id as keyof typeof progress.objectiveProgress] || 0)
+              if (block.id === 'vocabulaire') {
+                try {
+                  const directPct = localStorage.getItem(`lingualearn_vocab_pct_${user.id}_${activeLang}`)
+                  if (directPct && parseInt(directPct, 10) > pct) pct = parseInt(directPct, 10)
+                  // Also check engine progress
+                  const engineVocPct = engine.progress?.vocabularyPercent || 0
+                  if (engineVocPct > pct) pct = engineVocPct
+                } catch { /* ignore */ }
+              }
               return (
                 <div key={block.id} className="flex items-center gap-2">
                   <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: block.color }} />

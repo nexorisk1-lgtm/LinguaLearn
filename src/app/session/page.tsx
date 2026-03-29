@@ -20,6 +20,7 @@ import { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises, ge
 import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, WritingExercise } from '@/lib/db/bankTypes'
 import { useEngine } from '@/lib/engine/useEngine'
 import { awardPoints } from '@/lib/engine/gamificationEngine'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { updateWordState } from '@/lib/engine/userProgress'
 
 // ==========================================
@@ -63,8 +64,26 @@ interface SessionResult {
 // EXERCISE GENERATORS
 // ==========================================
 
+// P0-9: Deterministic seeded shuffle — no Math.random() in exercises
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr]
+  let s = seed
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s * 16807 + 0) % 2147483647
+    const j = s % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+// P0-9: Generate a daily seed from today's date (deterministic per day)
+function getDailySeed(): number {
+  const d = new Date()
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+}
+
 function generateVocabExercises(words: VocabWord[], count: number, pathB: boolean = false): SessionExercise[] {
-  const shuffled = [...words].sort(() => Math.random() - 0.5).slice(0, count)
+  const shuffled = seededShuffle(words, getDailySeed()).slice(0, count)
   return shuffled.map((w, i) => {
     const isFrToTarget = i % 2 === 0
     const question = isFrToTarget ? w.word_fr : w.word_target
@@ -75,8 +94,8 @@ function generateVocabExercises(words: VocabWord[], count: number, pathB: boolea
       const pool = isFrToTarget
         ? words.filter(x => x.word_target !== answer).map(x => x.word_target)
         : words.filter(x => x.word_fr !== answer).map(x => x.word_fr)
-      const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3)
-      const options = [answer, ...distractors].sort(() => Math.random() - 0.5)
+      const distractors = seededShuffle(pool, getDailySeed() + i).slice(0, 3)
+      const options = seededShuffle([answer, ...distractors], getDailySeed() + i + 100)
       return {
         type: 'grammar_qcm' as const, // Reuse QCM type for clickable options
         module: 'vocabulaire',
@@ -100,18 +119,18 @@ function generateVocabExercises(words: VocabWord[], count: number, pathB: boolea
 }
 
 function generateGrammarExercises(exercises: GrammarExercise[], count: number): SessionExercise[] {
-  const shuffled = [...exercises].sort(() => Math.random() - 0.5).slice(0, count)
+  const shuffled = seededShuffle([...exercises], getDailySeed() + 200).slice(0, count)
   // BUG-43: For fill_blank exercises without options, generate QCM options
   const allAnswers = exercises.map(e => e.answer)
   const fallbacks = ['am', 'is', 'are', 'be', 'do', 'does', 'have', 'has', 'was', 'were', 'the', 'a', 'an']
-  return shuffled.map(ex => {
+  return shuffled.map((ex, idx) => {
     let options = ex.options
     if (!options || options.length === 0) {
       // Auto-generate 4 options including correct answer
       const distractors = Array.from(new Set(
         [...allAnswers, ...fallbacks].filter(a => a !== ex.answer)
       )).slice(0, 3)
-      options = [ex.answer, ...distractors].sort(() => Math.random() - 0.5)
+      options = seededShuffle([ex.answer, ...distractors], getDailySeed() + 300 + idx)
     }
     return {
       type: 'grammar_qcm',
@@ -126,7 +145,7 @@ function generateGrammarExercises(exercises: GrammarExercise[], count: number): 
 
 function generateReadingExercise(texts: ReadingText[], interfaceLang: string): SessionExercise | null {
   if (texts.length === 0) return null
-  const text = texts[Math.floor(Math.random() * texts.length)]
+  const text = seededShuffle(texts, getDailySeed() + 400)[0]
   const fr = interfaceLang === 'fr'
 
   // BUG-53: Generate comprehension questions in interface language
@@ -181,7 +200,7 @@ function generateReadingExercise(texts: ReadingText[], interfaceLang: string): S
 }
 
 function generateSpeakingExercises(exercises: SpeakingExercise[], count: number): SessionExercise[] {
-  const shuffled = [...exercises].sort(() => Math.random() - 0.5).slice(0, count)
+  const shuffled = seededShuffle([...exercises], getDailySeed() + 500).slice(0, count)
   return shuffled.map(ex => ({
     type: 'speaking_repeat',
     module: 'oral',
@@ -192,7 +211,7 @@ function generateSpeakingExercises(exercises: SpeakingExercise[], count: number)
 }
 
 function generateWritingExercises(exercises: WritingExercise[], count: number): SessionExercise[] {
-  const shuffled = [...exercises].sort(() => Math.random() - 0.5).slice(0, count)
+  const shuffled = seededShuffle([...exercises], getDailySeed() + 600).slice(0, count)
   return shuffled.map(ex => ({
     type: 'writing_fill',
     module: 'ecrit',
@@ -333,11 +352,12 @@ function SessionContent() {
 
       // ---- ROUND 1: Translation (QCM for Path B, text for Path A) ----
       const round1: SessionExercise[] = []
-      for (const w of courseVocab) {
+      for (let wi = 0; wi < courseVocab.length; wi++) {
+        const w = courseVocab[wi]
         if (isPathB) {
           const pool = courseVocab.filter(x => x.word_target !== w.word_target).map(x => x.word_target)
-          const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3)
-          const options = [w.word_target, ...distractors].sort(() => Math.random() - 0.5)
+          const distractors = seededShuffle(pool, getDailySeed() + wi * 10).slice(0, 3)
+          const options = seededShuffle([w.word_target, ...distractors], getDailySeed() + wi * 10 + 1)
           round1.push({
             type: 'grammar_qcm' as const, module: 'vocabulaire', data: w,
             question: lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`,
@@ -353,12 +373,13 @@ function SessionContent() {
         }
       }
 
-      // ---- ROUND 2: Reverse translation / association ----
+      // ---- ROUND 2: Reverse translation / association (always QCM) ----
       const round2: SessionExercise[] = []
-      for (const w of courseVocab) {
+      for (let wi = 0; wi < courseVocab.length; wi++) {
+        const w = courseVocab[wi]
         const pool = courseVocab.filter(x => x.word_fr !== w.word_fr).map(x => x.word_fr)
-        const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3)
-        const options = [w.word_fr, ...distractors].sort(() => Math.random() - 0.5)
+        const distractors = seededShuffle(pool, getDailySeed() + wi * 10 + 1000).slice(0, 3)
+        const options = seededShuffle([w.word_fr, ...distractors], getDailySeed() + wi * 10 + 1001)
         round2.push({
           type: 'grammar_qcm' as const, module: 'vocabulaire', data: w,
           question: lang === 'fr' ? `Que signifie "${w.word_target}" en français ?` : `What does "${w.word_target}" mean in French?`,
@@ -368,9 +389,27 @@ function SessionContent() {
       }
 
       // ---- ROUND 3: Fill-in / context exercise ----
+      // P0-7: For Parcours B, round 3 = QCM (NO text input ever)
       const round3: SessionExercise[] = []
-      for (const w of courseVocab) {
-        if (w.example_en && w.example_en.toLowerCase().includes(w.word_target.toLowerCase())) {
+      for (let wi = 0; wi < courseVocab.length; wi++) {
+        const w = courseVocab[wi]
+        if (isPathB) {
+          // P0-7: Parcours B round 3 = contextual QCM (100% clickable)
+          const pool = courseVocab.filter(x => x.word_target !== w.word_target).map(x => x.word_target)
+          const distractors = seededShuffle(pool, getDailySeed() + wi * 10 + 2000).slice(0, 3)
+          const options = seededShuffle([w.word_target, ...distractors], getDailySeed() + wi * 10 + 2001)
+          const contextQ = w.example_en && w.example_en.toLowerCase().includes(w.word_target.toLowerCase())
+            ? (lang === 'fr'
+              ? `Quel mot complète : "${w.example_en.replace(new RegExp(w.word_target, 'i'), '______')}" ?`
+              : `Which word completes: "${w.example_en.replace(new RegExp(w.word_target, 'i'), '______')}"?`)
+            : (lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`)
+          round3.push({
+            type: 'grammar_qcm' as const, module: 'vocabulaire', data: w,
+            question: contextQ,
+            answer: w.word_target,
+            options: options.length >= 2 ? options : [w.word_target, 'unknown'],
+          })
+        } else if (w.example_en && w.example_en.toLowerCase().includes(w.word_target.toLowerCase())) {
           const blanked = w.example_en.replace(new RegExp(w.word_target, 'i'), '______')
           round3.push({
             type: 'vocab_translate' as const, module: 'vocabulaire', data: w,
@@ -380,7 +419,7 @@ function SessionContent() {
             answer: w.word_target, hint: w.word_fr,
           })
         } else {
-          // Fallback: listen and type
+          // Path A fallback: type the word
           round3.push({
             type: 'vocab_translate' as const, module: 'vocabulaire', data: w,
             question: lang === 'fr' ? `Écrivez le mot anglais pour "${w.word_fr}"` : `Write the English word for "${w.word_fr}"`,
@@ -424,7 +463,7 @@ function SessionContent() {
             data: { ...v, courseId },
             question: lang === 'fr' ? `Remettez les mots dans le bon ordre :` : `Put the words in the correct order:`,
             answer: v.example_en,
-            options: v.example_en.split(' ').sort(() => Math.random() - 0.5),
+            options: seededShuffle(v.example_en.split(' '), getDailySeed() + 3000),
           }))
         if (orderExercises.length > 0) {
           allExercises.push(...orderExercises)
@@ -852,16 +891,34 @@ function SessionContent() {
     setShowFeedback(true)
     setResults(prev => [...prev, { exercise: currentExercise, userAnswer, correct }])
 
-    // P0-E: Update vocabularyPercent after each correct vocab exercise
-    if (correct && currentExercise.module === 'vocabulaire' && engine.progress) {
+    // P0-1: Update vocabularyPercent after each correct vocab exercise
+    if (correct && currentExercise.module === 'vocabulaire') {
       const wordId = currentExercise.data?.id
       if (wordId) {
-        engine.updateProgress(prev => {
-          const updated = updateWordState(prev, wordId, 'learned')
+        // P0-1: Always update wordStates in localStorage even if engine not ready
+        try {
+          const userId = user?.id
+          const aLang = user?.activeLang || user?.settings?.learningLangs?.[0] || 'en'
+          const wsKey = `lingualearn_word_states_${userId}_${aLang}`
+          const wsRaw = localStorage.getItem(wsKey)
+          const wordStates: Record<string, string> = wsRaw ? JSON.parse(wsRaw) : {}
+          wordStates[wordId] = 'learned'
+          localStorage.setItem(wsKey, JSON.stringify(wordStates))
+          // P0-1: Recalc and save vocabularyPercent directly
           const totalA1Words = 40 * 7
-          const learnedCount = Object.values(updated.wordStates).filter(s => s === 'learned' || s === 'mastered').length
-          return { ...updated, vocabularyPercent: Math.round((learnedCount / totalA1Words) * 100) }
-        })
+          const learnedCount = Object.values(wordStates).filter(s => s === 'learned' || s === 'mastered').length
+          const vocabPct = Math.round((learnedCount / totalA1Words) * 100)
+          localStorage.setItem(`lingualearn_vocab_pct_${userId}_${aLang}`, String(vocabPct))
+        } catch { /* ignore */ }
+        // Also update engine progress if available
+        if (engine.progress) {
+          engine.updateProgress(prev => {
+            const newWordStates = { ...prev.wordStates, [wordId]: 'learned' as const }
+            const totalA1Words = 40 * 7
+            const learnedCount = Object.values(newWordStates).filter(s => s === 'learned' || s === 'mastered').length
+            return { ...prev, wordStates: newWordStates, vocabularyPercent: Math.round((learnedCount / totalA1Words) * 100) }
+          })
+        }
       }
     }
   }
@@ -1054,22 +1111,39 @@ function SessionContent() {
       } catch { /* ignore storage errors */ }
 
       // Phase 12: Award engine gamification points + vocabulary progression
+      // P0-1: Always persist word states to localStorage directly (engine-independent)
+      try {
+        const aLang = user.activeLang || user.settings.learningLangs[0] || 'en'
+        const wsKey = `lingualearn_word_states_${user.id}_${aLang}`
+        const wsRaw = localStorage.getItem(wsKey)
+        const wordStates: Record<string, string> = wsRaw ? JSON.parse(wsRaw) : {}
+        const courseVocabDirect = getA1CourseVocabulary(courseId)
+        for (const w of courseVocabDirect) {
+          wordStates[w.id] = 'learned'
+        }
+        localStorage.setItem(wsKey, JSON.stringify(wordStates))
+        const totalA1Words = 40 * 7
+        const learnedCount = Object.values(wordStates).filter(s => s === 'learned' || s === 'mastered').length
+        const vocabPct = Math.round((learnedCount / totalA1Words) * 100)
+        localStorage.setItem(`lingualearn_vocab_pct_${user.id}_${aLang}`, String(vocabPct))
+      } catch { /* ignore */ }
+
       if (engine.progress) {
         engine.updateProgress(prev => {
           let updated = awardPoints(prev, 'course_completed', courseId)
-          // Award points for each correct exercise
           const correctExercises = results.filter(r => r.correct)
           for (const ex of correctExercises) {
             updated = awardPoints(updated, 'exercise_correct', ex.exercise?.data?.id || courseId)
           }
-          // Award word_learned + mark vocabulary as 'learned' for progression tracking
           const courseVocab = getA1CourseVocabulary(courseId)
           for (const w of courseVocab) {
             updated = awardPoints(updated, 'word_learned', w.id)
-            updated = updateWordState(updated, w.id, 'learned')
+            // P0-1: Update wordStates directly without calling updateWordState (avoids double-save)
+            if (updated.wordStates[w.id] !== 'learned' && updated.wordStates[w.id] !== 'mastered') {
+              updated = { ...updated, wordStates: { ...updated.wordStates, [w.id]: 'learned' } }
+            }
           }
-          // Recalc vocabulary percent based on total A1 words vs learned
-          const totalA1Words = 40 * 7 // 40 courses × ~7 words avg
+          const totalA1Words = 40 * 7
           const learnedCount = Object.values(updated.wordStates).filter(s => s === 'learned' || s === 'mastered').length
           updated = {
             ...updated,
@@ -1426,7 +1500,7 @@ function SessionContent() {
 
           {currentWord ? (
             <div className="rounded-2xl bg-white p-8 shadow-sm mb-6 text-center">
-              {/* Word image - large */}
+              {/* P0-4: Word image — unique visual per word (color based on word index) */}
               <div className="mb-6 flex justify-center cursor-pointer" onClick={() => { setPreactivInteracted(true); speakText(currentWord.word_target, activeLang); }}>
                 {currentWord.image ? (
                   <img
@@ -1435,9 +1509,16 @@ function SessionContent() {
                     className="w-60 h-60 rounded-2xl object-cover shadow-md hover:opacity-90 transition-opacity"
                   />
                 ) : (
-                  <div className="w-60 h-60 rounded-2xl bg-gradient-to-br from-[#E8F4F8] to-[#D5E8F0] flex flex-col items-center justify-center shadow-md">
-                    <span className="text-6xl font-bold text-[#002844]/30">{currentWord.word_target.charAt(0).toUpperCase()}</span>
-                    <span className="text-xs text-[#888888] mt-2">{currentWord.word_target}</span>
+                  <div className="w-60 h-60 rounded-2xl flex flex-col items-center justify-center shadow-md"
+                    style={{
+                      background: `linear-gradient(135deg, ${['#E8F4F8','#FFF3E0','#E8F5E9','#F3E5F5','#FFF8E1','#E3F2FD','#FCE4EC','#E0F7FA','#FBE9E7','#F1F8E9'][preactivIdx % 10]} 0%, ${['#D5E8F0','#FFE0B2','#C8E6C9','#E1BEE7','#FFECB3','#BBDEFB','#F8BBD0','#B2EBF2','#FFCCBC','#DCEDC8'][preactivIdx % 10]} 100%)`
+                    }}>
+                    <span className="text-6xl font-bold" style={{ color: `${['#002844','#E65100','#2E7D32','#7B1FA2','#F9A825','#1565C0','#C62828','#00838F','#BF360C','#558B2F'][preactivIdx % 10]}40` }}>
+                      {currentWord.word_target.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-sm font-medium mt-2" style={{ color: ['#002844','#E65100','#2E7D32','#7B1FA2','#F9A825','#1565C0','#C62828','#00838F','#BF360C','#558B2F'][preactivIdx % 10] }}>
+                      {currentWord.word_target}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1469,7 +1550,17 @@ function SessionContent() {
                     recognition.continuous = false
                     recognition.interimResults = false
                     recognition.lang = activeLang === 'en' ? 'en-US' : 'fr-FR'
-                    recognition.onresult = () => setPreactivVoiceDetected(true)
+                    const micStartTime = Date.now()
+                    recognition.onresult = (event: any) => {
+                      // P0-3: Require >1 second of real audio to avoid false positives
+                      const elapsed = Date.now() - micStartTime
+                      const transcript = event.results?.[0]?.[0]?.transcript || ''
+                      if (elapsed > 1000 && transcript.trim().length > 0) {
+                        setPreactivVoiceDetected(true)
+                      } else {
+                        setPreactivVoiceDetected(false)
+                      }
+                    }
                     recognition.onerror = () => setPreactivVoiceDetected(false)
                     recognition.start()
                   }
@@ -1558,15 +1649,29 @@ function SessionContent() {
           <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
             {courseData?.rule ? (
               <>
-                {/* P1-A: Format pédagogique — contexte → usage → exemple en situation */}
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide mb-2">
-                    🇫🇷 {lang === 'fr' ? 'Explication en français' : 'French explanation'}
-                  </p>
-                  <div className="bg-[#F8F6F0] rounded-xl p-4">
-                    <p className="text-base text-[#002844] leading-relaxed whitespace-pre-line">
-                      {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
+                {/* P1-1: Format pédagogique strict — Contexte → Usage → Exemple en situation */}
+                <div className="mb-4 space-y-4">
+                  {/* Contexte */}
+                  <div>
+                    <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide mb-2">
+                      📍 {lang === 'fr' ? 'Contexte' : 'Context'}
                     </p>
+                    <div className="bg-[#F8F6F0] rounded-xl p-4">
+                      <p className="text-sm text-[#002844] leading-relaxed">
+                        {courseData.scenario || (lang === 'fr' ? 'Situation du quotidien' : 'Everyday situation')}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Usage / Règle */}
+                  <div>
+                    <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide mb-2">
+                      📖 {lang === 'fr' ? 'Règle d\'usage' : 'Usage rule'}
+                    </p>
+                    <div className="bg-[#F8F6F0] rounded-xl p-4">
+                      <p className="text-base text-[#002844] leading-relaxed whitespace-pre-line">
+                        {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -2004,20 +2109,9 @@ function SessionContent() {
                currentExercise.type === 'writing_fill' ? (lang === 'fr' ? 'Écriture' : 'Writing') :
                currentExercise.type === 'word_order' ? (lang === 'fr' ? 'Ordre des mots' : 'Word Order') : ''}
             </span>
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-              currentExercise.type === 'vocab_translate' || currentExercise.type === 'reading_comprehension'
-                ? 'bg-green-100 text-green-700'
-                : currentExercise.type === 'speaking_repeat'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-yellow-100 text-yellow-700'
-            }`}>
-              {currentExercise.type === 'vocab_translate' || currentExercise.type === 'reading_comprehension'
-                ? '⭐ Facile'
-                : currentExercise.type === 'speaking_repeat'
-                  ? '⭐⭐⭐ Difficile'
-                  : currentExercise.type === 'word_order'
-                    ? '⭐ Facile'
-                    : '⭐⭐ Intermédiaire'}
+            {/* P0-2: Always show "Débutant" — no Intermédiaire/Difficile for A1 */}
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#E8F4F8] text-[#002844]">
+              {lang === 'fr' ? 'Débutant' : 'Beginner'}
             </span>
           </div>
 
@@ -2254,12 +2348,12 @@ function SessionContent() {
                   {/* Available words pool */}
                   <div className="flex flex-wrap gap-2 mb-4">
                     {(wordOrderPool.length === 0 && wordOrderSelected.length === 0
-                      ? (currentExercise.options || currentExercise.answer.split(' ').sort(() => Math.random() - 0.5))
+                      ? (currentExercise.options || seededShuffle(currentExercise.answer.split(' '), getDailySeed() + currentIdx))
                       : wordOrderPool
                     ).map((w, i) => {
                       // Init pool on first render
                       if (wordOrderPool.length === 0 && wordOrderSelected.length === 0 && i === 0) {
-                        const initPool = currentExercise.options || currentExercise.answer.split(' ').sort(() => Math.random() - 0.5)
+                        const initPool = currentExercise.options || seededShuffle(currentExercise.answer.split(' '), getDailySeed() + currentIdx)
                         setTimeout(() => setWordOrderPool(initPool), 0)
                       }
                       return (

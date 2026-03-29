@@ -9,6 +9,7 @@ import { User, InterfaceLanguage } from '@/types'
 import PageHeader from '@/components/PageHeader'
 import BottomNav from '@/components/BottomNav'
 import { Send, Mic, MicOff } from 'lucide-react'
+import { getA1CourseVocabulary } from '@/lib/db/bankA1Courses'
 
 type CoachMode = 'discussion' | 'revision' | 'professional'
 
@@ -41,6 +42,7 @@ export default function CoachPage() {
   const [isListening, setIsListening] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(false)
   const [learntVocab, setLearntVocab] = useState<string[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [weakWords, setWeakWords] = useState<WeakWord[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
@@ -80,18 +82,19 @@ export default function CoachPage() {
     const interfaceLang = currentUser.settings.interfaceLang || 'fr'
     setLang(interfaceLang)
 
-    // Load learnt vocabulary from completed courses
-    const completedCourses = JSON.parse(localStorage.getItem('completedCourses') || '[]')
-    const learnedWords = new Set<string>()
-    completedCourses.forEach((course: any) => {
-      if (course.words && Array.isArray(course.words)) {
-        course.words.forEach((word: any) => {
-          if (typeof word === 'string') learnedWords.add(word)
-          else if (word.word) learnedWords.add(word.word)
-        })
-      }
+    // P0-5/P0-8: Load learnt vocabulary ONLY from completed A1 courses (not legacy)
+    const aLang = currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en'
+    const scoreKey = `lingualearn_course_scores_${currentUser.id}_${aLang}`
+    const scores: Record<string, any> = (() => { try { return JSON.parse(localStorage.getItem(scoreKey) || '{}') } catch { return {} } })()
+    const completedCourseIds = Object.keys(scores).filter(id => scores[id]?.score >= 60)
+    const learnedWordPairs: { word: string; trad: string }[] = []
+    completedCourseIds.forEach(cid => {
+      const vocab = getA1CourseVocabulary(cid)
+      vocab.forEach(v => learnedWordPairs.push({ word: v.word_target, trad: v.word_fr }))
     })
-    setLearntVocab(Array.from(learnedWords))
+    setLearntVocab(learnedWordPairs.map(p => p.word))
+    // Store word pairs for answer validation
+    try { localStorage.setItem('_coach_word_pairs', JSON.stringify(learnedWordPairs)) } catch {}
 
     // Load weak words from review items
     const reviewItems = JSON.parse(localStorage.getItem('reviewItems') || '[]')
@@ -106,14 +109,13 @@ export default function CoachPage() {
       ? `Salut ${currentUser.firstName || 'apprenant'} ! On s'entraîne ensemble ?`
       : `Hi ${currentUser.firstName || 'learner'}! Let's practice together?`
 
-    // Coach proactive first question based on learned vocab
+    // P0-5: Coach proactive first question based on learned vocab (deterministic)
     let firstQuestion = ''
-    if (learnedWords.size > 0) {
-      const wordsArr = Array.from(learnedWords)
-      const randomWord = wordsArr[Math.floor(Math.random() * Math.min(5, wordsArr.length))]
+    if (learnedWordPairs.length > 0) {
+      const firstPair = learnedWordPairs[0]
       firstQuestion = interfaceLang === 'fr'
-        ? `On vient de voir "${randomWord}". Comment dit-on ce mot en anglais ? 🤔`
-        : `We just learned "${randomWord}". How do you say this word? 🤔`
+        ? `On a appris "${firstPair.trad}". Comment dit-on ce mot en anglais ? 🤔`
+        : `We learned "${firstPair.trad}". How do you say this word in English? 🤔`
     } else {
       firstQuestion = interfaceLang === 'fr'
         ? `Commençons simplement : comment dit-on "bonjour" en anglais ? 🤔`
@@ -144,173 +146,141 @@ export default function CoachPage() {
     )
   }
 
-  // Get learnt vocabulary for discussion mode
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getLearnedVocabForContext = (): string[] => {
-    const learned = learntVocab.slice(0, 10) // Use first 10 for variety
+    const learned = learntVocab.slice(0, 10)
     return learned.length > 0 ? learned : ['hello', 'goodbye', 'thank you']
   }
 
-  // Generate coach response based on mode
-  const generateResponse = (userText: string): string => {
-    const lower = userText.toLowerCase()
+  // P0-5: Track current expected word for validation
+  const [expectedWord, setExpectedWord] = useState<{ word: string; trad: string } | null>(null)
+  // P0-5: Deterministic word index (cycles through words)
+  const wordIdxRef = useRef(0)
 
-    // REVISION MODE: Coach asks about weak words - ALWAYS ends with new question
+  // P0-5: Get word pairs from localStorage
+  const getWordPairs = (): { word: string; trad: string }[] => {
+    try {
+      const raw = localStorage.getItem('_coach_word_pairs')
+      return raw ? JSON.parse(raw) : learntVocab.map(w => ({ word: w, trad: '' }))
+    } catch { return learntVocab.map(w => ({ word: w, trad: '' })) }
+  }
+
+  // P0-5: Get next word deterministically (cycles through learned words)
+  const getNextWordPair = (): { word: string; trad: string } => {
+    const pairs = getWordPairs()
+    if (pairs.length === 0) return { word: 'hello', trad: 'bonjour' }
+    const idx = wordIdxRef.current % pairs.length
+    wordIdxRef.current++
+    return pairs[idx]
+  }
+
+  // P0-5: Validate user answer against expected word
+  const validateAnswer = (userText: string, expected: { word: string; trad: string }): boolean => {
+    const lower = userText.toLowerCase().trim()
+    return lower === expected.word.toLowerCase() || lower === expected.trad.toLowerCase()
+  }
+
+  // P0-5/P0-6: Generate coach response based on mode with answer validation
+  const generateResponse = (userText: string): string => {
+    // P0-6: REVISION MODE = drill on weak words, always validates answer
     if (mode === 'revision') {
       if (isUnknownPhrase(userText)) {
-        // User doesn't know - give answer, example, ask to repeat then ask next word
-        if (weakWords.length > 0) {
-          const word = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
-          const answer = word.word
-          const nativeWord = word.word_native
-
-          // Get next word for follow-up question
-          const nextWord = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
-
-          // Coach gives answer and example in pedagogical language, then asks next question
-          const response = lang === 'fr'
-            ? `Pas de souci ! "${nativeWord}" se dit **${answer}** en anglais. Par exemple : "I like apples." Répète après moi : "${answer}". 🎤\n\nMaintenant, comment dit-on "${nextWord.word_native}" en anglais ? 🤔`
-            : `No worries! "${nativeWord}" is **${answer}** in English. For example: "I like apples." Repeat after me: "${answer}". 🎤\n\nNow, how do you say "${nextWord.word_native}" in English? 🤔`
-          return response
+        if (expectedWord) {
+          const nextPair = getNextWordPair()
+          setExpectedWord(nextPair)
+          return lang === 'fr'
+            ? `La réponse était : **${expectedWord.word}** (${expectedWord.trad}). Répète : "${expectedWord.word}". 🎤\n\nMaintenant, comment dit-on "${nextPair.trad}" en anglais ? 🤔`
+            : `The answer was: **${expectedWord.word}** (${expectedWord.trad}). Repeat: "${expectedWord.word}". 🎤\n\nNow, how do you say "${nextPair.trad}" in English? 🤔`
         }
+        const pair = getNextWordPair()
+        setExpectedWord(pair)
         return lang === 'fr'
-          ? 'Complète un premier cours pour débloquer les révisions !'
-          : 'Complete your first course to unlock revisions!'
+          ? `Comment dit-on "${pair.trad}" en anglais ? 🤔`
+          : `How do you say "${pair.trad}" in English? 🤔`
       }
 
-      // Normal revision: ask about a weak word
-      if (weakWords.length > 0) {
-        const word = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
-        return lang === 'fr'
-          ? `Comment dit-on "${word.word_native}" en anglais ? 🤔`
-          : `How do you say "${word.word_native}" in English? 🤔`
+      // P0-5: Validate against SPECIFIC expected word
+      if (expectedWord) {
+        const isCorrect = validateAnswer(userText, expectedWord)
+        const nextPair = getNextWordPair()
+        setExpectedWord(nextPair)
+        if (isCorrect) {
+          return lang === 'fr'
+            ? `Correct ! "${expectedWord.word}" = ${expectedWord.trad}. 🎉\n\nSuivant : comment dit-on "${nextPair.trad}" en anglais ? 🤔`
+            : `Correct! "${expectedWord.word}" = ${expectedWord.trad}. 🎉\n\nNext: how do you say "${nextPair.trad}" in English? 🤔`
+        } else {
+          return lang === 'fr'
+            ? `Pas tout à fait. La bonne réponse est **${expectedWord.word}** (${expectedWord.trad}). Répète : "${expectedWord.word}". 🎤\n\nContinuons : comment dit-on "${nextPair.trad}" en anglais ? 🤔`
+            : `Not quite. The correct answer is **${expectedWord.word}** (${expectedWord.trad}). Repeat: "${expectedWord.word}". 🎤\n\nLet's continue: how do you say "${nextPair.trad}" in English? 🤔`
+        }
       }
 
+      // No expected word yet — start drilling
+      const pair = getNextWordPair()
+      setExpectedWord(pair)
       return lang === 'fr'
-        ? 'Termine ton premier cours pour débloquer les révisions avec le coach !'
-        : 'Complete your first course to unlock coach revisions!'
+        ? `Mode révision activé ! Comment dit-on "${pair.trad}" en anglais ? 🤔`
+        : `Revision mode on! How do you say "${pair.trad}" in English? 🤔`
     }
 
-    // PROFESSIONAL MODE: GRC/business context - ALWAYS ends with a question/request
-    if (mode === 'professional') {
-      if (isUnknownPhrase(userText)) {
-        return lang === 'fr'
-          ? `Pas de souci ! Dis-moi un contexte professionnel : réunion, email, présentation ou négociation ? Je t'aiderai. 😊`
-          : `No worries! Tell me a professional context: meeting, email, presentation, or negotiation? I'll help. 😊`
-      }
-
-      if (lower.includes('réunion') || lower.includes('meeting')) {
-        const examples = lang === 'fr'
-          ? `Pour une réunion en anglais, essaie ces phrases simples :
-          • "Let's start." = Commençons.
-          • "I have a question." = J'ai une question.
-          • "Can we continue?" = Pouvons-nous continuer ?
-
-Essaie d'en utiliser une pour une fausse réunion ! 🎤`
-          : `For meetings, try these simple sentences:
-          • "Let's start."
-          • "I have a question."
-          • "Can we continue?"
-
-Try using one of these in a mock meeting! 🎤`
-        return examples
-      }
-
-      if (lower.includes('email') || lower.includes('mail')) {
-        const examples = lang === 'fr'
-          ? `Pour un email professionnel simple :
-          • "Dear [Name]," = Cher [Nom],
-          • "I am writing to..." = Je vous écris pour...
-          • "Kind regards," = Cordialement,
-
-Maintenant, commence un email en anglais ! 📧`
-          : `For professional emails:
-          • "Dear [Name],"
-          • "I am writing to..."
-          • "Kind regards,"
-
-Now, start writing an email in English! 📧`
-        return examples
-      }
-
-      if (lower.includes('présentation') || lower.includes('presentation')) {
-        const examples = lang === 'fr'
-          ? `Pour une présentation en anglais :
-          • "Good morning." = Bonjour.
-          • "Today I will..." = Aujourd'hui, je vais...
-          • "Any questions?" = Des questions ?
-
-Essaie de présenter quelque chose en anglais ! 🎤`
-          : `For presentations:
-          • "Good morning."
-          • "Today I will..."
-          • "Any questions?"
-
-Try presenting something in English! 🎤`
-        return examples
-      }
-
-      return lang === 'fr'
-        ? 'Dis-moi un contexte : réunion 📞, email 📧, présentation 🎤, ou négociation 🤝 ?'
-        : 'Tell me a context: meeting 📞, email 📧, presentation 🎤, or negotiation 🤝?'
-    }
-
-    // DISCUSSION MODE: Contextual conversation with learnt vocab - ALWAYS ends with specific question
+    // P0-6: DISCUSSION MODE = situational questions about learned words in context
     if (mode === 'discussion') {
       if (isUnknownPhrase(userText)) {
-        const learnedVocab = getLearnedVocabForContext()
-        const word = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'hello'
-        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'goodbye'
+        const pair = getNextWordPair()
+        setExpectedWord(pair)
         return lang === 'fr'
-          ? `Pas de souci ! Essaie "**${word}**". Répète : "${word}". 🎤\n\nMaintenant, comment dit-on "${nextWord}" en anglais ? 🤔`
-          : `No worries! Try "**${word}**". Repeat: "${word}". 🎤\n\nNow, how do you say "${nextWord}" in English? 🤔`
+          ? `Pas de souci ! Essaie avec "${pair.trad}". Comment dit-on ça en anglais ? 🤔`
+          : `No worries! Try "${pair.trad}". How do you say that in English? 🤔`
       }
 
-      if (lower.includes('bonjour') || lower.includes('hello') || lower.includes('hi')) {
-        const learnedVocab = getLearnedVocabForContext()
-        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'goodbye'
-        return lang === 'fr'
-          ? `Salut ! Ça va ? 👋\n\nMaintenant, comment dit-on "${nextWord}" en anglais ? 🤔`
-          : `Hi there! How are you? 👋\n\nNow, how do you say "${nextWord}" in English? 🤔`
+      // P0-5: Validate if there's an expected answer
+      if (expectedWord) {
+        const isCorrect = validateAnswer(userText, expectedWord)
+        const nextPair = getNextWordPair()
+        if (isCorrect) {
+          setExpectedWord(nextPair)
+          return lang === 'fr'
+            ? `Bravo ! "${expectedWord.word}" est correct. 🎉 Imagine que tu es dans un café. Comment utiliserais-tu "${nextPair.word}" dans une phrase ? 🎤`
+            : `Well done! "${expectedWord.word}" is correct. 🎉 Imagine you're in a café. How would you use "${nextPair.word}" in a sentence? 🎤`
+        } else {
+          setExpectedWord(nextPair)
+          return lang === 'fr'
+            ? `On cherchait **${expectedWord.word}** (${expectedWord.trad}). 📖\n\nEssaie maintenant : comment dit-on "${nextPair.trad}" en anglais ? 🤔`
+            : `We were looking for **${expectedWord.word}** (${expectedWord.trad}). 📖\n\nNow try: how do you say "${nextPair.trad}" in English? 🤔`
+        }
       }
 
-      if (lower.includes('comment') || lower.includes('how are')) {
-        const learnedVocab = getLearnedVocabForContext()
-        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'water'
-        return lang === 'fr'
-          ? `En anglais, on répond : "I\'m fine, thank you!" ou "I\'m doing well!" 🎤\n\nEssaie de faire une phrase avec "${nextWord}" ! 🎤`
-          : `In English you can say: "I\'m fine, thank you!" or "I\'m doing well!" 🎤\n\nNow try making a sentence with "${nextWord}"! 🎤`
-      }
-
-      if (lower.includes('merci') || lower.includes('thanks') || lower.includes('thank')) {
-        const learnedVocab = getLearnedVocabForContext()
-        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'please'
-        return lang === 'fr'
-          ? `Bonne réponse ! En anglais : "You\'re welcome!" ou "No problem!" 😊\n\nMaintenant, comment dit-on "${nextWord}" en anglais ? 🤔`
-          : `Good! In English: "You\'re welcome!" or "No problem!" 😊\n\nNow, how do you say "${nextWord}" in English? 🤔`
-      }
-
-      // Default encouraging prompts using learnt vocab - ALWAYS ask a specific question
-      const learnedVocab = getLearnedVocabForContext()
-      const randomWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'water'
-
-      const prompts = lang === 'fr'
-        ? [
-          `Essaie de faire une phrase avec "${randomWord}" en anglais ! Je t'aiderai. 🎤`,
-          `Maintenant, comment dit-on "${randomWord}" en anglais ? 🎤`,
-          `Très bien ! Maintenant, fais une phrase avec "${randomWord}" ! 🌟`,
-          `Bravo ! Dis-moi : comment dit-on "${randomWord}" en anglais ? 🤔`,
-        ]
-        : [
-          `Try making a sentence with "${randomWord}" in English! I\'ll help. 🎤`,
-          `Now, how do you say "${randomWord}" in English? 🎤`,
-          `Great! Now make a sentence with "${randomWord}"! 🌟`,
-          `Well done! Tell me: how do you say "${randomWord}" in English? 🤔`,
-        ]
-
-      return prompts[Math.floor(Math.random() * prompts.length)]
+      // Start discussion with situational context
+      const pair = getNextWordPair()
+      setExpectedWord(pair)
+      return lang === 'fr'
+        ? `Imagine que tu rencontres quelqu'un. Comment dit-on "${pair.trad}" en anglais ? 🤔`
+        : `Imagine you're meeting someone. How do you say "${pair.trad}" in English? 🤔`
     }
 
-    // Fallback
+    // P0-6: PROFESSIONAL MODE — hidden for A1/B, provides business context phrases
+    if (mode === 'professional') {
+      const lower = userText.toLowerCase()
+      if (isUnknownPhrase(userText)) {
+        return lang === 'fr'
+          ? `Dis-moi un contexte pro : réunion, email, ou présentation ? Je te donnerai les phrases clés. 😊`
+          : `Tell me a pro context: meeting, email, or presentation? I'll give you key phrases. 😊`
+      }
+      if (lower.includes('réunion') || lower.includes('meeting')) {
+        return lang === 'fr'
+          ? `Pour une réunion :\n• "Let's start." = Commençons.\n• "I have a question." = J'ai une question.\n• "Can we continue?" = On continue ?\n\nEssaie d'utiliser une de ces phrases ! 🎤`
+          : `For meetings:\n• "Let's start."\n• "I have a question."\n• "Can we continue?"\n\nTry using one! 🎤`
+      }
+      if (lower.includes('email') || lower.includes('mail')) {
+        return lang === 'fr'
+          ? `Pour un email pro :\n• "Dear [Name]," = Cher [Nom],\n• "I am writing to..." = Je vous écris pour...\n• "Kind regards," = Cordialement,\n\nÉcris un début d'email en anglais ! 📧`
+          : `For emails:\n• "Dear [Name],"\n• "I am writing to..."\n• "Kind regards,"\n\nWrite an email start! 📧`
+      }
+      return lang === 'fr'
+        ? 'Choisis un contexte : réunion, email, ou présentation ? 💼'
+        : 'Choose a context: meeting, email, or presentation? 💼'
+    }
+
     return lang === 'fr' ? 'Dis-moi comment je peux t\'aider !' : 'Tell me how I can help!'
   }
 
@@ -347,10 +317,18 @@ Try presenting something in English! 🎤`
     )
   }
 
+  // P0-6: Only show modes appropriate for user level (hide 'professional' for A1/Path B)
+  const userLevel = user?.progress?.[user?.activeLang || 'en']?.levelCecrl || 'A1'
+  const langConfig = user?.settings?.languageConfigs?.[user?.activeLang || 'en']
+  const learningPaths = langConfig?.learningPath
+    ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
+    : []
+  const isPathB = learningPaths.includes('B') && !learningPaths.includes('A')
+  const showPro = userLevel !== 'A1' && !isPathB
   const modes: { id: CoachMode; labelFr: string; labelEn: string; icon: string }[] = [
     { id: 'discussion', labelFr: 'Discussion', labelEn: 'Discussion', icon: '💬' },
     { id: 'revision', labelFr: 'Révision ciblée', labelEn: 'Targeted review', icon: '🎯' },
-    { id: 'professional', labelFr: 'Mode pro', labelEn: 'Professional', icon: '💼' },
+    ...(showPro ? [{ id: 'professional' as CoachMode, labelFr: 'Mode pro', labelEn: 'Professional', icon: '💼' }] : []),
   ]
 
   return (
