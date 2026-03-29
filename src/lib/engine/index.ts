@@ -130,3 +130,15 @@ export {
   recordRevisionResult,
   pruneReviewItems,
 } from './revisionEngine';
+
+// --- Migration ---
+export {
+  isMigrated,
+  migrateUserData,
+  ensureMigrated,
+  cleanupLegacyKeys,
+} from './migration';
+
+// --- React Hook Bridge ---
+export { useEngine } from './useEngine';
+export type { EngineState } from './useEngine';
