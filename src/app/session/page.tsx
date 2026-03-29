@@ -20,6 +20,7 @@ import { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises, ge
 import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, WritingExercise } from '@/lib/db/bankTypes'
 import { useEngine } from '@/lib/engine/useEngine'
 import { awardPoints } from '@/lib/engine/gamificationEngine'
+import { updateWordState } from '@/lib/engine/userProgress'
 
 // ==========================================
 // TYPES
@@ -238,6 +239,7 @@ function SessionContent() {
   const [phase, setPhase] = useState<SessionPhase>('intro')
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [introCountdown, setIntroCountdown] = useState(5)
+  const [preactivIdx, setPreactivIdx] = useState(0)
   const [exercises, setExercises] = useState<SessionExercise[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [results, setResults] = useState<SessionResult[]>([])
@@ -454,10 +456,19 @@ function SessionContent() {
 
     // V3.16 BUG-62: If no exercises generated, force vocab generation (never show empty session)
     if (allExercises.length === 0) {
-      const words = getVocabulary(activeLang, userThemes, userLevel)
-      if (words.length > 0) {
-        allExercises.push(...generateVocabExercises(words, Math.min(5, words.length), isPathB))
-        if (!usedModules.includes('vocabulaire')) usedModules.push('vocabulaire')
+      if (isA1BankCourse && courseId) {
+        // A1 course fallback: only course vocabulary
+        const fallbackVocab = getA1CourseVocabulary(courseId)
+        if (fallbackVocab.length > 0) {
+          allExercises.push(...generateVocabExercises(fallbackVocab, fallbackVocab.length, isPathB))
+          if (!usedModules.includes('vocabulaire')) usedModules.push('vocabulaire')
+        }
+      } else {
+        const words = getVocabulary(activeLang, userThemes, userLevel)
+        if (words.length > 0) {
+          allExercises.push(...generateVocabExercises(words, Math.min(5, words.length), isPathB))
+          if (!usedModules.includes('vocabulaire')) usedModules.push('vocabulaire')
+        }
       }
     }
 
@@ -615,6 +626,21 @@ function SessionContent() {
       setPhase('summary')
     }
   }, [phase, exercises.length, sessionReady, courseId])
+
+  // Preactivation: Auto-play audio when word changes (must be top-level, not conditional)
+  useEffect(() => {
+    if (phase !== 'preactivation') return
+    const courseVocab = courseId ? getA1CourseVocabulary(courseId) : []
+    const activeLang = user?.activeLang || user?.settings.learningLangs[0] || 'en'
+    if (courseVocab.length > 0 && preactivIdx < courseVocab.length) {
+      const word = courseVocab[preactivIdx]
+      const timer = setTimeout(() => {
+        speakText(word.word_target, activeLang)
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, preactivIdx, courseId])
 
   const currentExercise = exercises[currentIdx]
 
@@ -958,7 +984,7 @@ function SessionContent() {
         }
       } catch { /* ignore storage errors */ }
 
-      // Phase 12: Award engine gamification points
+      // Phase 12: Award engine gamification points + vocabulary progression
       if (engine.progress) {
         engine.updateProgress(prev => {
           let updated = awardPoints(prev, 'course_completed', courseId)
@@ -967,10 +993,18 @@ function SessionContent() {
           for (const ex of correctExercises) {
             updated = awardPoints(updated, 'exercise_correct', ex.exercise?.data?.id || courseId)
           }
-          // Award word_learned for each vocab word in the course
+          // Award word_learned + mark vocabulary as 'learned' for progression tracking
           const courseVocab = getA1CourseVocabulary(courseId)
           for (const w of courseVocab) {
             updated = awardPoints(updated, 'word_learned', w.id)
+            updated = updateWordState(updated, w.id, 'learned')
+          }
+          // Recalc vocabulary percent based on total A1 words vs learned
+          const totalA1Words = 40 * 7 // 40 courses × ~7 words avg
+          const learnedCount = Object.values(updated.wordStates).filter(s => s === 'learned' || s === 'mastered').length
+          updated = {
+            ...updated,
+            vocabularyPercent: Math.round((learnedCount / totalA1Words) * 100),
           }
           return updated
         })
@@ -1284,51 +1318,104 @@ function SessionContent() {
   }
 
   // ==========================================
-  // PHASE: PREACTIVATION (V4 step 1)
+  // PHASE: PREACTIVATION (V4 step 1) - Interactive Carousel
   // ==========================================
   if (phase === 'preactivation') {
     const courseVocab = courseId ? getA1CourseVocabulary(courseId) : []
     const activeLang = user?.activeLang || user?.settings.learningLangs[0] || 'en'
+
+    const currentWord = courseVocab[preactivIdx]
+    const isLastWord = preactivIdx === courseVocab.length - 1
+    const progress = courseVocab.length > 0 ? Math.round(((preactivIdx + 1) / courseVocab.length) * 100) : 0
+
     return (
       <div className="min-h-screen bg-[#F0F0F0] pb-20">
         <PageHeader title={lang === 'fr' ? 'Pré-activation' : 'Pre-activation'} backHref="/dashboard" />
         <main className="px-4 pt-6 max-w-lg mx-auto">
-          <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
-            <h2 className="text-xl font-bold text-[#002844] mb-2">
-              {lang === 'fr' ? 'Découvre les mots du cours' : 'Discover the course words'}
-            </h2>
-            <p className="text-sm text-[#555555] mb-4">
-              {lang === 'fr' ? 'Écoute et familiarise-toi avec ces mots avant de commencer.' : 'Listen and get familiar with these words before starting.'}
-            </p>
-            <div className="space-y-3">
-              {courseVocab.slice(0, 8).map((w, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#F0F0F0]">
-                  {w.image ? (
-                    <img src={w.image} alt={w.word_target} className="w-10 h-10 rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📝</div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-[#002844]">{w.word_target}</p>
-                    <p className="text-xs text-[#555555]">{w.word_fr}</p>
-                    {w.phonetic && <p className="text-xs text-[#888888] italic">/{w.phonetic}/</p>}
-                  </div>
-                  <button
-                    onClick={() => speakText(w.word_target, activeLang)}
-                    className="p-2 rounded-full bg-[#002844] text-white hover:opacity-90 transition-opacity"
-                  >
-                    <Volume2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+          {/* Progress bar */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-[#555555]">
+                {preactivIdx + 1} / {courseVocab.length}
+              </span>
+              <span className="text-sm font-bold text-[#002844]">{progress}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-gray-200">
+              <div
+                className="h-full rounded-full bg-[#002844] transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
-          <button
-            onClick={() => setPhase('rule_display')}
-            className="w-full py-3 rounded-xl bg-[#002844] text-white font-semibold text-lg hover:opacity-90 transition-opacity"
-          >
-            {lang === 'fr' ? 'Voir la règle de grammaire' : 'See the grammar rule'}
-          </button>
+
+          {currentWord ? (
+            <div className="rounded-2xl bg-white p-8 shadow-sm mb-6 text-center">
+              {/* Word image - large */}
+              <div className="mb-6 flex justify-center">
+                {currentWord.image ? (
+                  <img
+                    src={currentWord.image}
+                    alt={currentWord.word_target}
+                    className="w-40 h-40 rounded-2xl object-cover shadow-md"
+                  />
+                ) : (
+                  <div className="w-40 h-40 rounded-2xl bg-gray-200 flex items-center justify-center text-6xl">📝</div>
+                )}
+              </div>
+
+              {/* Word and phonetics */}
+              <h2 className="text-3xl font-bold text-[#002844] mb-2">{currentWord.word_target}</h2>
+              {currentWord.phonetic && (
+                <p className="text-lg text-[#888888] italic mb-4">/{currentWord.phonetic}/</p>
+              )}
+              <p className="text-lg text-[#555555] mb-6">{currentWord.word_fr}</p>
+
+              {/* Repeat button */}
+              <button
+                onClick={() => speakText(currentWord.word_target, activeLang)}
+                className="flex items-center gap-2 mx-auto px-4 py-3 rounded-lg bg-[#E8F4F8] text-[#002844] text-sm font-semibold hover:opacity-90 transition-opacity mb-6"
+              >
+                <Volume2 className="h-4 w-4" />
+                {lang === 'fr' ? 'Répéter' : 'Repeat'}
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-white p-8 shadow-sm mb-6 text-center">
+              <p className="text-[#555555]">
+                {lang === 'fr' ? 'Aucun mot à afficher' : 'No words to display'}
+              </p>
+            </div>
+          )}
+
+          {/* Navigation buttons */}
+          <div className="flex gap-3">
+            {preactivIdx > 0 && (
+              <button
+                onClick={() => setPreactivIdx(preactivIdx - 1)}
+                className="flex-1 py-3 rounded-xl bg-gray-200 text-[#002844] font-semibold hover:opacity-90 transition-opacity"
+              >
+                {lang === 'fr' ? '← Précédent' : '← Previous'}
+              </button>
+            )}
+            {!isLastWord ? (
+              <button
+                onClick={() => setPreactivIdx(preactivIdx + 1)}
+                className="flex-1 py-3 rounded-xl bg-[#002844] text-white font-semibold hover:opacity-90 transition-opacity"
+              >
+                {lang === 'fr' ? 'Suivant →' : 'Next →'}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setPreactivIdx(0)
+                  setPhase('rule_display')
+                }}
+                className="flex-1 py-3 rounded-xl bg-[#D9B438] text-[#002844] font-semibold hover:opacity-90 transition-opacity"
+              >
+                {lang === 'fr' ? 'Voir la règle →' : 'See rule →'}
+              </button>
+            )}
+          </div>
         </main>
         <BottomNav lang={lang} />
       </div>
@@ -1348,20 +1435,25 @@ function SessionContent() {
           <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
             {courseData?.rule ? (
               <>
-                <h2 className="text-xl font-bold text-[#002844] mb-4">
-                  {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
-                </h2>
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-[#888888] uppercase mb-1">
+                    {lang === 'fr' ? 'Explication en français' : 'French explanation'}
+                  </p>
+                  <h2 className="text-xl font-bold text-[#002844]">
+                    {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
+                  </h2>
+                </div>
                 <button
                   onClick={() => speakText(courseData.rule.en, activeLang)}
                   className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-[#E8F4F8] text-[#002844] text-sm font-semibold hover:opacity-90 transition-opacity"
                 >
-                  <Volume2 className="h-4 w-4" /> {lang === 'fr' ? 'Écouter la règle' : 'Listen to the rule'}
+                  <Volume2 className="h-4 w-4" /> {lang === 'fr' ? 'Écouter les exemples' : 'Listen to examples'}
                 </button>
                 {courseData.examples && courseData.examples.length > 0 && (
                   <div className="mt-4">
-                    <h3 className="text-sm font-bold text-[#002844] mb-2">
-                      {lang === 'fr' ? 'Exemples' : 'Examples'}
-                    </h3>
+                    <p className="text-xs font-semibold text-[#888888] uppercase mb-2">
+                      {lang === 'fr' ? 'Exemples en anglais' : 'English examples'}
+                    </p>
                     <div className="space-y-2">
                       {courseData.examples.map((ex, i) => (
                         <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[#F0F0F0]">

@@ -209,9 +209,9 @@ export default function DashboardPage() {
   // --- CTA text ---
   const ctaText = (() => {
     if (isRevisionPriority) return lang === 'fr' ? '🧠 Réviser maintenant' : '🧠 Review now'
-    if (courseInfo.hasResume) return lang === 'fr' ? '🚀 Reprendre là où tu t\'es arrêté' : '🚀 Resume where you left off'
-    if (courseInfo.isFirstTime) return lang === 'fr' ? '🎯 Commencer ton parcours' : '🎯 Start your journey'
-    return lang === 'fr' ? '🎯 Continuer ton parcours' : '🎯 Continue your journey'
+    if (courseInfo.hasResume) return lang === 'fr' ? '🚀 Reprendre où je me suis arrêté' : '🚀 Resume where I left off'
+    if (courseInfo.isFirstTime) return lang === 'fr' ? '🎯 Commencer mon parcours' : '🎯 Start my journey'
+    return lang === 'fr' ? '🎯 Continuer mon parcours' : '🎯 Continue my journey'
   })()
 
   // --- CTA href (SYNC rule: matches parcours node) ---
@@ -283,7 +283,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <main className="px-4 pt-4 max-w-lg mx-auto">
+      <main className="px-4 pt-4 max-w-lg lg:max-w-2xl mx-auto">
         {/* ---- 1. HEADER: Hello + Streak + % A1 ---- */}
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {displayName} 👋</h2>

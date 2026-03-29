@@ -1,14 +1,14 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage } from '@/types'
-import { speakText } from '@/lib/db/bankHelpers'
 import PageHeader from '@/components/PageHeader'
 import BottomNav from '@/components/BottomNav'
-import { useEngine } from '@/lib/engine/useEngine'
-import { Send } from 'lucide-react'
+import { Send, Mic, MicOff } from 'lucide-react'
 
 type CoachMode = 'discussion' | 'revision' | 'professional'
 
@@ -18,25 +18,91 @@ interface Message {
   timestamp: Date
 }
 
+interface WeakWord {
+  word: string
+  word_native: string
+  score: number
+}
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: any
+  }
+}
+
 export default function CoachPage() {
   const router = useRouter()
-  const engine = useEngine()
   const [user, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<CoachMode>('discussion')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const [learntVocab, setLearntVocab] = useState<string[]>([])
+  const [weakWords, setWeakWords] = useState<WeakWord[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recognitionRef = useRef<any>(null)
+
+  // Initialize speech recognition
+  useEffect(() => {
+    const SpeechRecognition = window.webkitSpeechRecognition || (window as any).SpeechRecognition
+    if (SpeechRecognition) {
+      setSpeechSupported(true)
+      recognitionRef.current = new SpeechRecognition()
+      recognitionRef.current.continuous = false
+      recognitionRef.current.interimResults = false
+      recognitionRef.current.lang = lang === 'fr' ? 'fr-FR' : 'en-US'
+
+      recognitionRef.current.onstart = () => setIsListening(true)
+      recognitionRef.current.onend = () => setIsListening(false)
+      recognitionRef.current.onerror = () => setIsListening(false)
+
+      recognitionRef.current.onresult = (event: any) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            setInput(prev => prev + (prev ? ' ' : '') + transcript)
+          }
+        }
+      }
+    }
+  }, [lang])
 
   useEffect(() => {
     const currentUser = getCurrentUser()
-    if (!currentUser) { router.push('/auth'); return }
+    if (!currentUser) {
+      router.push('/auth')
+      return
+    }
     setUser(currentUser)
-    setLang(currentUser.settings.interfaceLang || 'fr')
+    const interfaceLang = currentUser.settings.interfaceLang || 'fr'
+    setLang(interfaceLang)
+
+    // Load learnt vocabulary from completed courses
+    const completedCourses = JSON.parse(localStorage.getItem('completedCourses') || '[]')
+    const learnedWords = new Set<string>()
+    completedCourses.forEach((course: any) => {
+      if (course.words && Array.isArray(course.words)) {
+        course.words.forEach((word: any) => {
+          if (typeof word === 'string') learnedWords.add(word)
+          else if (word.word) learnedWords.add(word.word)
+        })
+      }
+    })
+    setLearntVocab(Array.from(learnedWords))
+
+    // Load weak words from review items
+    const reviewItems = JSON.parse(localStorage.getItem('reviewItems') || '[]')
+    const weak = reviewItems
+      .filter((item: any) => item.score < 0.6)
+      .sort((a: any, b: any) => a.score - b.score)
+      .slice(0, 20)
+    setWeakWords(weak)
 
     // Initial coach greeting
-    const greeting = currentUser.settings.interfaceLang === 'fr'
+    const greeting = interfaceLang === 'fr'
       ? `Salut ${currentUser.firstName || 'apprenant'} ! Je suis ton coach IA. Comment veux-tu t'entraîner aujourd'hui ?`
       : `Hi ${currentUser.firstName || 'learner'}! I'm your AI coach. How would you like to practice today?`
 
@@ -48,70 +114,165 @@ export default function CoachPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const activeLang = user?.activeLang || 'en'
+  // Check if user said "I don't know"
+  const isUnknownPhrase = (text: string): boolean => {
+    const lower = text.toLowerCase().trim()
+    return (
+      lower === 'je ne sais pas' ||
+      lower === 'i don\'t know' ||
+      lower === 'i dont know' ||
+      lower === 'dunno' ||
+      lower === 'no idea' ||
+      lower === 'idk'
+    )
+  }
+
+  // Get learnt vocabulary for discussion mode
+  const getLearnedVocabForContext = (): string[] => {
+    const learned = learntVocab.slice(0, 10) // Use first 10 for variety
+    return learned.length > 0 ? learned : ['hello', 'goodbye', 'thank you']
+  }
 
   // Generate coach response based on mode
   const generateResponse = (userText: string): string => {
     const lower = userText.toLowerCase()
 
+    // REVISION MODE: Coach asks about weak words
     if (mode === 'revision') {
-      // Revision mode: quiz the user on vocabulary
-      const training = engine.progress ? engine.getTraining('guided') : null
-      if (training && training.words.length > 0) {
-        const randomWord = training.words[Math.floor(Math.random() * training.words.length)]
+      if (isUnknownPhrase(userText)) {
+        // User doesn't know - give answer, example, ask to repeat
+        if (weakWords.length > 0) {
+          const word = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
+          const answer = word.word
+          const nativeWord = word.word_native
+
+          // Coach gives answer and example in pedagogical language
+          const response = lang === 'fr'
+            ? `Pas de souci ! "${nativeWord}" se dit **${answer}** en anglais. Par exemple : "I like apples." Répète après moi : "${answer}". 🎤`
+            : `No worries! "${nativeWord}" is **${answer}** in English. For example: "I like apples." Repeat after me: "${answer}". 🎤`
+          return response
+        }
         return lang === 'fr'
-          ? `Comment dit-on "${randomWord.word_native}" en anglais ? 🤔`
-          : `How do you say "${randomWord.word_native}" in English? 🤔`
+          ? 'Complète un premier cours pour débloquer les révisions !'
+          : 'Complete your first course to unlock revisions!'
       }
+
+      // Normal revision: ask about a weak word
+      if (weakWords.length > 0) {
+        const word = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
+        return lang === 'fr'
+          ? `Comment dit-on "${word.word_native}" en anglais ? 🤔`
+          : `How do you say "${word.word_native}" in English? 🤔`
+      }
+
       return lang === 'fr'
         ? 'Termine ton premier cours pour débloquer les révisions avec le coach !'
         : 'Complete your first course to unlock coach revisions!'
     }
 
+    // PROFESSIONAL MODE: GRC/business context
     if (mode === 'professional') {
-      // Professional mode: GRC/business context
+      if (isUnknownPhrase(userText)) {
+        return lang === 'fr'
+          ? `Pas de souci ! Dis-moi un contexte professionnel : réunion, email, présentation ou négociation ? Je t'aiderai. 😊`
+          : `No worries! Tell me a professional context: meeting, email, presentation, or negotiation? I'll help. 😊`
+      }
+
       if (lower.includes('réunion') || lower.includes('meeting')) {
-        return lang === 'fr'
-          ? 'Pour une réunion en anglais, essaie : "Let\'s start with the agenda." / "I\'d like to raise a point." / "Can we move to the next item?"'
-          : 'For meetings, try: "Let\'s start with the agenda." / "I\'d like to raise a point." / "Can we move to the next item?"'
+        const examples = lang === 'fr'
+          ? `Pour une réunion en anglais, essaie ces phrases simples :
+          • "Let's start." = Commençons.
+          • "I have a question." = J'ai une question.
+          • "Can we continue?" = Pouvons-nous continuer ? 🎤`
+          : `For meetings, try these simple sentences:
+          • "Let's start."
+          • "I have a question."
+          • "Can we continue?" 🎤`
+        return examples
       }
+
       if (lower.includes('email') || lower.includes('mail')) {
-        return lang === 'fr'
-          ? 'Structure d\'un email pro : "Dear [Name], I am writing to..." puis "Kind regards, [Your name]"'
-          : 'Professional email structure: "Dear [Name], I am writing to..." then "Kind regards, [Your name]"'
+        const examples = lang === 'fr'
+          ? `Pour un email professionnel simple :
+          • "Dear [Name]," = Cher [Nom],
+          • "I am writing to..." = Je vous écris pour...
+          • "Kind regards," = Cordialement, 📧`
+          : `For professional emails:
+          • "Dear [Name],"
+          • "I am writing to..."
+          • "Kind regards," 📧`
+        return examples
       }
+
+      if (lower.includes('présentation') || lower.includes('presentation')) {
+        const examples = lang === 'fr'
+          ? `Pour une présentation en anglais :
+          • "Good morning." = Bonjour.
+          • "Today I will..." = Aujourd'hui, je vais...
+          • "Any questions?" = Des questions ? 🎤`
+          : `For presentations:
+          • "Good morning."
+          • "Today I will..."
+          • "Any questions?" 🎤`
+        return examples
+      }
+
       return lang === 'fr'
-        ? 'Dis-moi le contexte professionnel : réunion, email, présentation, ou négociation ?'
-        : 'Tell me the professional context: meeting, email, presentation, or negotiation?'
+        ? 'Dis-moi un contexte : réunion 📞, email 📧, présentation 🎤, ou négociation 🤝 ?'
+        : 'Tell me a context: meeting 📞, email 📧, presentation 🎤, or negotiation 🤝?'
     }
 
-    // Discussion mode: respond contextually
-    if (lower.includes('bonjour') || lower.includes('hello') || lower.includes('hi')) {
-      speakText('Hello! Nice to meet you!', activeLang)
-      return 'Hello! Nice to meet you! 👋 How are you doing today?'
+    // DISCUSSION MODE: Contextual conversation with learnt vocab
+    if (mode === 'discussion') {
+      if (isUnknownPhrase(userText)) {
+        const learnedVocab = getLearnedVocabForContext()
+        const word = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'hello'
+        return lang === 'fr'
+          ? `Pas de souci ! Essaie "**${word}**". Répète : "${word}". 🎤`
+          : `No worries! Try "**${word}**". Repeat: "${word}". 🎤`
+      }
+
+      if (lower.includes('bonjour') || lower.includes('hello') || lower.includes('hi')) {
+        return lang === 'fr'
+          ? 'Salut ! Ça va ? 👋 (En anglais tu peux dire "Hi!" ou "Hello!")'
+          : 'Hi there! How are you? 👋'
+      }
+
+      if (lower.includes('comment') || lower.includes('how are')) {
+        return lang === 'fr'
+          ? 'En anglais, on répond : "I\'m fine, thank you!" ou "I\'m doing well!" Essaie ! 🎤'
+          : 'In English you can say: "I\'m fine, thank you!" or "I\'m doing well!" Try it! 🎤'
+      }
+
+      if (lower.includes('merci') || lower.includes('thanks') || lower.includes('thank')) {
+        return lang === 'fr'
+          ? 'Bonne réponse ! En anglais : "You\'re welcome!" ou "No problem!" 😊'
+          : 'Good! In English: "You\'re welcome!" or "No problem!" 😊'
+      }
+
+      // Default encouraging prompts using learnt vocab
+      const learnedVocab = getLearnedVocabForContext()
+      const randomWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'water'
+
+      const prompts = lang === 'fr'
+        ? [
+          `Essaie de faire une phrase avec "${randomWord}" en anglais ! Je t'aiderai. 🎤`,
+          'Raconte-moi quelque chose en anglais ! Je corrigerai gentiment.',
+          'Peux-tu me poser une question en anglais ?',
+          'Très bien ! Continue comme ça. Dis-moi une autre phrase ! 🌟',
+        ]
+        : [
+          `Try making a sentence with "${randomWord}" in English! I\'ll help. 🎤`,
+          'Tell me something in English! I\'ll help you improve.',
+          'Can you ask me a question in English?',
+          'Well done! Keep going. Tell me another sentence! 🌟',
+        ]
+
+      return prompts[Math.floor(Math.random() * prompts.length)]
     }
 
-    if (lower.includes('comment') || lower.includes('how')) {
-      return lang === 'fr'
-        ? 'En anglais, on répond "I\'m fine, thank you!" ou "I\'m doing well!" Essaie de me le dire ! 🎤'
-        : 'You can answer: "I\'m fine, thank you!" or "I\'m doing well!" Try saying it! 🎤'
-    }
-
-    // Default: encourage practice
-    const prompts = lang === 'fr'
-      ? [
-        'Essaie de me dire une phrase en anglais ! Je corrigerai.',
-        'Comment dirais-tu ça en anglais ? Je t\'aide.',
-        'Répète après moi : "I would like to practice English." 🎤',
-        'Bonne réponse ! Continue comme ça. Essaie maintenant de me poser une question en anglais.',
-      ]
-      : [
-        'Try telling me a sentence in English! I\'ll help you improve it.',
-        'How would you say that in English? Let me help.',
-        'Repeat after me: "I would like to practice English." 🎤',
-        'Good job! Keep going. Now try asking me a question in English.',
-      ]
-    return prompts[Math.floor(Math.random() * prompts.length)]
+    // Fallback
+    return lang === 'fr' ? 'Dis-moi comment je peux t\'aider !' : 'Tell me how I can help!'
   }
 
   const handleSend = () => {
@@ -125,6 +286,18 @@ export default function CoachPage() {
       const response = generateResponse(userMsg.text)
       setMessages(prev => [...prev, { role: 'coach', text: response, timestamp: new Date() }])
     }, 600)
+  }
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) return
+
+    if (isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      setInput('')
+      recognitionRef.current.start()
+    }
   }
 
   if (loading || !user) {
@@ -166,7 +339,7 @@ export default function CoachPage() {
                 <span className="text-sm">🤖</span>
               </div>
             )}
-            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
               msg.role === 'user'
                 ? 'bg-[#002844] text-white rounded-br-md'
                 : 'bg-white text-[#002844] shadow-sm rounded-bl-md'
@@ -178,9 +351,9 @@ export default function CoachPage() {
         <div ref={messagesEndRef} />
       </main>
 
-      {/* Input */}
+      {/* Input with microphone */}
       <div className="bg-white border-t px-4 py-3 pb-20">
-        <div className="flex gap-2 max-w-lg mx-auto">
+        <div className="flex gap-2 max-w-lg mx-auto items-center">
           <input
             type="text"
             value={input}
@@ -189,6 +362,24 @@ export default function CoachPage() {
             placeholder={lang === 'fr' ? 'Écris ton message...' : 'Type your message...'}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#002844] focus:outline-none focus:border-[#D9B438]"
           />
+
+          {/* Microphone button */}
+          <button
+            onClick={handleMicClick}
+            disabled={!speechSupported}
+            title={speechSupported ? (lang === 'fr' ? 'Parle' : 'Speak') : (lang === 'fr' ? 'Non supporté' : 'Not supported')}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+              speechSupported
+                ? isListening
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+            }`}
+          >
+            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
+
+          {/* Send button */}
           <button onClick={handleSend} disabled={!input.trim()}
             className="w-10 h-10 rounded-xl bg-[#002844] flex items-center justify-center disabled:opacity-50">
             <Send className="h-4 w-4 text-white" />
