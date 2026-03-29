@@ -1796,7 +1796,7 @@ export default function AdminImportsPage() {
                                             return;
                                           }
 
-                                          // BUG-94: Compress image before storing to avoid localStorage quota exceeded
+                                          // Phase 11: Aggressive compression to prevent crash after 2+ images
                                           const canvas = document.createElement('canvas');
                                           const ctx = canvas.getContext('2d');
                                           if (!ctx) {
@@ -1805,22 +1805,37 @@ export default function AdminImportsPage() {
                                           }
                                           const img = new Image();
                                           img.onload = () => {
-                                            const maxSize = 200;
+                                            // Phase 11: Reduce to 120x120 max, quality 0.4 to fit more images
+                                            const maxSize = 120;
                                             const scale = Math.min(maxSize / img.width, maxSize / img.height);
-                                            canvas.width = img.width * scale;
-                                            canvas.height = img.height * scale;
+                                            canvas.width = Math.round(img.width * scale);
+                                            canvas.height = Math.round(img.height * scale);
                                             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                                            try {
-                                              localStorage.setItem(storageKey, compressedBase64);
-                                              // Force re-render by toggling accordion
-                                              setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
-                                              setTimeout(() => {
-                                                setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
-                                              }, 100);
-                                            } catch {
-                                              alert(lang === 'fr' ? 'Stockage plein. Supprimez des images.' : 'Storage full. Delete some images.');
+                                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
+
+                                            // Phase 11: Check size before storing (~5KB per image limit)
+                                            if (compressedBase64.length > 8000) {
+                                              // Re-compress at even lower quality
+                                              const ultra = canvas.toDataURL('image/jpeg', 0.2);
+                                              try {
+                                                localStorage.setItem(storageKey, ultra);
+                                              } catch {
+                                                alert(lang === 'fr' ? 'Stockage plein. Supprimez des images avant d\'en ajouter.' : 'Storage full. Remove images before adding more.');
+                                                return;
+                                              }
+                                            } else {
+                                              try {
+                                                localStorage.setItem(storageKey, compressedBase64);
+                                              } catch {
+                                                alert(lang === 'fr' ? 'Stockage plein. Supprimez des images avant d\'en ajouter.' : 'Storage full. Remove images before adding more.');
+                                                return;
+                                              }
                                             }
+                                            // Force re-render by toggling accordion
+                                            setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
+                                            setTimeout(() => {
+                                              setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
+                                            }, 100);
                                           };
                                           const reader = new FileReader();
                                           reader.onload = (event) => {

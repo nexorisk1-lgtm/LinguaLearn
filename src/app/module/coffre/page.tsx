@@ -488,18 +488,30 @@ function CoffreContent() {
                 </button>
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-lg text-[#555555]">{word.word_fr}</p>
-                  {/* BUG-75 + BUG-87: Image du mot ou placeholder */}
+                  {/* BUG-75 + BUG-87 + Phase 11: Image with admin localStorage bridge */}
                   <div className="mt-3">
-                    {word.image ? (
-                      <img src={word.image} alt={word.word_target} className="w-60 h-60 object-cover rounded-lg mx-auto" style={{ minWidth: '240px', minHeight: '240px' }} />
-                    ) : (
-                      <div className="w-60 h-60 rounded-lg mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center" style={{ minWidth: '240px', minHeight: '240px' }}>
-                        <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-[10px] text-gray-400 mt-1">Image</span>
-                      </div>
-                    )}
+                    {(() => {
+                      // Phase 11: Check admin-uploaded image first, then bankA1 image field
+                      let displayImg = word.image || '';
+                      try {
+                        const wordIdx = exercises.findIndex(e => e.word.id === word.id);
+                        if (wordIdx >= 0 && courseIdParam) {
+                          const adminImg = localStorage.getItem(`lingualearn_vocab_image_${courseIdParam}_${wordIdx}`);
+                          if (adminImg) displayImg = adminImg;
+                        }
+                      } catch { /* ignore */ }
+                      if (displayImg) {
+                        return <img src={displayImg} alt={word.word_target} className="w-60 h-60 object-cover rounded-lg mx-auto" style={{ minWidth: '240px', minHeight: '240px' }} />;
+                      }
+                      return (
+                        <div className="w-60 h-60 rounded-lg mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center" style={{ minWidth: '240px', minHeight: '240px' }}>
+                          <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[10px] text-gray-400 mt-1">Image</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-[#999] mt-2 uppercase tracking-wide">{word.theme} · {word.level}</p>
                 </div>
