@@ -209,9 +209,9 @@ export default function DashboardPage() {
   // --- CTA text ---
   const ctaText = (() => {
     if (isRevisionPriority) return lang === 'fr' ? '🧠 Réviser maintenant' : '🧠 Review now'
-    if (courseInfo.hasResume) return lang === 'fr' ? '🚀 Reprendre où je me suis arrêté' : '🚀 Resume where I left off'
-    if (courseInfo.isFirstTime) return lang === 'fr' ? '🎯 Commencer mon parcours' : '🎯 Start my journey'
-    return lang === 'fr' ? '🎯 Continuer mon parcours' : '🎯 Continue my journey'
+    if (courseInfo.hasResume) return lang === 'fr' ? '🚀 Reprendre ma leçon' : '🚀 Resume my lesson'
+    if (courseInfo.isFirstTime) return lang === 'fr' ? `🎯 Commencer ma leçon (${courseInfo.estimatedMin} min)` : `🎯 Start my lesson (${courseInfo.estimatedMin} min)`
+    return lang === 'fr' ? `🎯 Continuer ma leçon (${courseInfo.estimatedMin} min)` : `🎯 Continue my lesson (${courseInfo.estimatedMin} min)`
   })()
 
   // --- CTA href (SYNC rule: matches parcours node) ---
@@ -294,6 +294,9 @@ export default function DashboardPage() {
         </div>
         <p className="text-sm font-semibold text-[#002844] mb-4">
           {lang === 'fr' ? `Tu es à ${courseInfo.pctA1}% du niveau A1` : `You're ${courseInfo.pctA1}% through A1`}
+          <span className="text-[10px] bg-[#E8F4F8] text-[#002844] font-bold px-2 py-0.5 rounded-full ml-2">
+            {lang === 'fr' ? 'Débutant' : 'Beginner'}
+          </span>
         </p>
 
         {/* ---- 2. CTA PRINCIPAL (dominant) ---- */}
@@ -370,11 +373,11 @@ export default function DashboardPage() {
         )}
 
         {/* ---- 5. ENTRAÎNEMENT ---- */}
-        <a href="/module/entrainement" className="block mb-4 rounded-xl bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
+        <a href="/module/entrainement" className="block mb-4 rounded-xl bg-gray-50 border border-gray-200 p-4 active:scale-[0.99] transition-transform">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <span className="text-xl">🎮</span>
-              <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Renforcer ce que tu sais' : 'Reinforce what you know'}</p>
+              <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Réviser ce que tu sais' : 'Review what you know'}</p>
             </div>
             <span className="bg-[#E65100] text-white px-3 py-1.5 rounded-lg text-xs font-bold">
               {lang === 'fr' ? 'Lancer — 5 min' : 'Start — 5 min'}
@@ -383,6 +386,13 @@ export default function DashboardPage() {
           <p className="text-[10px] text-[#555]">
             💡 {lang === 'fr' ? 'Astuce : le mode Battle précision est recommandé pour ton niveau' : '💡 Tip: Precision Battle mode is recommended for your level'}
           </p>
+        </a>
+
+        {/* ---- 5B. VOIR MON PARCOURS ---- */}
+        <a href="/module/parcours" className="block mb-4 text-center">
+          <span className="text-sm font-semibold text-[#002844] underline underline-offset-2">
+            {lang === 'fr' ? 'Voir mon parcours →' : 'View my path →'}
+          </span>
         </a>
 
         {/* ---- 6. PROGRESSION (compact) ---- */}

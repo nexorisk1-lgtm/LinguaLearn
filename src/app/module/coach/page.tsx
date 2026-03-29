@@ -101,12 +101,29 @@ export default function CoachPage() {
       .slice(0, 20)
     setWeakWords(weak)
 
-    // Initial coach greeting
+    // Initial coach greeting with proactive first question
     const greeting = interfaceLang === 'fr'
-      ? `Salut ${currentUser.firstName || 'apprenant'} ! Je suis ton coach IA. Comment veux-tu t'entraîner aujourd'hui ?`
-      : `Hi ${currentUser.firstName || 'learner'}! I'm your AI coach. How would you like to practice today?`
+      ? `Salut ${currentUser.firstName || 'apprenant'} ! On s'entraîne ensemble ?`
+      : `Hi ${currentUser.firstName || 'learner'}! Let's practice together?`
 
-    setMessages([{ role: 'coach', text: greeting, timestamp: new Date() }])
+    // Coach proactive first question based on learned vocab
+    let firstQuestion = ''
+    if (learnedWords.size > 0) {
+      const wordsArr = Array.from(learnedWords)
+      const randomWord = wordsArr[Math.floor(Math.random() * Math.min(5, wordsArr.length))]
+      firstQuestion = interfaceLang === 'fr'
+        ? `On vient de voir "${randomWord}". Comment dit-on ce mot en anglais ? 🤔`
+        : `We just learned "${randomWord}". How do you say this word? 🤔`
+    } else {
+      firstQuestion = interfaceLang === 'fr'
+        ? `Commençons simplement : comment dit-on "bonjour" en anglais ? 🤔`
+        : `Let's start simple: how do you say "hello" in English? 🤔`
+    }
+
+    setMessages([
+      { role: 'coach', text: greeting, timestamp: new Date() },
+      { role: 'coach', text: firstQuestion, timestamp: new Date() },
+    ])
     setLoading(false)
   }, [router])
 
@@ -137,19 +154,22 @@ export default function CoachPage() {
   const generateResponse = (userText: string): string => {
     const lower = userText.toLowerCase()
 
-    // REVISION MODE: Coach asks about weak words
+    // REVISION MODE: Coach asks about weak words - ALWAYS ends with new question
     if (mode === 'revision') {
       if (isUnknownPhrase(userText)) {
-        // User doesn't know - give answer, example, ask to repeat
+        // User doesn't know - give answer, example, ask to repeat then ask next word
         if (weakWords.length > 0) {
           const word = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
           const answer = word.word
           const nativeWord = word.word_native
 
-          // Coach gives answer and example in pedagogical language
+          // Get next word for follow-up question
+          const nextWord = weakWords[Math.floor(Math.random() * Math.min(5, weakWords.length))]
+
+          // Coach gives answer and example in pedagogical language, then asks next question
           const response = lang === 'fr'
-            ? `Pas de souci ! "${nativeWord}" se dit **${answer}** en anglais. Par exemple : "I like apples." Répète après moi : "${answer}". 🎤`
-            : `No worries! "${nativeWord}" is **${answer}** in English. For example: "I like apples." Repeat after me: "${answer}". 🎤`
+            ? `Pas de souci ! "${nativeWord}" se dit **${answer}** en anglais. Par exemple : "I like apples." Répète après moi : "${answer}". 🎤\n\nMaintenant, comment dit-on "${nextWord.word_native}" en anglais ? 🤔`
+            : `No worries! "${nativeWord}" is **${answer}** in English. For example: "I like apples." Repeat after me: "${answer}". 🎤\n\nNow, how do you say "${nextWord.word_native}" in English? 🤔`
           return response
         }
         return lang === 'fr'
@@ -170,7 +190,7 @@ export default function CoachPage() {
         : 'Complete your first course to unlock coach revisions!'
     }
 
-    // PROFESSIONAL MODE: GRC/business context
+    // PROFESSIONAL MODE: GRC/business context - ALWAYS ends with a question/request
     if (mode === 'professional') {
       if (isUnknownPhrase(userText)) {
         return lang === 'fr'
@@ -183,11 +203,15 @@ export default function CoachPage() {
           ? `Pour une réunion en anglais, essaie ces phrases simples :
           • "Let's start." = Commençons.
           • "I have a question." = J'ai une question.
-          • "Can we continue?" = Pouvons-nous continuer ? 🎤`
+          • "Can we continue?" = Pouvons-nous continuer ?
+
+Essaie d'en utiliser une pour une fausse réunion ! 🎤`
           : `For meetings, try these simple sentences:
           • "Let's start."
           • "I have a question."
-          • "Can we continue?" 🎤`
+          • "Can we continue?"
+
+Try using one of these in a mock meeting! 🎤`
         return examples
       }
 
@@ -196,11 +220,15 @@ export default function CoachPage() {
           ? `Pour un email professionnel simple :
           • "Dear [Name]," = Cher [Nom],
           • "I am writing to..." = Je vous écris pour...
-          • "Kind regards," = Cordialement, 📧`
+          • "Kind regards," = Cordialement,
+
+Maintenant, commence un email en anglais ! 📧`
           : `For professional emails:
           • "Dear [Name],"
           • "I am writing to..."
-          • "Kind regards," 📧`
+          • "Kind regards,"
+
+Now, start writing an email in English! 📧`
         return examples
       }
 
@@ -209,11 +237,15 @@ export default function CoachPage() {
           ? `Pour une présentation en anglais :
           • "Good morning." = Bonjour.
           • "Today I will..." = Aujourd'hui, je vais...
-          • "Any questions?" = Des questions ? 🎤`
+          • "Any questions?" = Des questions ?
+
+Essaie de présenter quelque chose en anglais ! 🎤`
           : `For presentations:
           • "Good morning."
           • "Today I will..."
-          • "Any questions?" 🎤`
+          • "Any questions?"
+
+Try presenting something in English! 🎤`
         return examples
       }
 
@@ -222,50 +254,57 @@ export default function CoachPage() {
         : 'Tell me a context: meeting 📞, email 📧, presentation 🎤, or negotiation 🤝?'
     }
 
-    // DISCUSSION MODE: Contextual conversation with learnt vocab
+    // DISCUSSION MODE: Contextual conversation with learnt vocab - ALWAYS ends with specific question
     if (mode === 'discussion') {
       if (isUnknownPhrase(userText)) {
         const learnedVocab = getLearnedVocabForContext()
         const word = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'hello'
+        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'goodbye'
         return lang === 'fr'
-          ? `Pas de souci ! Essaie "**${word}**". Répète : "${word}". 🎤`
-          : `No worries! Try "**${word}**". Repeat: "${word}". 🎤`
+          ? `Pas de souci ! Essaie "**${word}**". Répète : "${word}". 🎤\n\nMaintenant, comment dit-on "${nextWord}" en anglais ? 🤔`
+          : `No worries! Try "**${word}**". Repeat: "${word}". 🎤\n\nNow, how do you say "${nextWord}" in English? 🤔`
       }
 
       if (lower.includes('bonjour') || lower.includes('hello') || lower.includes('hi')) {
+        const learnedVocab = getLearnedVocabForContext()
+        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'goodbye'
         return lang === 'fr'
-          ? 'Salut ! Ça va ? 👋 (En anglais tu peux dire "Hi!" ou "Hello!")'
-          : 'Hi there! How are you? 👋'
+          ? `Salut ! Ça va ? 👋\n\nMaintenant, comment dit-on "${nextWord}" en anglais ? 🤔`
+          : `Hi there! How are you? 👋\n\nNow, how do you say "${nextWord}" in English? 🤔`
       }
 
       if (lower.includes('comment') || lower.includes('how are')) {
+        const learnedVocab = getLearnedVocabForContext()
+        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'water'
         return lang === 'fr'
-          ? 'En anglais, on répond : "I\'m fine, thank you!" ou "I\'m doing well!" Essaie ! 🎤'
-          : 'In English you can say: "I\'m fine, thank you!" or "I\'m doing well!" Try it! 🎤'
+          ? `En anglais, on répond : "I\'m fine, thank you!" ou "I\'m doing well!" 🎤\n\nEssaie de faire une phrase avec "${nextWord}" ! 🎤`
+          : `In English you can say: "I\'m fine, thank you!" or "I\'m doing well!" 🎤\n\nNow try making a sentence with "${nextWord}"! 🎤`
       }
 
       if (lower.includes('merci') || lower.includes('thanks') || lower.includes('thank')) {
+        const learnedVocab = getLearnedVocabForContext()
+        const nextWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'please'
         return lang === 'fr'
-          ? 'Bonne réponse ! En anglais : "You\'re welcome!" ou "No problem!" 😊'
-          : 'Good! In English: "You\'re welcome!" or "No problem!" 😊'
+          ? `Bonne réponse ! En anglais : "You\'re welcome!" ou "No problem!" 😊\n\nMaintenant, comment dit-on "${nextWord}" en anglais ? 🤔`
+          : `Good! In English: "You\'re welcome!" or "No problem!" 😊\n\nNow, how do you say "${nextWord}" in English? 🤔`
       }
 
-      // Default encouraging prompts using learnt vocab
+      // Default encouraging prompts using learnt vocab - ALWAYS ask a specific question
       const learnedVocab = getLearnedVocabForContext()
       const randomWord = learnedVocab[Math.floor(Math.random() * learnedVocab.length)] || 'water'
 
       const prompts = lang === 'fr'
         ? [
           `Essaie de faire une phrase avec "${randomWord}" en anglais ! Je t'aiderai. 🎤`,
-          'Raconte-moi quelque chose en anglais ! Je corrigerai gentiment.',
-          'Peux-tu me poser une question en anglais ?',
-          'Très bien ! Continue comme ça. Dis-moi une autre phrase ! 🌟',
+          `Maintenant, comment dit-on "${randomWord}" en anglais ? 🎤`,
+          `Très bien ! Maintenant, fais une phrase avec "${randomWord}" ! 🌟`,
+          `Bravo ! Dis-moi : comment dit-on "${randomWord}" en anglais ? 🤔`,
         ]
         : [
           `Try making a sentence with "${randomWord}" in English! I\'ll help. 🎤`,
-          'Tell me something in English! I\'ll help you improve.',
-          'Can you ask me a question in English?',
-          'Well done! Keep going. Tell me another sentence! 🌟',
+          `Now, how do you say "${randomWord}" in English? 🎤`,
+          `Great! Now make a sentence with "${randomWord}"! 🌟`,
+          `Well done! Tell me: how do you say "${randomWord}" in English? 🤔`,
         ]
 
       return prompts[Math.floor(Math.random() * prompts.length)]

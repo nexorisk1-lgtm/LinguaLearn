@@ -240,6 +240,8 @@ function SessionContent() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [introCountdown, setIntroCountdown] = useState(5)
   const [preactivIdx, setPreactivIdx] = useState(0)
+  const [preactivInteracted, setPreactivInteracted] = useState(false)
+  const [preactivVoiceDetected, setPreactivVoiceDetected] = useState(false)
   const [exercises, setExercises] = useState<SessionExercise[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [results, setResults] = useState<SessionResult[]>([])
@@ -320,59 +322,113 @@ function SessionContent() {
 
     if (isA1BankCourse && courseId) {
       // ==========================================
-      // A1 BANK COURSE: use real course data
-      // BUG-82: ALL exercises MUST use ONLY words from this course's vocabulary
-      // No generic bank exercises — everything is course-scoped
+      // P0-A/P1-B: A1 BANK COURSE — STRICT PEDAGOGICAL ORDER
+      // Each word = min 3 exercises of DIFFERENT types, INTERLEAVED (not consecutive)
+      // P1-C: For Parcours B, 100% words get oral exercise
+      // P1-E: Explicit consignes in French
       // ==========================================
       const courseVocab = getA1CourseVocabulary(courseId)
+      const courseGrammarEx = getA1CourseGrammarExercises(courseId)
+      const cd = getA1CourseData(courseId)
 
-      // STEP 1: Vocabulary translation exercises (all course words)
-      if (courseVocab.length > 0) {
-        allExercises.push(...generateVocabExercises(courseVocab, courseVocab.length, isPathB))
-        usedModules.push('vocabulaire')
+      // ---- ROUND 1: Translation (QCM for Path B, text for Path A) ----
+      const round1: SessionExercise[] = []
+      for (const w of courseVocab) {
+        if (isPathB) {
+          const pool = courseVocab.filter(x => x.word_target !== w.word_target).map(x => x.word_target)
+          const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3)
+          const options = [w.word_target, ...distractors].sort(() => Math.random() - 0.5)
+          round1.push({
+            type: 'grammar_qcm' as const, module: 'vocabulaire', data: w,
+            question: lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`,
+            answer: w.word_target,
+            options: options.length >= 2 ? options : [w.word_target, 'unknown'],
+          })
+        } else {
+          round1.push({
+            type: 'vocab_translate' as const, module: 'vocabulaire', data: w,
+            question: lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`,
+            answer: w.word_target, hint: w.definition_en,
+          })
+        }
       }
 
-      // STEP 2: Grammar exercises from course vocabulary ONLY
-      // These are QCM and fill-blank based on the same course words
-      const courseGrammarEx = getA1CourseGrammarExercises(courseId)
+      // ---- ROUND 2: Reverse translation / association ----
+      const round2: SessionExercise[] = []
+      for (const w of courseVocab) {
+        const pool = courseVocab.filter(x => x.word_fr !== w.word_fr).map(x => x.word_fr)
+        const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3)
+        const options = [w.word_fr, ...distractors].sort(() => Math.random() - 0.5)
+        round2.push({
+          type: 'grammar_qcm' as const, module: 'vocabulaire', data: w,
+          question: lang === 'fr' ? `Que signifie "${w.word_target}" en français ?` : `What does "${w.word_target}" mean in French?`,
+          answer: w.word_fr,
+          options: options.length >= 2 ? options : [w.word_fr, 'inconnu'],
+        })
+      }
+
+      // ---- ROUND 3: Fill-in / context exercise ----
+      const round3: SessionExercise[] = []
+      for (const w of courseVocab) {
+        if (w.example_en && w.example_en.toLowerCase().includes(w.word_target.toLowerCase())) {
+          const blanked = w.example_en.replace(new RegExp(w.word_target, 'i'), '______')
+          round3.push({
+            type: 'vocab_translate' as const, module: 'vocabulaire', data: w,
+            question: lang === 'fr'
+              ? `Complétez avec le mot appris : "${blanked}"`
+              : `Fill in with the learned word: "${blanked}"`,
+            answer: w.word_target, hint: w.word_fr,
+          })
+        } else {
+          // Fallback: listen and type
+          round3.push({
+            type: 'vocab_translate' as const, module: 'vocabulaire', data: w,
+            question: lang === 'fr' ? `Écrivez le mot anglais pour "${w.word_fr}"` : `Write the English word for "${w.word_fr}"`,
+            answer: w.word_target, hint: w.definition_en,
+          })
+        }
+      }
+
+      // INTERLEAVE: word1-R1, word2-R1, ..., word1-R2, word2-R2, ..., word1-R3, word2-R3
+      // This ensures 3 different exercise types per word, NON-consecutive
+      allExercises.push(...round1, ...round2, ...round3)
+      usedModules.push('vocabulaire')
+
+      // ---- Grammar exercises ----
       if (courseGrammarEx.length > 0) {
         allExercises.push(...generateGrammarExercises(courseGrammarEx, Math.min(5, courseGrammarEx.length)))
         usedModules.push('grammaire')
       }
 
-      // STEP 3: Speaking exercise using course vocabulary words (not generic bank)
+      // ---- P1-C: ORAL — 100% words for Parcours B, 2 for Path A ----
       if (courseVocab.length > 0) {
-        const courseSpeak: SessionExercise[] = courseVocab.slice(0, 2).map(w => ({
+        const oralWords = isPathB ? courseVocab : courseVocab.slice(0, 2)
+        const courseSpeak: SessionExercise[] = oralWords.map(w => ({
           type: 'speaking_repeat' as const,
           module: 'oral',
           data: w,
-          question: lang === 'fr' ? `Prononcez : "${w.word_target}"` : `Say: "${w.word_target}"`,
+          question: lang === 'fr' ? `Parle maintenant : prononcez "${w.word_target}"` : `Speak now: say "${w.word_target}"`,
           answer: w.word_target,
         }))
         allExercises.push(...courseSpeak)
         usedModules.push('oral')
       }
 
-      // BUG-83: STEP 4: Word ordering exercise instead of free-text writing
-      if (!isPathB && courseVocab.length > 0) {
-        const cd = getA1CourseData(courseId)
-        if (cd) {
-          // Generate word-ordering exercises from course examples
-          const orderExercises: SessionExercise[] = cd.vocabulary
-            .filter(v => v.example_en.split(' ').length >= 3 && v.example_en.split(' ').length <= 7)
-            .slice(0, 2)
-            .map((v) => ({
-              type: 'word_order' as const,
-              module: 'ecrit',
-              data: { ...v, courseId },
-              question: lang === 'fr' ? `Remettez les mots dans le bon ordre :` : `Put the words in the correct order:`,
-              answer: v.example_en,
-              options: v.example_en.split(' ').sort(() => Math.random() - 0.5),
-            }))
-          if (orderExercises.length > 0) {
-            allExercises.push(...orderExercises)
-            usedModules.push('ecrit')
-          }
+      // ---- Word ordering (Path A only) ----
+      if (!isPathB && cd && courseVocab.length > 0) {
+        const orderExercises: SessionExercise[] = cd.vocabulary
+          .filter(v => v.example_en.split(' ').length >= 3 && v.example_en.split(' ').length <= 7)
+          .slice(0, 2)
+          .map((v) => ({
+            type: 'word_order' as const, module: 'ecrit',
+            data: { ...v, courseId },
+            question: lang === 'fr' ? `Remettez les mots dans le bon ordre :` : `Put the words in the correct order:`,
+            answer: v.example_en,
+            options: v.example_en.split(' ').sort(() => Math.random() - 0.5),
+          }))
+        if (orderExercises.length > 0) {
+          allExercises.push(...orderExercises)
+          usedModules.push('ecrit')
         }
       }
 
@@ -795,6 +851,19 @@ function SessionContent() {
     setIsCorrect(correct)
     setShowFeedback(true)
     setResults(prev => [...prev, { exercise: currentExercise, userAnswer, correct }])
+
+    // P0-E: Update vocabularyPercent after each correct vocab exercise
+    if (correct && currentExercise.module === 'vocabulaire' && engine.progress) {
+      const wordId = currentExercise.data?.id
+      if (wordId) {
+        engine.updateProgress(prev => {
+          const updated = updateWordState(prev, wordId, 'learned')
+          const totalA1Words = 40 * 7
+          const learnedCount = Object.values(updated.wordStates).filter(s => s === 'learned' || s === 'mastered').length
+          return { ...updated, vocabularyPercent: Math.round((learnedCount / totalA1Words) * 100) }
+        })
+      }
+    }
   }
 
   // V3.19b BUG-72: Auto-save resume position after each exercise advance
@@ -1332,6 +1401,13 @@ function SessionContent() {
       <div className="min-h-screen bg-[#F0F0F0] pb-20">
         <PageHeader title={lang === 'fr' ? 'Pré-activation' : 'Pre-activation'} backHref="/dashboard" />
         <main className="px-4 pt-6 max-w-lg mx-auto">
+          {/* Instruction banner */}
+          <div className="mb-4 px-4 py-2 rounded-xl bg-blue-50 border border-blue-200">
+            <p className="text-sm font-bold text-blue-800 text-center">
+              🎧 {lang === 'fr' ? 'Écoute et répète chaque mot' : 'Listen and repeat each word'}
+            </p>
+          </div>
+
           {/* Progress bar */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
@@ -1351,15 +1427,18 @@ function SessionContent() {
           {currentWord ? (
             <div className="rounded-2xl bg-white p-8 shadow-sm mb-6 text-center">
               {/* Word image - large */}
-              <div className="mb-6 flex justify-center">
+              <div className="mb-6 flex justify-center cursor-pointer" onClick={() => { setPreactivInteracted(true); speakText(currentWord.word_target, activeLang); }}>
                 {currentWord.image ? (
                   <img
                     src={currentWord.image}
                     alt={currentWord.word_target}
-                    className="w-40 h-40 rounded-2xl object-cover shadow-md"
+                    className="w-60 h-60 rounded-2xl object-cover shadow-md hover:opacity-90 transition-opacity"
                   />
                 ) : (
-                  <div className="w-40 h-40 rounded-2xl bg-gray-200 flex items-center justify-center text-6xl">📝</div>
+                  <div className="w-60 h-60 rounded-2xl bg-gradient-to-br from-[#E8F4F8] to-[#D5E8F0] flex flex-col items-center justify-center shadow-md">
+                    <span className="text-6xl font-bold text-[#002844]/30">{currentWord.word_target.charAt(0).toUpperCase()}</span>
+                    <span className="text-xs text-[#888888] mt-2">{currentWord.word_target}</span>
+                  </div>
                 )}
               </div>
 
@@ -1372,12 +1451,39 @@ function SessionContent() {
 
               {/* Repeat button */}
               <button
-                onClick={() => speakText(currentWord.word_target, activeLang)}
+                onClick={() => { setPreactivInteracted(true); speakText(currentWord.word_target, activeLang); }}
                 className="flex items-center gap-2 mx-auto px-4 py-3 rounded-lg bg-[#E8F4F8] text-[#002844] text-sm font-semibold hover:opacity-90 transition-opacity mb-6"
               >
                 <Volume2 className="h-4 w-4" />
                 {lang === 'fr' ? 'Répéter' : 'Repeat'}
               </button>
+
+              {/* Microphone button */}
+              <button
+                onClick={() => {
+                  setPreactivInteracted(true)
+                  setPreactivVoiceDetected(false)
+                  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+                  if (SpeechRecognition) {
+                    const recognition = new SpeechRecognition()
+                    recognition.continuous = false
+                    recognition.interimResults = false
+                    recognition.lang = activeLang === 'en' ? 'en-US' : 'fr-FR'
+                    recognition.onresult = () => setPreactivVoiceDetected(true)
+                    recognition.onerror = () => setPreactivVoiceDetected(false)
+                    recognition.start()
+                  }
+                }}
+                className="flex items-center gap-2 mx-auto px-4 py-3 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-all"
+              >
+                <Mic className="h-4 w-4" />
+                {lang === 'fr' ? 'Parler 🎤' : 'Speak 🎤'}
+              </button>
+              {preactivVoiceDetected && (
+                <p className="text-green-600 text-sm font-bold mt-2 animate-pulse">
+                  ✅ {lang === 'fr' ? 'Voix détectée !' : 'Voice detected!'}
+                </p>
+              )}
             </div>
           ) : (
             <div className="rounded-2xl bg-white p-8 shadow-sm mb-6 text-center">
@@ -1391,7 +1497,7 @@ function SessionContent() {
           <div className="flex gap-3">
             {preactivIdx > 0 && (
               <button
-                onClick={() => setPreactivIdx(preactivIdx - 1)}
+                onClick={() => { setPreactivIdx(preactivIdx - 1); setPreactivInteracted(false); }}
                 className="flex-1 py-3 rounded-xl bg-gray-200 text-[#002844] font-semibold hover:opacity-90 transition-opacity"
               >
                 {lang === 'fr' ? '← Précédent' : '← Previous'}
@@ -1399,8 +1505,13 @@ function SessionContent() {
             )}
             {!isLastWord ? (
               <button
-                onClick={() => setPreactivIdx(preactivIdx + 1)}
-                className="flex-1 py-3 rounded-xl bg-[#002844] text-white font-semibold hover:opacity-90 transition-opacity"
+                onClick={() => { setPreactivIdx(preactivIdx + 1); setPreactivInteracted(false); }}
+                disabled={!preactivInteracted}
+                className={`flex-1 py-3 rounded-xl font-semibold transition-opacity ${
+                  preactivInteracted
+                    ? 'bg-[#002844] text-white hover:opacity-90'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                }`}
               >
                 {lang === 'fr' ? 'Suivant →' : 'Next →'}
               </button>
@@ -1410,7 +1521,12 @@ function SessionContent() {
                   setPreactivIdx(0)
                   setPhase('rule_display')
                 }}
-                className="flex-1 py-3 rounded-xl bg-[#D9B438] text-[#002844] font-semibold hover:opacity-90 transition-opacity"
+                disabled={!preactivInteracted}
+                className={`flex-1 py-3 rounded-xl font-semibold transition-opacity ${
+                  preactivInteracted
+                    ? 'bg-[#D9B438] text-[#002844] hover:opacity-90'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                }`}
               >
                 {lang === 'fr' ? 'Voir la règle →' : 'See rule →'}
               </button>
@@ -1432,41 +1548,46 @@ function SessionContent() {
       <div className="min-h-screen bg-[#F0F0F0] pb-20">
         <PageHeader title={lang === 'fr' ? 'Règle de grammaire' : 'Grammar Rule'} backHref="/dashboard" />
         <main className="px-4 pt-6 max-w-lg mx-auto">
+          {/* P1-F: Guidage explicite */}
+          <div className="mb-4 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+            <p className="text-sm font-bold text-amber-800 text-center">
+              📖 {lang === 'fr' ? 'Lis la règle, puis écoute les exemples' : 'Read the rule, then listen to the examples'}
+            </p>
+          </div>
+
           <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
             {courseData?.rule ? (
               <>
+                {/* P1-A: Format pédagogique — contexte → usage → exemple en situation */}
                 <div className="mb-4">
-                  <p className="text-xs font-semibold text-[#888888] uppercase mb-1">
-                    {lang === 'fr' ? 'Explication en français' : 'French explanation'}
+                  <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide mb-2">
+                    🇫🇷 {lang === 'fr' ? 'Explication en français' : 'French explanation'}
                   </p>
-                  <h2 className="text-xl font-bold text-[#002844]">
-                    {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => speakText(courseData.rule.en, activeLang)}
-                  className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-[#E8F4F8] text-[#002844] text-sm font-semibold hover:opacity-90 transition-opacity"
-                >
-                  <Volume2 className="h-4 w-4" /> {lang === 'fr' ? 'Écouter les exemples' : 'Listen to examples'}
-                </button>
-                {courseData.examples && courseData.examples.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold text-[#888888] uppercase mb-2">
-                      {lang === 'fr' ? 'Exemples en anglais' : 'English examples'}
+                  <div className="bg-[#F8F6F0] rounded-xl p-4">
+                    <p className="text-base text-[#002844] leading-relaxed whitespace-pre-line">
+                      {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
                     </p>
-                    <div className="space-y-2">
+                  </div>
+                </div>
+
+                {courseData.examples && courseData.examples.length > 0 && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold text-[#888888] uppercase tracking-wide mb-3">
+                      🔊 {lang === 'fr' ? 'Exemples en situation' : 'Examples in context'}
+                    </p>
+                    <div className="space-y-3">
                       {courseData.examples.map((ex, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[#F0F0F0]">
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-[#002844]">{ex.en}</p>
-                            <p className="text-xs text-[#555555]">{ex.fr}</p>
-                          </div>
+                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F4F8] border border-[#D5E8F0]">
                           <button
                             onClick={() => speakText(ex.en, activeLang)}
-                            className="p-1.5 rounded-full bg-[#002844] text-white hover:opacity-90 transition-opacity"
+                            className="p-2 rounded-full bg-[#002844] text-white hover:opacity-90 transition-opacity flex-shrink-0"
                           >
-                            <Volume2 className="h-3.5 w-3.5" />
+                            <Volume2 className="h-4 w-4" />
                           </button>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-[#002844]">&ldquo;{ex.en}&rdquo;</p>
+                            <p className="text-xs text-[#555555] mt-0.5">→ {ex.fr}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1852,6 +1973,23 @@ function SessionContent() {
           <div className="h-2 w-full rounded-full bg-gray-200">
             <div className="h-full rounded-full bg-[#D9B438] transition-all" style={{ width: `${progressPct}%` }} />
           </div>
+        </div>
+
+        {/* P1-F: Guidage explicite par type d'exercice */}
+        <div className="mb-3 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100">
+          <p className="text-xs font-bold text-blue-700 text-center">
+            {currentExercise.type === 'vocab_translate'
+              ? (lang === 'fr' ? '✏️ Écris la traduction' : '✏️ Write the translation')
+              : currentExercise.type === 'grammar_qcm'
+              ? (lang === 'fr' ? '👆 Choisis la bonne réponse' : '👆 Choose the correct answer')
+              : currentExercise.type === 'reading_comprehension'
+              ? (lang === 'fr' ? '📖 Lis le texte attentivement' : '📖 Read the text carefully')
+              : currentExercise.type === 'speaking_repeat'
+              ? (lang === 'fr' ? '🎤 Parle maintenant' : '🎤 Speak now')
+              : currentExercise.type === 'word_order'
+              ? (lang === 'fr' ? '🔀 Remets les mots dans le bon ordre' : '🔀 Put the words in order')
+              : (lang === 'fr' ? '📝 Complète la phrase' : '📝 Complete the sentence')}
+          </p>
         </div>
 
         {/* Exercise card */}
