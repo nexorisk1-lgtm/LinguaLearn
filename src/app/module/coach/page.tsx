@@ -2,16 +2,16 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser } from '@/lib/db/localStorage'
 import { User, InterfaceLanguage } from '@/types'
 import PageHeader from '@/components/PageHeader'
 import BottomNav from '@/components/BottomNav'
-import { Send, Mic, MicOff } from 'lucide-react'
-import { getA1CourseVocabulary } from '@/lib/db/bankA1Courses'
+import { Send, Mic, MicOff, Volume2, Loader2 } from 'lucide-react'
+import { getA1CourseVocabulary, getA1CourseData } from '@/lib/db/bankA1Courses'
 
-type CoachMode = 'discussion' | 'revision' | 'professional'
+type CoachMode = 'discussion' | 'revision'
 
 interface Message {
   role: 'coach' | 'user'
@@ -19,10 +19,11 @@ interface Message {
   timestamp: Date
 }
 
-interface WeakWord {
+interface CourseWord {
   word: string
-  word_native: string
-  score: number
+  trad: string
+  example_en?: string
+  phonetic?: string
 }
 
 declare global {
@@ -41,11 +42,21 @@ export default function CoachPage() {
   const [input, setInput] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(false)
-  const [learntVocab, setLearntVocab] = useState<string[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [weakWords, setWeakWords] = useState<WeakWord[]>([])
+  const [isThinking, setIsThinking] = useState(false)
+  const [courseWords, setCourseWords] = useState<CourseWord[]>([])
+  const [activeCourseId, setActiveCourseId] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
+
+  // TTS function
+  const speakText = useCallback((text: string, speechLang: string = 'en') => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = speechLang === 'en' ? 'en-US' : 'fr-FR'
+    utter.rate = 0.9
+    window.speechSynthesis.speak(utter)
+  }, [])
 
   // Initialize speech recognition
   useEffect(() => {
@@ -74,232 +85,157 @@ export default function CoachPage() {
 
   useEffect(() => {
     const currentUser = getCurrentUser()
-    if (!currentUser) {
-      router.push('/auth')
-      return
-    }
+    if (!currentUser) { router.push('/auth'); return }
     setUser(currentUser)
     const interfaceLang = currentUser.settings.interfaceLang || 'fr'
     setLang(interfaceLang)
 
-    // P0-5/P0-8: Load learnt vocabulary ONLY from completed A1 courses (not legacy)
+    // Load vocabulary from completed courses
     const aLang = currentUser.activeLang || currentUser.settings.learningLangs[0] || 'en'
     const scoreKey = `lingualearn_course_scores_${currentUser.id}_${aLang}`
     const scores: Record<string, any> = (() => { try { return JSON.parse(localStorage.getItem(scoreKey) || '{}') } catch { return {} } })()
     const completedCourseIds = Object.keys(scores).filter(id => scores[id]?.score >= 60)
-    const learnedWordPairs: { word: string; trad: string }[] = []
-    completedCourseIds.forEach(cid => {
-      const vocab = getA1CourseVocabulary(cid)
-      vocab.forEach(v => learnedWordPairs.push({ word: v.word_target, trad: v.word_fr }))
-    })
-    setLearntVocab(learnedWordPairs.map(p => p.word))
-    // Store word pairs for answer validation
-    try { localStorage.setItem('_coach_word_pairs', JSON.stringify(learnedWordPairs)) } catch {}
 
-    // Load weak words from review items
-    const reviewItems = JSON.parse(localStorage.getItem('reviewItems') || '[]')
-    const weak = reviewItems
-      .filter((item: any) => item.score < 0.6)
-      .sort((a: any, b: any) => a.score - b.score)
-      .slice(0, 20)
-    setWeakWords(weak)
+    // Find latest completed course for context
+    const latestCourseId = completedCourseIds.length > 0
+      ? completedCourseIds.sort((a, b) => {
+          const numA = parseInt(a.replace('a1_c', ''))
+          const numB = parseInt(b.replace('a1_c', ''))
+          return numB - numA
+        })[0]
+      : 'a1_c1'
+    setActiveCourseId(latestCourseId)
 
-    // Initial coach greeting with proactive first question
-    const greeting = interfaceLang === 'fr'
-      ? `Salut ${currentUser.firstName || 'apprenant'} ! On s'entraîne ensemble ?`
-      : `Hi ${currentUser.firstName || 'learner'}! Let's practice together?`
+    // Load words from that course
+    const vocab = getA1CourseVocabulary(latestCourseId)
+    const words: CourseWord[] = vocab.map(v => ({
+      word: v.word_target,
+      trad: v.word_fr,
+      example_en: v.example_en,
+      phonetic: v.phonetic,
+    }))
+    setCourseWords(words)
 
-    // P0-5: Coach proactive first question based on learned vocab (deterministic)
-    let firstQuestion = ''
-    if (learnedWordPairs.length > 0) {
-      const firstPair = learnedWordPairs[0]
-      firstQuestion = interfaceLang === 'fr'
-        ? `On a appris "${firstPair.trad}". Comment dit-on ce mot en anglais ? 🤔`
-        : `We learned "${firstPair.trad}". How do you say this word in English? 🤔`
+    // Get course title for greeting
+    const courseData = getA1CourseData(latestCourseId)
+    const courseTitle = courseData?.title || latestCourseId
+
+    // Initial greeting with proactive first question
+    const firstName = currentUser.firstName || 'apprenant'
+    let greeting = ''
+    let firstQ = ''
+
+    if (words.length > 0) {
+      greeting = interfaceLang === 'fr'
+        ? `Salut ${firstName} ! On travaille le cours "${courseTitle}" ensemble. 🎓`
+        : `Hi ${firstName}! Let's work on "${courseTitle}" together. 🎓`
+
+      if (mode === 'revision') {
+        firstQ = interfaceLang === 'fr'
+          ? `On révise ! Mot 1/${words.length} :\nComment dit-on "${words[0].trad}" en anglais ? 🤔`
+          : `Let's review! Word 1/${words.length}:\nHow do you say "${words[0].trad}" in English? 🤔`
+      } else {
+        const scenario = courseData?.scenario || ''
+        firstQ = interfaceLang === 'fr'
+          ? `${scenario ? `Imagine : ${scenario}\n` : ''}Comment dit-on "${words[0].trad}" en anglais ? 🤔`
+          : `${scenario ? `Imagine: ${scenario}\n` : ''}How do you say "${words[0].trad}" in English? 🤔`
+      }
     } else {
-      firstQuestion = interfaceLang === 'fr'
-        ? `Commençons simplement : comment dit-on "bonjour" en anglais ? 🤔`
-        : `Let's start simple: how do you say "hello" in English? 🤔`
+      greeting = interfaceLang === 'fr'
+        ? `Salut ${firstName} ! Termine un cours d'abord pour qu'on puisse s'entraîner ensemble.`
+        : `Hi ${firstName}! Complete a course first so we can practice together.`
+      firstQ = ''
     }
 
-    setMessages([
-      { role: 'coach', text: greeting, timestamp: new Date() },
-      { role: 'coach', text: firstQuestion, timestamp: new Date() },
-    ])
+    const initialMsgs: Message[] = [{ role: 'coach', text: greeting, timestamp: new Date() }]
+    if (firstQ) initialMsgs.push({ role: 'coach', text: firstQ, timestamp: new Date() })
+    setMessages(initialMsgs)
     setLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Check if user said "I don't know"
-  const isUnknownPhrase = (text: string): boolean => {
-    const lower = text.toLowerCase().trim()
-    return (
-      lower === 'je ne sais pas' ||
-      lower === 'i don\'t know' ||
-      lower === 'i dont know' ||
-      lower === 'dunno' ||
-      lower === 'no idea' ||
-      lower === 'idk'
-    )
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getLearnedVocabForContext = (): string[] => {
-    const learned = learntVocab.slice(0, 10)
-    return learned.length > 0 ? learned : ['hello', 'goodbye', 'thank you']
-  }
-
-  // P0-5: Track current expected word for validation
-  const [expectedWord, setExpectedWord] = useState<{ word: string; trad: string } | null>(null)
-  // P0-5: Deterministic word index (cycles through words)
-  const wordIdxRef = useRef(0)
-
-  // P0-5: Get word pairs from localStorage
-  const getWordPairs = (): { word: string; trad: string }[] => {
+  // P0-1: Call LLM API for coach response
+  const getCoachResponse = useCallback(async (userText: string, currentMessages: Message[]): Promise<string> => {
     try {
-      const raw = localStorage.getItem('_coach_word_pairs')
-      return raw ? JSON.parse(raw) : learntVocab.map(w => ({ word: w, trad: '' }))
-    } catch { return learntVocab.map(w => ({ word: w, trad: '' })) }
-  }
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 6000)
 
-  // P0-5: Get next word deterministically (cycles through learned words)
-  const getNextWordPair = (): { word: string; trad: string } => {
-    const pairs = getWordPairs()
-    if (pairs.length === 0) return { word: 'hello', trad: 'bonjour' }
-    const idx = wordIdxRef.current % pairs.length
-    wordIdxRef.current++
-    return pairs[idx]
-  }
+      const response = await fetch('/api/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: userText,
+          courseId: activeCourseId,
+          mode,
+          courseWords,
+          conversationHistory: currentMessages.slice(-8).map(m => ({ role: m.role, text: m.text })),
+          userName: user?.firstName || 'apprenant',
+          interfaceLang: lang,
+        }),
+        signal: controller.signal,
+      })
 
-  // P0-5: Validate user answer against expected word
-  const validateAnswer = (userText: string, expected: { word: string; trad: string }): boolean => {
+      clearTimeout(timeout)
+
+      if (!response.ok) throw new Error('API error')
+      const data = await response.json()
+      return data.response || 'Continuons !'
+    } catch {
+      // Fallback: simple rule-based response
+      return generateLocalFallback(userText)
+    }
+  }, [activeCourseId, mode, courseWords, user, lang])
+
+  // Local fallback for when API is completely unreachable
+  const generateLocalFallback = useCallback((userText: string): string => {
     const lower = userText.toLowerCase().trim()
-    return lower === expected.word.toLowerCase() || lower === expected.trad.toLowerCase()
-  }
-
-  // P0-5/P0-6: Generate coach response based on mode with answer validation
-  const generateResponse = (userText: string): string => {
-    // P0-6: REVISION MODE = drill on weak words, always validates answer
-    if (mode === 'revision') {
-      if (isUnknownPhrase(userText)) {
-        if (expectedWord) {
-          const nextPair = getNextWordPair()
-          setExpectedWord(nextPair)
-          return lang === 'fr'
-            ? `La réponse était : **${expectedWord.word}** (${expectedWord.trad}). Répète : "${expectedWord.word}". 🎤\n\nMaintenant, comment dit-on "${nextPair.trad}" en anglais ? 🤔`
-            : `The answer was: **${expectedWord.word}** (${expectedWord.trad}). Repeat: "${expectedWord.word}". 🎤\n\nNow, how do you say "${nextPair.trad}" in English? 🤔`
-        }
-        const pair = getNextWordPair()
-        setExpectedWord(pair)
-        return lang === 'fr'
-          ? `Comment dit-on "${pair.trad}" en anglais ? 🤔`
-          : `How do you say "${pair.trad}" in English? 🤔`
-      }
-
-      // P0-5: Validate against SPECIFIC expected word
-      if (expectedWord) {
-        const isCorrect = validateAnswer(userText, expectedWord)
-        const nextPair = getNextWordPair()
-        setExpectedWord(nextPair)
-        if (isCorrect) {
-          return lang === 'fr'
-            ? `Correct ! "${expectedWord.word}" = ${expectedWord.trad}. 🎉\n\nSuivant : comment dit-on "${nextPair.trad}" en anglais ? 🤔`
-            : `Correct! "${expectedWord.word}" = ${expectedWord.trad}. 🎉\n\nNext: how do you say "${nextPair.trad}" in English? 🤔`
-        } else {
-          return lang === 'fr'
-            ? `Pas tout à fait. La bonne réponse est **${expectedWord.word}** (${expectedWord.trad}). Répète : "${expectedWord.word}". 🎤\n\nContinuons : comment dit-on "${nextPair.trad}" en anglais ? 🤔`
-            : `Not quite. The correct answer is **${expectedWord.word}** (${expectedWord.trad}). Repeat: "${expectedWord.word}". 🎤\n\nLet's continue: how do you say "${nextPair.trad}" in English? 🤔`
-        }
-      }
-
-      // No expected word yet — start drilling
-      const pair = getNextWordPair()
-      setExpectedWord(pair)
-      return lang === 'fr'
-        ? `Mode révision activé ! Comment dit-on "${pair.trad}" en anglais ? 🤔`
-        : `Revision mode on! How do you say "${pair.trad}" in English? 🤔`
+    const isFr = lang === 'fr'
+    const unknowns = ['je ne sais pas', "i don't know", 'idk', 'dunno']
+    if (unknowns.some(u => lower.includes(u))) {
+      const w = courseWords[0]
+      return isFr
+        ? `Pas de souci ! La réponse était "${w?.word}" (${w?.trad}). On continue !`
+        : `No worries! The answer was "${w?.word}" (${w?.trad}). Let's continue!`
     }
 
-    // P0-6: DISCUSSION MODE = situational questions about learned words in context
-    if (mode === 'discussion') {
-      if (isUnknownPhrase(userText)) {
-        const pair = getNextWordPair()
-        setExpectedWord(pair)
-        return lang === 'fr'
-          ? `Pas de souci ! Essaie avec "${pair.trad}". Comment dit-on ça en anglais ? 🤔`
-          : `No worries! Try "${pair.trad}". How do you say that in English? 🤔`
-      }
-
-      // P0-5: Validate if there's an expected answer
-      if (expectedWord) {
-        const isCorrect = validateAnswer(userText, expectedWord)
-        const nextPair = getNextWordPair()
-        if (isCorrect) {
-          setExpectedWord(nextPair)
-          return lang === 'fr'
-            ? `Bravo ! "${expectedWord.word}" est correct. 🎉 Imagine que tu es dans un café. Comment utiliserais-tu "${nextPair.word}" dans une phrase ? 🎤`
-            : `Well done! "${expectedWord.word}" is correct. 🎉 Imagine you're in a café. How would you use "${nextPair.word}" in a sentence? 🎤`
-        } else {
-          setExpectedWord(nextPair)
-          return lang === 'fr'
-            ? `On cherchait **${expectedWord.word}** (${expectedWord.trad}). 📖\n\nEssaie maintenant : comment dit-on "${nextPair.trad}" en anglais ? 🤔`
-            : `We were looking for **${expectedWord.word}** (${expectedWord.trad}). 📖\n\nNow try: how do you say "${nextPair.trad}" in English? 🤔`
-        }
-      }
-
-      // Start discussion with situational context
-      const pair = getNextWordPair()
-      setExpectedWord(pair)
-      return lang === 'fr'
-        ? `Imagine que tu rencontres quelqu'un. Comment dit-on "${pair.trad}" en anglais ? 🤔`
-        : `Imagine you're meeting someone. How do you say "${pair.trad}" in English? 🤔`
+    const exact = courseWords.find(w => w.word.toLowerCase() === lower || w.trad.toLowerCase() === lower)
+    if (exact) {
+      return isFr
+        ? `Exactement ! ✅ "${exact.word}" = ${exact.trad}. ${exact.example_en ? `Ex: "${exact.example_en}"` : ''}`
+        : `Exactly! ✅ "${exact.word}" = ${exact.trad}. ${exact.example_en ? `Ex: "${exact.example_en}"` : ''}`
     }
 
-    // P0-6: PROFESSIONAL MODE — hidden for A1/B, provides business context phrases
-    if (mode === 'professional') {
-      const lower = userText.toLowerCase()
-      if (isUnknownPhrase(userText)) {
-        return lang === 'fr'
-          ? `Dis-moi un contexte pro : réunion, email, ou présentation ? Je te donnerai les phrases clés. 😊`
-          : `Tell me a pro context: meeting, email, or presentation? I'll give you key phrases. 😊`
-      }
-      if (lower.includes('réunion') || lower.includes('meeting')) {
-        return lang === 'fr'
-          ? `Pour une réunion :\n• "Let's start." = Commençons.\n• "I have a question." = J'ai une question.\n• "Can we continue?" = On continue ?\n\nEssaie d'utiliser une de ces phrases ! 🎤`
-          : `For meetings:\n• "Let's start."\n• "I have a question."\n• "Can we continue?"\n\nTry using one! 🎤`
-      }
-      if (lower.includes('email') || lower.includes('mail')) {
-        return lang === 'fr'
-          ? `Pour un email pro :\n• "Dear [Name]," = Cher [Nom],\n• "I am writing to..." = Je vous écris pour...\n• "Kind regards," = Cordialement,\n\nÉcris un début d'email en anglais ! 📧`
-          : `For emails:\n• "Dear [Name],"\n• "I am writing to..."\n• "Kind regards,"\n\nWrite an email start! 📧`
-      }
-      return lang === 'fr'
-        ? 'Choisis un contexte : réunion, email, ou présentation ? 💼'
-        : 'Choose a context: meeting, email, or presentation? 💼'
+    const partial = courseWords.find(w => lower.includes(w.word.toLowerCase()) || lower.includes(w.trad.toLowerCase()))
+    if (partial) {
+      return isFr
+        ? `Oui, ça marche aussi ⚠️ "${partial.word}" = ${partial.trad}.`
+        : `Yes, that works too ⚠️ "${partial.word}" = ${partial.trad}.`
     }
 
-    return lang === 'fr' ? 'Dis-moi comment je peux t\'aider !' : 'Tell me how I can help!'
-  }
+    return isFr
+      ? `Hmm, ce n'est pas tout à fait ça ❌. Essaie encore !`
+      : `Hmm, not quite ❌. Try again!`
+  }, [courseWords, lang])
 
-  const handleSend = () => {
-    if (!input.trim()) return
+  const handleSend = async () => {
+    if (!input.trim() || isThinking) return
     const userMsg: Message = { role: 'user', text: input.trim(), timestamp: new Date() }
-    setMessages(prev => [...prev, userMsg])
+    const updatedMessages = [...messages, userMsg]
+    setMessages(updatedMessages)
     setInput('')
+    setIsThinking(true)
 
-    // Simulate coach response delay
-    setTimeout(() => {
-      const response = generateResponse(userMsg.text)
-      setMessages(prev => [...prev, { role: 'coach', text: response, timestamp: new Date() }])
-    }, 600)
+    const response = await getCoachResponse(userMsg.text, updatedMessages)
+    setMessages(prev => [...prev, { role: 'coach', text: response, timestamp: new Date() }])
+    setIsThinking(false)
   }
 
   const handleMicClick = () => {
     if (!recognitionRef.current) return
-
     if (isListening) {
       recognitionRef.current.stop()
       setIsListening(false)
@@ -307,6 +243,40 @@ export default function CoachPage() {
       setInput('')
       recognitionRef.current.start()
     }
+  }
+
+  // Mode change: reset conversation with new first question
+  const handleModeChange = (newMode: CoachMode) => {
+    setMode(newMode)
+    if (courseWords.length === 0) return
+    const firstName = user?.firstName || 'apprenant'
+    const courseData = activeCourseId ? getA1CourseData(activeCourseId) : null
+    const isFr = lang === 'fr'
+
+    let modeMsg = ''
+    let firstQ = ''
+
+    if (newMode === 'revision') {
+      modeMsg = isFr
+        ? `Mode révision ciblée activé ! On passe en revue tous les mots. 🎯`
+        : `Targeted review mode activated! Let's go through all words. 🎯`
+      firstQ = isFr
+        ? `On révise ! Mot 1/${courseWords.length} :\nComment dit-on "${courseWords[0].trad}" en anglais ?`
+        : `Let's review! Word 1/${courseWords.length}:\nHow do you say "${courseWords[0].trad}" in English?`
+    } else {
+      const scenario = courseData?.scenario || ''
+      modeMsg = isFr
+        ? `Mode discussion activé ! On pratique en situation. 💬`
+        : `Discussion mode activated! Let's practice in context. 💬`
+      firstQ = isFr
+        ? `${scenario ? `Imagine : ${scenario}\n` : ''}${firstName}, comment dit-on "${courseWords[0].trad}" en anglais ?`
+        : `${scenario ? `Imagine: ${scenario}\n` : ''}${firstName}, how do you say "${courseWords[0].trad}" in English?`
+    }
+
+    setMessages([
+      { role: 'coach', text: modeMsg, timestamp: new Date() },
+      { role: 'coach', text: firstQ, timestamp: new Date() },
+    ])
   }
 
   if (loading || !user) {
@@ -317,34 +287,52 @@ export default function CoachPage() {
     )
   }
 
-  // P0-6: Only show modes appropriate for user level (hide 'professional' for A1/Path B)
-  const userLevel = user?.progress?.[user?.activeLang || 'en']?.levelCecrl || 'A1'
-  const langConfig = user?.settings?.languageConfigs?.[user?.activeLang || 'en']
-  const learningPaths = langConfig?.learningPath
-    ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
-    : []
-  const isPathB = learningPaths.includes('B') && !learningPaths.includes('A')
-  const showPro = userLevel !== 'A1' && !isPathB
-  const modes: { id: CoachMode; labelFr: string; labelEn: string; icon: string }[] = [
-    { id: 'discussion', labelFr: 'Discussion', labelEn: 'Discussion', icon: '💬' },
-    { id: 'revision', labelFr: 'Révision ciblée', labelEn: 'Targeted review', icon: '🎯' },
-    ...(showPro ? [{ id: 'professional' as CoachMode, labelFr: 'Mode pro', labelEn: 'Professional', icon: '💼' }] : []),
+  // P1-5: Visual differentiation of modes
+  const modes: { id: CoachMode; labelFr: string; labelEn: string; icon: string; descFr: string; descEn: string }[] = [
+    {
+      id: 'discussion',
+      labelFr: 'Discussion',
+      labelEn: 'Discussion',
+      icon: '💬',
+      descFr: 'Pratique en situation réelle',
+      descEn: 'Real-life practice',
+    },
+    {
+      id: 'revision',
+      labelFr: 'Révision ciblée',
+      labelEn: 'Targeted review',
+      icon: '🎯',
+      descFr: 'Mot par mot, validation stricte',
+      descEn: 'Word by word, strict validation',
+    },
   ]
 
   return (
     <div className="flex flex-col h-screen bg-[#F0F0F0]">
       <PageHeader title={lang === 'fr' ? 'Coach IA' : 'AI Coach'} backHref="/dashboard" />
 
-      {/* Mode selector */}
-      <div className="flex gap-2 px-4 py-2 bg-white border-b">
-        {modes.map(m => (
-          <button key={m.id} onClick={() => setMode(m.id)}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-              mode === m.id ? 'bg-[#002844] text-white' : 'bg-gray-100 text-[#555]'
-            }`}>
-            {m.icon} {lang === 'fr' ? m.labelFr : m.labelEn}
-          </button>
-        ))}
+      {/* P1-5: Mode selector with visual differentiation */}
+      <div className="px-4 py-2 bg-white border-b">
+        <div className="flex gap-2">
+          {modes.map(m => (
+            <button key={m.id} onClick={() => handleModeChange(m.id)}
+              className={`flex-1 py-2.5 px-3 rounded-xl text-center transition-all ${
+                mode === m.id
+                  ? 'bg-[#002844] text-white shadow-md'
+                  : 'bg-gray-100 text-[#555] hover:bg-gray-200'
+              }`}>
+              <span className="text-lg block">{m.icon}</span>
+              <span className="text-xs font-bold block">{lang === 'fr' ? m.labelFr : m.labelEn}</span>
+              <span className="text-[10px] block opacity-75">{lang === 'fr' ? m.descFr : m.descEn}</span>
+            </button>
+          ))}
+        </div>
+        {/* Course context indicator */}
+        {activeCourseId && (
+          <p className="text-[10px] text-center text-[#888] mt-1.5">
+            📚 {lang === 'fr' ? 'Cours actif :' : 'Active course:'} {getA1CourseData(activeCourseId)?.title || activeCourseId} — {courseWords.length} {lang === 'fr' ? 'mots' : 'words'}
+          </p>
+        )}
       </div>
 
       {/* Messages */}
@@ -356,35 +344,61 @@ export default function CoachPage() {
                 <span className="text-sm">🤖</span>
               </div>
             )}
-            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
+            <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
               msg.role === 'user'
                 ? 'bg-[#002844] text-white rounded-br-md'
                 : 'bg-white text-[#002844] shadow-sm rounded-bl-md'
             }`}>
               {msg.text}
+              {/* TTS button on coach messages containing English words */}
+              {msg.role === 'coach' && (
+                <button
+                  onClick={() => {
+                    // Extract English word between quotes if present
+                    const match = msg.text.match(/"([^"]+)"/)
+                    if (match) speakText(match[1], 'en')
+                  }}
+                  className="ml-2 inline-flex items-center opacity-50 hover:opacity-100 transition-opacity"
+                  title={lang === 'fr' ? 'Écouter' : 'Listen'}
+                >
+                  <Volume2 className="h-3 w-3" />
+                </button>
+              )}
             </div>
           </div>
         ))}
+
+        {/* Thinking indicator */}
+        {isThinking && (
+          <div className="flex justify-start">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7B1FA2] to-[#9C27B0] flex items-center justify-center flex-shrink-0 mr-2">
+              <span className="text-sm">🤖</span>
+            </div>
+            <div className="bg-white text-[#002844] shadow-sm rounded-2xl rounded-bl-md px-4 py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-[#7B1FA2]" />
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </main>
 
-      {/* Input with microphone */}
+      {/* Input */}
       <div className="bg-white border-t px-4 py-3 pb-20">
         <div className="flex gap-2 max-w-lg mx-auto items-center">
           <input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder={lang === 'fr' ? 'Écris ton message...' : 'Type your message...'}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder={lang === 'fr' ? 'Écris ta réponse...' : 'Type your answer...'}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#002844] focus:outline-none focus:border-[#D9B438]"
+            disabled={isThinking}
           />
 
-          {/* Microphone button */}
           <button
             onClick={handleMicClick}
-            disabled={!speechSupported}
-            title={speechSupported ? (lang === 'fr' ? 'Parle' : 'Speak') : (lang === 'fr' ? 'Non supporté' : 'Not supported')}
+            disabled={!speechSupported || isThinking}
             className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
               speechSupported
                 ? isListening
@@ -396,8 +410,7 @@ export default function CoachPage() {
             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </button>
 
-          {/* Send button */}
-          <button onClick={handleSend} disabled={!input.trim()}
+          <button onClick={handleSend} disabled={!input.trim() || isThinking}
             className="w-10 h-10 rounded-xl bg-[#002844] flex items-center justify-center disabled:opacity-50">
             <Send className="h-4 w-4 text-white" />
           </button>

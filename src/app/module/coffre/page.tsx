@@ -503,12 +503,20 @@ function CoffreContent() {
                       if (displayImg) {
                         return <img src={displayImg} alt={word.word_target} className="w-60 h-60 object-cover rounded-lg mx-auto" style={{ minWidth: '240px', minHeight: '240px' }} />;
                       }
+                      // P1-4: Emoji contextuel au lieu de placeholder vide
+                      const emojiMap: Record<string, string> = {
+                        'hello': '👋', 'hi': '👋', 'goodbye': '👋', 'good morning': '🌅', 'good evening': '🌇',
+                        'thank you': '🙏', 'thanks': '🙏', 'please': '🤲', 'sorry': '😔', 'welcome': '🤗',
+                        'food': '🍽️', 'water': '💧', 'coffee': '☕', 'house': '🏠', 'school': '🏫',
+                        'car': '🚗', 'phone': '📱', 'book': '📖', 'family': '👨‍👩‍👧‍👦', 'friend': '🤝',
+                        'happy': '😊', 'sad': '😢', 'dog': '🐕', 'cat': '🐈', 'sun': '☀️',
+                      };
+                      const wLow = word.word_target.toLowerCase();
+                      const em = emojiMap[wLow] || Object.keys(emojiMap).find(k => wLow.includes(k) || k.includes(wLow)) && emojiMap[Object.keys(emojiMap).find(k => wLow.includes(k) || k.includes(wLow)) || ''] || '📝';
                       return (
-                        <div className="w-60 h-60 rounded-lg mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center" style={{ minWidth: '240px', minHeight: '240px' }}>
-                          <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-[10px] text-gray-400 mt-1">Image</span>
+                        <div className="w-60 h-60 rounded-lg mx-auto bg-[#F8F6F0] flex flex-col items-center justify-center" style={{ minWidth: '240px', minHeight: '240px' }}>
+                          <span className="text-8xl">{em}</span>
+                          <span className="text-sm text-[#555] mt-2 font-medium">{word.word_target}</span>
                         </div>
                       );
                     })()}

@@ -261,6 +261,11 @@ function SessionContent() {
   const [preactivIdx, setPreactivIdx] = useState(0)
   const [preactivInteracted, setPreactivInteracted] = useState(false)
   const [preactivVoiceDetected, setPreactivVoiceDetected] = useState(false)
+  // P0-2: Pre-activation recording states (same engine as oral)
+  const [preactivRecording, setPreactivRecording] = useState(false)
+  const [preactivAudioUrl, setPreactivAudioUrl] = useState<string | null>(null)
+  const preactivRecorderRef = useRef<any>(null)
+  const preactivChunksRef = useRef<Blob[]>([])
   const [exercises, setExercises] = useState<SessionExercise[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [results, setResults] = useState<SessionResult[]>([])
@@ -350,6 +355,25 @@ function SessionContent() {
       const courseGrammarEx = getA1CourseGrammarExercises(courseId)
       const cd = getA1CourseData(courseId)
 
+      // P1-1: Contextualized situational question generator
+      const scenario = cd?.scenario || ''
+      const buildContextQuestion = (w: typeof courseVocab[0], roundType: 'translate' | 'reverse' | 'context'): string => {
+        if (roundType === 'translate') {
+          // Situation → question
+          if (scenario && lang === 'fr') return `${scenario}\nComment dit-on "${w.word_fr}" en anglais ?`
+          return lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`
+        }
+        if (roundType === 'reverse') {
+          return lang === 'fr' ? `Que signifie "${w.word_target}" en français ?` : `What does "${w.word_target}" mean in French?`
+        }
+        // context round
+        if (w.example_en && w.example_en.toLowerCase().includes(w.word_target.toLowerCase())) {
+          const blanked = w.example_en.replace(new RegExp(w.word_target, 'i'), '______')
+          return lang === 'fr' ? `Quel mot complète : "${blanked}" ?` : `Which word completes: "${blanked}"?`
+        }
+        return lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`
+      }
+
       // ---- ROUND 1: Translation (QCM for Path B, text for Path A) ----
       const round1: SessionExercise[] = []
       for (let wi = 0; wi < courseVocab.length; wi++) {
@@ -360,14 +384,14 @@ function SessionContent() {
           const options = seededShuffle([w.word_target, ...distractors], getDailySeed() + wi * 10 + 1)
           round1.push({
             type: 'grammar_qcm' as const, module: 'vocabulaire', data: w,
-            question: lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`,
+            question: buildContextQuestion(w, 'translate'),
             answer: w.word_target,
             options: options.length >= 2 ? options : [w.word_target, 'unknown'],
           })
         } else {
           round1.push({
             type: 'vocab_translate' as const, module: 'vocabulaire', data: w,
-            question: lang === 'fr' ? `Comment dit-on "${w.word_fr}" en anglais ?` : `How do you say "${w.word_fr}" in English?`,
+            question: buildContextQuestion(w, 'translate'),
             answer: w.word_target, hint: w.definition_en,
           })
         }
@@ -1509,14 +1533,54 @@ function SessionContent() {
                     className="w-60 h-60 rounded-2xl object-cover shadow-md hover:opacity-90 transition-opacity"
                   />
                 ) : (
-                  <div className="w-60 h-60 rounded-2xl flex flex-col items-center justify-center shadow-md"
-                    style={{
-                      background: `linear-gradient(135deg, ${['#E8F4F8','#FFF3E0','#E8F5E9','#F3E5F5','#FFF8E1','#E3F2FD','#FCE4EC','#E0F7FA','#FBE9E7','#F1F8E9'][preactivIdx % 10]} 0%, ${['#D5E8F0','#FFE0B2','#C8E6C9','#E1BEE7','#FFECB3','#BBDEFB','#F8BBD0','#B2EBF2','#FFCCBC','#DCEDC8'][preactivIdx % 10]} 100%)`
-                    }}>
-                    <span className="text-6xl font-bold" style={{ color: `${['#002844','#E65100','#2E7D32','#7B1FA2','#F9A825','#1565C0','#C62828','#00838F','#BF360C','#558B2F'][preactivIdx % 10]}40` }}>
-                      {currentWord.word_target.charAt(0).toUpperCase()}
+                  <div className="w-60 h-60 rounded-2xl flex flex-col items-center justify-center shadow-md bg-[#F8F6F0]">
+                    {/* P0-3: Emoji grand format contextuel — zéro gradient */}
+                    <span className="text-8xl mb-2">
+                      {(() => {
+                        // Contextual emoji mapping based on word theme/meaning
+                        const w = currentWord.word_target.toLowerCase()
+                        const emojiMap: Record<string, string> = {
+                          'hello': '👋', 'hi': '👋', 'goodbye': '👋', 'see you': '👋',
+                          'good morning': '🌅', 'good evening': '🌇', 'good night': '🌙',
+                          'thank you': '🙏', 'thanks': '🙏', 'please': '🤲',
+                          'sorry': '😔', 'excuse me': '🙇', 'welcome': '🤗',
+                          'yes': '✅', 'no': '❌', 'maybe': '🤔',
+                          'food': '🍽️', 'water': '💧', 'coffee': '☕', 'tea': '🍵',
+                          'bread': '🍞', 'fruit': '🍎', 'meat': '🥩', 'fish': '🐟',
+                          'house': '🏠', 'home': '🏠', 'school': '🏫', 'hospital': '🏥',
+                          'shop': '🏪', 'restaurant': '🍽️', 'hotel': '🏨', 'airport': '✈️',
+                          'car': '🚗', 'bus': '🚌', 'train': '🚆', 'taxi': '🚕',
+                          'phone': '📱', 'book': '📖', 'pen': '✏️', 'bag': '👜',
+                          'money': '💰', 'time': '⏰', 'clock': '🕐', 'calendar': '📅',
+                          'family': '👨‍👩‍👧‍👦', 'father': '👨', 'mother': '👩', 'brother': '👦',
+                          'sister': '👧', 'baby': '👶', 'friend': '🤝', 'teacher': '👩‍🏫',
+                          'doctor': '👨‍⚕️', 'work': '💼', 'job': '💼',
+                          'happy': '😊', 'sad': '😢', 'angry': '😠', 'tired': '😴',
+                          'hot': '🔥', 'cold': '🥶', 'big': '🐘', 'small': '🐜',
+                          'fast': '⚡', 'slow': '🐢', 'nice': '😊', 'pretty': '🌸',
+                          'dog': '🐕', 'cat': '🐈', 'bird': '🐦', 'sun': '☀️',
+                          'rain': '🌧️', 'snow': '❄️', 'flower': '🌺', 'tree': '🌳',
+                          'music': '🎵', 'movie': '🎬', 'sport': '⚽', 'game': '🎮',
+                          'love': '❤️', 'like': '👍', 'eat': '🍴', 'drink': '🥤',
+                          'sleep': '😴', 'walk': '🚶', 'run': '🏃', 'read': '📚',
+                          'write': '✍️', 'speak': '🗣️', 'listen': '👂', 'look': '👀',
+                          'help': '🆘', 'name': '🏷️', 'color': '🎨', 'number': '🔢',
+                          'day': '📆', 'week': '📅', 'month': '🗓️', 'year': '📆',
+                          'morning': '🌅', 'afternoon': '☀️', 'evening': '🌇', 'night': '🌙',
+                          'monday': '📅', 'today': '📍', 'tomorrow': '➡️', 'yesterday': '⬅️',
+                          'how much': '💲', 'where': '📍', 'when': '⏰', 'what': '❓',
+                          'who': '👤', 'why': '🤷', 'how': '💡',
+                        }
+                        // Try exact match first, then partial
+                        if (emojiMap[w]) return emojiMap[w]
+                        const partial = Object.keys(emojiMap).find(k => w.includes(k) || k.includes(w))
+                        if (partial) return emojiMap[partial]
+                        // Fallback: themed emojis cycling
+                        const fallbackEmojis = ['📝', '💡', '🎓', '🗣️', '📖', '🌍', '✨', '🎯', '📚', '🔤']
+                        return fallbackEmojis[preactivIdx % fallbackEmojis.length]
+                      })()}
                     </span>
-                    <span className="text-sm font-medium mt-2" style={{ color: ['#002844','#E65100','#2E7D32','#7B1FA2','#F9A825','#1565C0','#C62828','#00838F','#BF360C','#558B2F'][preactivIdx % 10] }}>
+                    <span className="text-sm font-medium text-[#555]">
                       {currentWord.word_target}
                     </span>
                   </div>
@@ -1539,41 +1603,95 @@ function SessionContent() {
                 {lang === 'fr' ? 'Répéter' : 'Repeat'}
               </button>
 
-              {/* Microphone button */}
-              <button
-                onClick={() => {
-                  setPreactivInteracted(true)
-                  setPreactivVoiceDetected(false)
-                  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-                  if (SpeechRecognition) {
-                    const recognition = new SpeechRecognition()
-                    recognition.continuous = false
-                    recognition.interimResults = false
-                    recognition.lang = activeLang === 'en' ? 'en-US' : 'fr-FR'
-                    const micStartTime = Date.now()
-                    recognition.onresult = (event: any) => {
-                      // P0-3: Require >1 second of real audio to avoid false positives
-                      const elapsed = Date.now() - micStartTime
-                      const transcript = event.results?.[0]?.[0]?.transcript || ''
-                      if (elapsed > 1000 && transcript.trim().length > 0) {
+              {/* P0-2: Microphone — same MediaRecorder engine as oral exercise */}
+              {!preactivRecording && !preactivAudioUrl && (
+                <button
+                  onClick={async () => {
+                    setPreactivInteracted(true)
+                    setPreactivVoiceDetected(false)
+                    setPreactivAudioUrl(null)
+                    setPreactivRecording(true)
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                      preactivChunksRef.current = []
+                      const recorder = new MediaRecorder(stream)
+                      preactivRecorderRef.current = recorder
+                      recorder.ondataavailable = (e: any) => { if (e.data.size > 0) preactivChunksRef.current.push(e.data) }
+                      recorder.onstop = () => {
+                        const blob = new Blob(preactivChunksRef.current, { type: 'audio/webm' })
+                        const url = URL.createObjectURL(blob)
+                        setPreactivAudioUrl(url)
+                        setPreactivRecording(false)
                         setPreactivVoiceDetected(true)
-                      } else {
-                        setPreactivVoiceDetected(false)
+                        stream.getTracks().forEach(t => t.stop())
                       }
+                      recorder.start()
+                      // Auto-stop after 5 seconds
+                      setTimeout(() => { if (recorder.state === 'recording') recorder.stop() }, 5000)
+                    } catch {
+                      setPreactivRecording(false)
                     }
-                    recognition.onerror = () => setPreactivVoiceDetected(false)
-                    recognition.start()
-                  }
-                }}
-                className="flex items-center gap-2 mx-auto px-4 py-3 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-all"
-              >
-                <Mic className="h-4 w-4" />
-                {lang === 'fr' ? 'Parler 🎤' : 'Speak 🎤'}
-              </button>
-              {preactivVoiceDetected && (
-                <p className="text-green-600 text-sm font-bold mt-2 animate-pulse">
-                  ✅ {lang === 'fr' ? 'Voix détectée !' : 'Voice detected!'}
-                </p>
+                  }}
+                  className="flex items-center gap-2 mx-auto px-6 py-3 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all"
+                >
+                  <Mic className="h-5 w-5" />
+                  {lang === 'fr' ? 'Enregistrer 🎤' : 'Record 🎤'}
+                </button>
+              )}
+
+              {/* Recording in progress */}
+              {preactivRecording && (
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      if (preactivRecorderRef.current?.state === 'recording') {
+                        preactivRecorderRef.current.stop()
+                      }
+                    }}
+                    className="flex items-center gap-2 mx-auto px-6 py-3 rounded-xl bg-red-600 text-white text-sm font-bold animate-pulse"
+                  >
+                    <Mic className="h-5 w-5" />
+                    {lang === 'fr' ? 'Enregistrement en cours...' : 'Recording...'}
+                  </button>
+                  <p className="text-red-500 text-xs font-semibold mt-2 animate-pulse">
+                    🔴 {lang === 'fr' ? 'Parle maintenant' : 'Speak now'}
+                  </p>
+                </div>
+              )}
+
+              {/* Recording complete — 3 feedback states */}
+              {preactivVoiceDetected && preactivAudioUrl && (
+                <div className="space-y-3 mt-2">
+                  <p className="text-green-600 text-sm font-bold text-center">
+                    ✅ {lang === 'fr' ? 'Enregistrement terminé !' : 'Recording complete!'}
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    {/* Listen to target */}
+                    <button
+                      onClick={() => speakText(currentWord.word_target, activeLang)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#002844] text-white text-xs font-semibold"
+                    >
+                      <Volume2 className="h-3.5 w-3.5" />
+                      {lang === 'fr' ? 'Écouter la cible' : 'Listen to target'}
+                    </button>
+                    {/* Replay my voice */}
+                    <button
+                      onClick={() => { const a = new Audio(preactivAudioUrl); a.play() }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#7B1FA2] text-white text-xs font-semibold"
+                    >
+                      <Volume2 className="h-3.5 w-3.5" />
+                      {lang === 'fr' ? 'Ma prononciation' : 'My pronunciation'}
+                    </button>
+                    {/* Re-record */}
+                    <button
+                      onClick={() => { setPreactivAudioUrl(null); setPreactivVoiceDetected(false) }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 text-[#002844] text-xs font-semibold"
+                    >
+                      <Mic className="h-3.5 w-3.5" />
+                      {lang === 'fr' ? 'Refaire' : 'Redo'}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ) : (
@@ -1588,7 +1706,7 @@ function SessionContent() {
           <div className="flex gap-3">
             {preactivIdx > 0 && (
               <button
-                onClick={() => { setPreactivIdx(preactivIdx - 1); setPreactivInteracted(false); }}
+                onClick={() => { setPreactivIdx(preactivIdx - 1); setPreactivInteracted(false); setPreactivAudioUrl(null); setPreactivVoiceDetected(false); setPreactivRecording(false); }}
                 className="flex-1 py-3 rounded-xl bg-gray-200 text-[#002844] font-semibold hover:opacity-90 transition-opacity"
               >
                 {lang === 'fr' ? '← Précédent' : '← Previous'}
@@ -1596,7 +1714,7 @@ function SessionContent() {
             )}
             {!isLastWord ? (
               <button
-                onClick={() => { setPreactivIdx(preactivIdx + 1); setPreactivInteracted(false); }}
+                onClick={() => { setPreactivIdx(preactivIdx + 1); setPreactivInteracted(false); setPreactivAudioUrl(null); setPreactivVoiceDetected(false); setPreactivRecording(false); }}
                 disabled={!preactivInteracted}
                 className={`flex-1 py-3 rounded-xl font-semibold transition-opacity ${
                   preactivInteracted
@@ -1639,7 +1757,7 @@ function SessionContent() {
       <div className="min-h-screen bg-[#F0F0F0] pb-20">
         <PageHeader title={lang === 'fr' ? 'Règle de grammaire' : 'Grammar Rule'} backHref="/dashboard" />
         <main className="px-4 pt-6 max-w-lg mx-auto">
-          {/* P1-F: Guidage explicite */}
+          {/* P1-2/P1-3: Grammar rule — strict scope format */}
           <div className="mb-4 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
             <p className="text-sm font-bold text-amber-800 text-center">
               📖 {lang === 'fr' ? 'Lis la règle, puis écoute les exemples' : 'Read the rule, then listen to the examples'}
@@ -1649,9 +1767,8 @@ function SessionContent() {
           <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
             {courseData?.rule ? (
               <>
-                {/* P1-1: Format pédagogique strict — Contexte → Usage → Exemple en situation */}
                 <div className="mb-4 space-y-4">
-                  {/* Contexte */}
+                  {/* P1-2: 📍 CONTEXTE — scenario from course */}
                   <div>
                     <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide mb-2">
                       📍 {lang === 'fr' ? 'Contexte' : 'Context'}
@@ -1662,19 +1779,65 @@ function SessionContent() {
                       </p>
                     </div>
                   </div>
-                  {/* Usage / Règle */}
+
+                  {/* P1-2: 📖 RÈGLE D'USAGE — word-by-word format */}
                   <div>
-                    <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide mb-2">
-                      📖 {lang === 'fr' ? 'Règle d\'usage' : 'Usage rule'}
-                    </p>
-                    <div className="bg-[#F8F6F0] rounded-xl p-4">
-                      <p className="text-base text-[#002844] leading-relaxed whitespace-pre-line">
-                        {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-[#D9B438] uppercase tracking-wide">
+                        📖 {lang === 'fr' ? "Règle d'usage" : 'Usage rule'}
                       </p>
+                      {/* P1-3: Audio TTS for grammar rule in French */}
+                      <button
+                        onClick={() => {
+                          const ruleText = lang === 'fr' ? courseData.rule.fr : courseData.rule.en
+                          speakText(ruleText, 'fr')
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002844] text-white text-xs font-semibold hover:opacity-90"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                        {lang === 'fr' ? 'Écouter la règle' : 'Listen to rule'}
+                      </button>
+                    </div>
+                    <div className="bg-[#F8F6F0] rounded-xl p-4">
+                      {/* P1-2: Format with per-word usage + examples from course vocab */}
+                      {(() => {
+                        const courseVocabForRule = courseId ? getA1CourseVocabulary(courseId) : []
+                        if (courseVocabForRule.length > 0) {
+                          return (
+                            <div className="space-y-3">
+                              {courseVocabForRule.map((v, vi) => (
+                                <div key={vi} className="flex items-start gap-2">
+                                  <span className="text-sm font-bold text-[#002844] min-w-[100px]">{v.word_target}</span>
+                                  <span className="text-sm text-[#555]">→ {v.word_fr}
+                                    {v.example_en && (
+                                      <span className="block text-xs italic text-[#888] mt-0.5">
+                                        Ex : {v.example_en}
+                                        <button
+                                          onClick={() => speakText(v.example_en || '', activeLang)}
+                                          className="inline-flex ml-1 p-0.5 hover:opacity-70"
+                                        >
+                                          <Volume2 className="h-3 w-3 text-[#002844]" />
+                                        </button>
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                        // Fallback: show raw rule text
+                        return (
+                          <p className="text-base text-[#002844] leading-relaxed whitespace-pre-line">
+                            {lang === 'fr' ? courseData.rule.fr : courseData.rule.en}
+                          </p>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
 
+                {/* Examples in context (if course has them) */}
                 {courseData.examples && courseData.examples.length > 0 && (
                   <div className="mt-5">
                     <p className="text-xs font-semibold text-[#888888] uppercase tracking-wide mb-3">
@@ -2080,22 +2243,32 @@ function SessionContent() {
           </div>
         </div>
 
-        {/* P1-F: Guidage explicite par type d'exercice */}
-        <div className="mb-3 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100">
-          <p className="text-xs font-bold text-blue-700 text-center">
-            {currentExercise.type === 'vocab_translate'
-              ? (lang === 'fr' ? '✏️ Écris la traduction' : '✏️ Write the translation')
-              : currentExercise.type === 'grammar_qcm'
-              ? (lang === 'fr' ? '👆 Choisis la bonne réponse' : '👆 Choose the correct answer')
-              : currentExercise.type === 'reading_comprehension'
-              ? (lang === 'fr' ? '📖 Lis le texte attentivement' : '📖 Read the text carefully')
-              : currentExercise.type === 'speaking_repeat'
-              ? (lang === 'fr' ? '🎤 Parle maintenant' : '🎤 Speak now')
-              : currentExercise.type === 'word_order'
-              ? (lang === 'fr' ? '🔀 Remets les mots dans le bon ordre' : '🔀 Put the words in order')
-              : (lang === 'fr' ? '📝 Complète la phrase' : '📝 Complete the sentence')}
-          </p>
-        </div>
+        {/* P1-6: Guidage explicite + TTS consigne */}
+        {(() => {
+          const consigne = currentExercise.type === 'vocab_translate'
+            ? (lang === 'fr' ? '✏️ Écris la traduction' : '✏️ Write the translation')
+            : currentExercise.type === 'grammar_qcm'
+            ? (lang === 'fr' ? '👆 Choisis la bonne réponse' : '👆 Choose the correct answer')
+            : currentExercise.type === 'reading_comprehension'
+            ? (lang === 'fr' ? '📖 Lis le texte attentivement' : '📖 Read the text carefully')
+            : currentExercise.type === 'speaking_repeat'
+            ? (lang === 'fr' ? '🎤 Parle maintenant' : '🎤 Speak now')
+            : currentExercise.type === 'word_order'
+            ? (lang === 'fr' ? '🔀 Remets les mots dans le bon ordre' : '🔀 Put the words in order')
+            : (lang === 'fr' ? '📝 Complète la phrase' : '📝 Complete the sentence')
+          return (
+            <div className="mb-3 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center gap-2">
+              <p className="text-xs font-bold text-blue-700">{consigne}</p>
+              <button
+                onClick={() => speakText(consigne.replace(/[✏️👆📖🎤🔀📝]/g, '').trim(), 'fr')}
+                className="p-1 rounded-full hover:bg-blue-100 transition-colors"
+                title={lang === 'fr' ? 'Écouter la consigne' : 'Listen to instruction'}
+              >
+                <Volume2 className="h-3 w-3 text-blue-600" />
+              </button>
+            </div>
+          )
+        })()}
 
         {/* Exercise card */}
         <div className="rounded-2xl bg-white p-6 shadow-sm mb-6">
@@ -2393,30 +2566,27 @@ function SessionContent() {
           {/* Feedback */}
           {showFeedback && (
             <div className={`mt-4 p-4 rounded-xl border-2 ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-              {/* BLOC 3: Micro-feedback immédiat */}
+              {/* P1-1: 3-tier feedback — Exacte / Acceptable / Incorrecte */}
               <div className="flex items-center gap-2 mb-2">
                 {isCorrect
                   ? <CheckCircle className="h-5 w-5 text-green-600" />
                   : <XCircle className="h-5 w-5 text-red-500" />}
                 <span className="font-bold text-sm" style={{ color: isCorrect ? '#2E7D32' : '#C62828' }}>
                   {isCorrect
-                    ? (lang === 'fr' ? '✔️ Bien joué !' : '✔️ Well done!')
+                    ? (lang === 'fr' ? 'Exactement ! ✅' : 'Exactly! ✅')
                     : currentExercise.type === 'speaking_repeat'
                     ? (lang === 'fr' ? '💡 Presque — réécoute et réessaie' : '💡 Almost — listen again and retry')
-                    : (lang === 'fr' ? '❌ On corrige ensemble' : '❌ Let\'s fix this together')}
+                    : (lang === 'fr' ? `On cherchait "${currentExercise.answer}" ❌` : `We were looking for "${currentExercise.answer}" ❌`)}
                 </span>
               </div>
-              {/* +1% A1 after correct answer */}
               {isCorrect && (
                 <p className="text-[10px] font-bold text-[#D9B438] mb-2 animate-pulse">
                   +1% {lang === 'fr' ? 'du niveau A1' : 'of A1 level'} 🎯
                 </p>
               )}
 
-              {/* P0-4: Full feedback on EVERY answer (Curriculum §1.2 Étape 4) */}
-              {/* Always show: Ta réponse / Réponse correcte / Explication */}
+              {/* P1-1: Feedback différencié + renforcement */}
               <div className="space-y-2 mb-3">
-                {/* Ta réponse */}
                 {currentExercise.type !== 'reading_comprehension' && (
                   <p className="text-sm text-[#555555]">
                     {lang === 'fr' ? 'Ta réponse :' : 'Your answer:'}{' '}
@@ -2426,13 +2596,11 @@ function SessionContent() {
                   </p>
                 )}
 
-                {/* Réponse correcte (always shown) */}
                 <p className="text-sm text-[#555555]">
                   {lang === 'fr' ? 'Réponse correcte :' : 'Correct answer:'}{' '}
                   <span className="font-bold text-green-700">{currentExercise.answer}</span>
                 </p>
 
-                {/* BUG-38: IPA phonetic guide for speaking */}
                 {currentExercise.type === 'speaking_repeat' && IPA_MAP[currentExercise.answer.toLowerCase()] && (
                   <p className="text-sm text-[#555555]">
                     <span className="font-mono text-[#7B1FA2]">{IPA_MAP[currentExercise.answer.toLowerCase()]}</span>
@@ -2440,7 +2608,27 @@ function SessionContent() {
                 )}
               </div>
 
-              {/* P0-4: Explication de la règle (always shown, both correct and incorrect) */}
+              {/* P1-1: Renforcement immédiat — mot + traduction + phonétique + exemple */}
+              {currentExercise.data && (
+                <div className="p-3 bg-[#F8F6F0] rounded-lg text-sm mb-3 border border-[#E8E4D8]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-[#002844]">{currentExercise.data.word_target}</span>
+                    <span className="text-[#555]">= {currentExercise.data.word_fr}</span>
+                    <button onClick={() => speakText(currentExercise.data?.word_target || '', user?.activeLang || 'en')}
+                      className="p-1 rounded-full hover:bg-white/60">
+                      <Volume2 className="h-3 w-3 text-[#002844]" />
+                    </button>
+                  </div>
+                  {currentExercise.data.phonetic && (
+                    <p className="text-xs text-[#888] italic mb-1">/{currentExercise.data.phonetic}/</p>
+                  )}
+                  {currentExercise.data.example_en && (
+                    <p className="text-xs text-[#555] italic">&ldquo;{currentExercise.data.example_en}&rdquo;</p>
+                  )}
+                </div>
+              )}
+
+              {/* Explication */}
               <div className="p-3 bg-blue-50 rounded-lg text-sm text-[#002844]">
                 <p className="font-semibold text-xs text-blue-600 mb-1">
                   {lang === 'fr' ? '💡 Explication' : '💡 Explanation'}

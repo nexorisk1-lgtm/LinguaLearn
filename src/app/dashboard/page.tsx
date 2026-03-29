@@ -230,17 +230,18 @@ export default function DashboardPage() {
   const allowedIds = engineModules ? engineModules.modules.map(m => m.id) : moduleBlocks.map(b => b.id)
   const visibleModules = moduleBlocks.filter(b => allowedIds.includes(b.id))
 
-  // --- Coach contextual message ---
+  // P1-7: Coach home wording — personalized with first name + course context
+  const firstName = user?.firstName || 'apprenant'
   const coachMessage = (() => {
     if (courseInfo.hasResume) return lang === 'fr'
-      ? `Tu veux reprendre les ${courseInfo.title} ? On y va !`
-      : `Want to resume ${courseInfo.title}? Let's go!`
+      ? `Salut ${firstName} ! On reprend ${courseInfo.title} — je t'attends 👋`
+      : `Hi ${firstName}! Let's resume ${courseInfo.title} — I'm waiting 👋`
     if (revisionInfo.dueCount > 0) return lang === 'fr'
-      ? `${revisionInfo.dueCount} mots à renforcer — 3 min suffisent.`
-      : `${revisionInfo.dueCount} words to reinforce — 3 min is enough.`
+      ? `Salut ${firstName} ! On révise ${courseInfo.title} — ${revisionInfo.dueCount} mots à revoir 👋`
+      : `Hi ${firstName}! Let's review ${courseInfo.title} — ${revisionInfo.dueCount} words to go 👋`
     return lang === 'fr'
-      ? `Tu veux faire ${courseInfo.estimatedMin} min maintenant ? On travaille ${courseInfo.title}.`
-      : `Want to do ${courseInfo.estimatedMin} min now? Let's work on ${courseInfo.title}.`
+      ? `Salut ${firstName} ! On travaille ${courseInfo.title} — je t'attends 👋`
+      : `Hi ${firstName}! Let's work on ${courseInfo.title} — I'm waiting 👋`
   })()
 
   // --- Planning ---
