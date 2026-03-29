@@ -30,21 +30,7 @@ export const BANK_READING: ReadingText[] = [
   { id:'rd_en_06', language:'en', level:'B2', theme:'risk', title:'Enterprise Risk Management in the Digital Age',
     body_text:`Enterprise Risk Management (ERM) has evolved significantly over the past two decades. What was once a compliance-driven exercise focused primarily on financial and operational risks has become a strategic discipline that encompasses cyber threats, reputational risks, and emerging challenges such as climate change and geopolitical instability. The COSO framework, updated in 2017, provides a comprehensive approach to ERM that integrates risk management with strategy and performance. It emphasizes the importance of risk culture, governance, and the alignment of risk appetite with organizational objectives. In the digital age, cybersecurity has become one of the most critical risk categories. The average cost of a data breach exceeded $4 million in 2023, and ransomware attacks have increased by over 150% in the past three years. Organizations must implement robust controls, including multi-factor authentication, encryption, and regular penetration testing. The three lines of defense model remains a cornerstone of effective risk governance. The first line consists of operational management, which owns and manages risks on a daily basis. The second line provides oversight through risk management and compliance functions. The third line offers independent assurance through internal audit. As risks become more interconnected and complex, organizations that invest in proactive risk management will be better positioned to navigate uncertainty and create sustainable value.` },
 
-  // ===== ESPAGNOL - TRAVEL - A1 =====
-  { id:'rd_es_01', language:'es', level:'A1', theme:'travel', title:'Mi primer viaje',
-    body_text:`Voy a hacer un viaje. Tengo mi pasaporte y mi maleta. Tomo un taxi al aeropuerto. El aeropuerto es muy grande. Hago el registro y recibo mi tarjeta de embarque. Espero en la puerta. El avión está listo. Encuentro mi asiento. El vuelo es de dos horas. Estoy contento. Llego al hotel. La habitación es bonita. Estoy cansado pero emocionado. Mañana voy a explorar la ciudad. Quiero ver la playa y el centro histórico. Tengo un mapa. Es un viaje muy bonito.` },
-
-  // ===== ESPAGNOL - TRAVEL - A2 =====
-  { id:'rd_es_02', language:'es', level:'A2', theme:'travel', title:'Un fin de semana en Madrid',
-    body_text:`El fin de semana pasado, fui a Madrid con mi amiga. Tomamos un vuelo desde París. El vuelo fue de solo dos horas. Llegamos al aeropuerto y tomamos el metro al centro de la ciudad. Nuestro hotel estaba cerca de la Puerta del Sol, una plaza famosa con muchas tiendas y restaurantes. El sábado, visitamos el Museo del Prado. Es un museo muy grande con pinturas increíbles. También caminamos por el Parque del Retiro y comimos churros con chocolate. La comida estaba deliciosa. El domingo, fuimos al mercado de San Miguel. Probamos tapas y vinos españoles. Por la noche, cenamos en un restaurante pequeño. Pedí una tortilla española. Fue la mejor tortilla que he probado. Volvimos a París el domingo por la noche. Fue un viaje corto pero maravilloso.` },
-
-  // ===== ESPAGNOL - TRAVEL - A2 (Additional) =====
-  { id:'rd_es_03', language:'es', level:'A2', theme:'travel', title:'Viajando en tren',
-    body_text:`El tren es una forma muy popular de viajar en Europa. Es cómodo, rápido y no muy caro. El mes pasado tomé un tren desde París hasta Barcelona. El viaje fue de ocho horas. La estación de tren es muy grande y moderna. Hay tiendas, restaurantes y cafeterías en la estación. Mi asiento estaba en el vagón número tres. Pude ver el paisaje hermoso durante el viaje. El tren pasó por montañas, pueblos pequeños y ciudades grandes. Compré un café en la cafetería del tren. Cuando llegué a Barcelona, la ciudad era muy bonita. Recomiendo viajar en tren si tienes tiempo.` },
-
-  // ===== ESPAGNOL - TRAVEL - A2 (Additional 2) =====
-  { id:'rd_es_04', language:'es', level:'A2', theme:'travel', title:'En el aeropuerto',
-    body_text:`Cuando viajas en avión, debes llegar al aeropuerto dos horas antes del vuelo. Primero, necesitas hacer la cola en el mostrador de facturación. Allí, el agente revisa tu pasaporte y tu boleto. Luego, debes pasar por el control de seguridad. Los guardias revisan tu equipaje de mano. Después, puedes ir a la sala de espera. En la sala de espera hay muchas tiendas y restaurantes. Puedes comprar souvenires, libros y comida. También hay baños públicos y teléfonos. Cuando anuncian tu vuelo, debes ir a la puerta de embarque. Allí, un agente te pide tu tarjeta de embarque. Entonces, subes al avión y encuentras tu asiento. El viaje en avión es emocionante y cansador al mismo tiempo.` },
+  // V2.1.1: Spanish reading texts removed — Phase 14 will add via CanonicalContent
 
   // ===== ANGLAIS - MEETINGS - A2 =====
   { id:'rd_en_07', language:'en', level:'A2', theme:'meetings', title:'Planning a Team Meeting',
@@ -69,14 +55,6 @@ export const BANK_READING: ReadingText[] = [
   // ===== ANGLAIS - DAILY_LIFE - A1 (Additional) =====
   { id:'rd_en_12', language:'en', level:'A1', theme:'daily_life', title:'Shopping for Groceries',
     body_text:`Every Saturday, I go to the supermarket. I make a list before I leave home. I buy bread, milk, eggs, and fruit. Sometimes I buy cheese and chicken too. The supermarket is near my house. I walk there in ten minutes. I pay with my card. The total is usually about thirty euros.` },
-
-  // ===== ESPAGNOL - TRAVEL - A1 (Additional) =====
-  { id:'rd_es_05', language:'es', level:'A1', theme:'travel', title:'Mi Viaje a Barcelona',
-    body_text:`El verano pasado fui a Barcelona con mi familia. Viajamos en avión desde París. Barcelona es una ciudad muy bonita. Visitamos la Sagrada Familia y el Parque Güell. La playa era fantástica. Comimos paella y tapas. El tiempo era soleado y caluroso. Quiero volver el próximo año.` },
-
-  // ===== ESPAGNOL - DAILY_LIFE - A1 =====
-  { id:'rd_es_06', language:'es', level:'A1', theme:'daily_life', title:'Un Día Normal',
-    body_text:`Me despierto a las siete de la mañana. Desayuno café con tostadas. Voy al trabajo en metro. Trabajo en una oficina pequeña. A mediodía como con mis compañeros. Por la tarde hago ejercicio en el gimnasio. Por la noche ceno con mi familia y vemos una película. Me acuesto a las once.` },
 
   // ===== ANGLAIS - FAMILY - A1 =====
   { id:'rd_en_13', language:'en', level:'A1', theme:'family', title:'My Family',

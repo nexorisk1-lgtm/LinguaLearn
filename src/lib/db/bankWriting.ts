@@ -207,33 +207,7 @@ export const BANK_WRITING: WritingExercise[] = [
     prompt: 'Develop a concise risk assessment covering: identified risks, impact severity, probability of occurrence, and recommended mitigation strategies.'
   },
 
-  // ============================================
-  // SPANISH - TRAVEL THEME
-  // ============================================
-
-  // A1 Travel
-  {
-    id: 'wr_es_01',
-    language: 'es',
-    level: 'A1',
-    theme: 'travel',
-    type: 'translation',
-    instruction_fr: 'Traduisez la phrase suivante en espagnol.',
-    instruction_en: 'Translate the following sentence into Spanish.',
-    prompt: 'Je vais à la plage le week-end.',
-    answer: 'Voy a la playa el fin de semana.'
-  },
-  {
-    id: 'wr_es_02',
-    language: 'es',
-    level: 'A1',
-    theme: 'travel',
-    type: 'completion',
-    instruction_fr: 'Complétez la phrase.',
-    instruction_en: 'Complete the sentence.',
-    prompt: 'Me gustaría _____ a México este verano.',
-    answer: 'Me gustaría viajar a México este verano.'
-  },
+  // V2.1.1: Spanish A1 writing exercises removed — Phase 14 will add via CanonicalContent
 
   // ============================================
   // ENGLISH - FAMILY THEME
@@ -295,31 +269,5 @@ export const BANK_WRITING: WritingExercise[] = [
     prompt: 'Écris une phrase avec le mot "family" / Write a sentence with the word "family"'
   },
 
-  // ============================================
-  // SPANISH - TRAVEL THEME
-  // ============================================
-
-  // A2 Travel
-  {
-    id: 'wr_es_03',
-    language: 'es',
-    level: 'A2',
-    theme: 'travel',
-    type: 'translation',
-    instruction_fr: 'Traduisez la phrase suivante en espagnol.',
-    instruction_en: 'Translate the following sentence into Spanish.',
-    prompt: 'Quel est votre moyen de transport préféré?',
-    answer: '¿Cuál es su medio de transporte preferido?'
-  },
-  {
-    id: 'wr_es_04',
-    language: 'es',
-    level: 'A2',
-    theme: 'travel',
-    type: 'completion',
-    instruction_fr: 'Complétez la phrase.',
-    instruction_en: 'Complete the sentence.',
-    prompt: 'Cuando llegamos al hotel, _____ la habitación y descansamos.',
-    answer: 'Cuando llegamos al hotel, entramos en la habitación y descansamos.'
-  }
+  // V2.1.1: Spanish A2 writing exercises removed — Phase 14 will add via CanonicalContent
 ];

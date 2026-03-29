@@ -235,72 +235,7 @@ export const BANK_SPEAKING: SpeakingExercise[] = [
   },
 
   // ============================================
-  // SPANISH - TRAVEL THEME
-  // ============================================
-
-  // A1 Travel
-  {
-    id: 'sp_es_01',
-    language: 'es',
-    level: 'A1',
-    theme: 'travel',
-    type: 'word',
-    target_text: 'tren',
-    instruction_fr: 'Prononcez le mot suivant.',
-    instruction_en: 'Pronounce the following word.'
-  },
-  {
-    id: 'sp_es_02',
-    language: 'es',
-    level: 'A1',
-    theme: 'travel',
-    type: 'sentence',
-    target_text: 'Quiero ir a España.',
-    instruction_fr: 'Lisez la phrase suivante à voix haute.',
-    instruction_en: 'Read the following sentence aloud.'
-  },
-  {
-    id: 'sp_es_03',
-    language: 'es',
-    level: 'A1',
-    theme: 'travel',
-    type: 'word',
-    target_text: 'maleta',
-    instruction_fr: 'Prononcez le mot suivant.',
-    instruction_en: 'Pronounce the following word.'
-  },
-
-  // A2 Travel
-  {
-    id: 'sp_es_04',
-    language: 'es',
-    level: 'A2',
-    theme: 'travel',
-    type: 'sentence',
-    target_text: 'Dónde puedo encontrar un autobús que vaya al centro de la ciudad?',
-    instruction_fr: 'Lisez la phrase suivante à voix haute.',
-    instruction_en: 'Read the following sentence aloud.'
-  },
-  {
-    id: 'sp_es_05',
-    language: 'es',
-    level: 'A2',
-    theme: 'travel',
-    type: 'word',
-    target_text: 'pasaporte',
-    instruction_fr: 'Prononcez le mot suivant.',
-    instruction_en: 'Pronounce the following word.'
-  },
-  {
-    id: 'sp_es_06',
-    language: 'es',
-    level: 'A2',
-    theme: 'travel',
-    type: 'sentence',
-    target_text: 'Me gustaría reservar una habitación con vistas al mar, por favor.',
-    instruction_fr: 'Lisez la phrase suivante à voix haute.',
-    instruction_en: 'Read the following sentence aloud.'
-  },
+  // V2.1.1: Spanish speaking exercises removed — Phase 14 will add via CanonicalContent
 
   // ============================================
   // ENGLISH - FAMILY THEME - A1

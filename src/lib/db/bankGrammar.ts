@@ -64,34 +64,7 @@ export const BANK_GRAMMAR: GrammarRule[] = [
     attention_points:'Non-defining clauses use commas and cannot use "that".',
     examples:[{en:'The woman who called you is my sister.',fr:'La femme qui t\'a appelé est ma soeur.'},{en:'Paris, which is in France, is beautiful.',fr:'Paris, qui est en France, est magnifique.'},{en:'The house where I grew up was sold.',fr:'La maison où j\'ai grandi a été vendue.'}] },
 
-  // ===== ESPAGNOL A1 =====
-  { id:'gr_es_01', language:'es', rule_name:'Ser vs Estar', level:'A1',
-    definition_en:'"Ser" for permanent characteristics, "estar" for temporary states or location.',
-    definition_fr:'"Ser" pour les caractéristiques permanentes, "estar" pour les états temporaires ou la localisation.',
-    attention_points:'Ser : nationalité, profession, caractère. Estar : émotions, lieu, états temporaires.',
-    examples:[{en:'I am French.',fr:'Yo soy francés.'},{en:'She is tired.',fr:'Ella está cansada.'},{en:'Madrid is in Spain.',fr:'Madrid está en España.'}] },
-  { id:'gr_es_02', language:'es', rule_name:'Artículos: El / La / Un / Una', level:'A1',
-    definition_en:'Definite articles: el (m), la (f), los, las. Indefinite: un, una, unos, unas.',
-    definition_fr:'Articles définis : el (masc), la (fém), los, las. Articles indéfinis : un, una, unos, unas.',
-    attention_points:'Attention aux exceptions : el agua (fém mais "el" devant a- tonique).',
-    examples:[{en:'The book is interesting.',fr:'El libro es interesante.'},{en:'I have a big house.',fr:'Tengo una casa grande.'},{en:'Cats are beautiful.',fr:'Los gatos son bonitos.'}] },
-  { id:'gr_es_03', language:'es', rule_name:'Presente de indicativo - Verbos regulares', level:'A1',
-    definition_en:'Regular verb conjugation in -ar, -er, -ir in the present indicative.',
-    definition_fr:'Conjugaison des verbes réguliers en -ar, -er, -ir au présent de l\'indicatif.',
-    attention_points:'-ar: o, as, a, amos, áis, an. -er: o, es, e, emos, éis, en. -ir: o, es, e, imos, ís, en.',
-    examples:[{en:'I speak Spanish.',fr:'Yo hablo español.'},{en:'He eats an apple.',fr:'Él come una manzana.'},{en:'We live in Paris.',fr:'Nosotros vivimos en París.'}] },
-
-  // ===== ESPAGNOL A2 =====
-  { id:'gr_es_04', language:'es', rule_name:'Pretérito indefinido', level:'A2',
-    definition_en:'The Spanish simple past for completed actions in the past with a time marker.',
-    definition_fr:'Le passé simple espagnol pour les actions terminées dans le passé avec un marqueur temporel.',
-    attention_points:'Verbes irréguliers fréquents : ir/ser (fui), tener (tuve), hacer (hice).',
-    examples:[{en:'Yesterday I went to the cinema.',fr:'Ayer fui al cine.'},{en:'She ate paella.',fr:'Ella comió paella.'},{en:'We arrived late.',fr:'Nosotros llegamos tarde.'}] },
-  { id:'gr_es_05', language:'es', rule_name:'Gustar y verbos similares', level:'A2',
-    definition_en:'"Gustar" works inversely: what is liked is the subject. Me gusta + singular, me gustan + plural.',
-    definition_fr:'"Gustar" fonctionne à l\'envers : ce qui plaît est le sujet. Me gusta + singulier, me gustan + pluriel.',
-    attention_points:'Pronoms : me, te, le, nos, os, les. "A mí me gusta" pour insister.',
-    examples:[{en:'I like chocolate.',fr:'Me gusta el chocolate.'},{en:'We like animals.',fr:'Nos gustan los animales.'},{en:'She loves to dance.',fr:'A ella le encanta bailar.'}] },
+  // V2.1.1: Spanish content removed — Phase 14 will add via CanonicalContent
 
   // ===== ANGLAIS A1 - FAMILY THEME =====
   { id:'gr_en_11', language:'en', rule_name:'Possessive Adjectives (Family)', level:'A1',
@@ -197,30 +170,7 @@ export const BANK_GRAMMAR_EXERCISES: GrammarExercise[] = [
   { id:'ex_15_2', grammar_rule_id:'gr_en_15', type:'multiple_choice', question:'___ only child has many cousins.', options:['A','An','The','—'], answer:'An' },
   { id:'ex_15_3', grammar_rule_id:'gr_en_15', type:'fill_blank', question:'___ youngest sister is five years old.', answer:'The' },
 
-  // === gr_es_01 : Ser vs Estar ===
-  { id:'ex_es_01_1', grammar_rule_id:'gr_es_01', type:'multiple_choice', question:'Yo ___ francés.', options:['soy','estoy','es','está'], answer:'soy' },
-  { id:'ex_es_01_2', grammar_rule_id:'gr_es_01', type:'fill_blank', question:'Ella ___ cansada.', answer:'está' },
-  { id:'ex_es_01_3', grammar_rule_id:'gr_es_01', type:'multiple_choice', question:'Madrid ___ en España.', options:['es','está','son','están'], answer:'está' },
-
-  // === gr_es_02 : Articles ===
-  { id:'ex_es_02_1', grammar_rule_id:'gr_es_02', type:'multiple_choice', question:'___ libro es interesante.', options:['El','La','Un','Una'], answer:'El' },
-  { id:'ex_es_02_2', grammar_rule_id:'gr_es_02', type:'fill_blank', question:'Tengo ___ casa grande. (article indéfini fém)', answer:'una' },
-  { id:'ex_es_02_3', grammar_rule_id:'gr_es_02', type:'multiple_choice', question:'___ gatos son bonitos.', options:['El','La','Los','Las'], answer:'Los' },
-
-  // === gr_es_03 : Presente regular ===
-  { id:'ex_es_03_1', grammar_rule_id:'gr_es_03', type:'fill_blank', question:'Yo ___ (hablar) español.', answer:'hablo' },
-  { id:'ex_es_03_2', grammar_rule_id:'gr_es_03', type:'multiple_choice', question:'Él ___ una manzana.', options:['como','comes','come','comen'], answer:'come' },
-  { id:'ex_es_03_3', grammar_rule_id:'gr_es_03', type:'fill_blank', question:'Nosotros ___ (vivir) en París.', answer:'vivimos' },
-
-  // === gr_es_04 : Pretérito indefinido ===
-  { id:'ex_es_04_1', grammar_rule_id:'gr_es_04', type:'multiple_choice', question:'Ayer ___ al cine.', options:['voy','fui','iba','iré'], answer:'fui' },
-  { id:'ex_es_04_2', grammar_rule_id:'gr_es_04', type:'fill_blank', question:'Ella ___ (comer) paella ayer.', answer:'comió' },
-  { id:'ex_es_04_3', grammar_rule_id:'gr_es_04', type:'fill_blank', question:'Nosotros ___ (llegar) tarde.', answer:'llegamos' },
-
-  // === gr_es_05 : Gustar ===
-  { id:'ex_es_05_1', grammar_rule_id:'gr_es_05', type:'multiple_choice', question:'Me ___ el chocolate.', options:['gusto','gusta','gustan','gustas'], answer:'gusta' },
-  { id:'ex_es_05_2', grammar_rule_id:'gr_es_05', type:'fill_blank', question:'Nos ___ los animales.', answer:'gustan' },
-  { id:'ex_es_05_3', grammar_rule_id:'gr_es_05', type:'multiple_choice', question:'A ella le ___ bailar.', options:['gusta','encanta','gustan','encantan'], answer:'encanta' },
+  // V2.1.1: Spanish exercises removed — Phase 14 will add via CanonicalContent
 ];
 
 export const BANK_IRREGULAR_VERBS: IrregularVerb[] = [
