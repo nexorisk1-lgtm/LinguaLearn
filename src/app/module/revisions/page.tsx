@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { getCurrentUser, getDueReviews, getUpcomingReviews, saveReviewItem, ReviewItem } from '@/lib/db/localStorage';
 import { User, InterfaceLanguage, LearningLanguage } from '@/types';
 import BottomNav from '@/components/BottomNav';
@@ -21,6 +21,11 @@ function shuffleArray<T>(arr: T[]): T[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+}
+
+interface SessionResult {
+  word: VocabWord;
+  correct: boolean;
 }
 
 export default function RevisionsPage() {
@@ -44,6 +49,13 @@ export default function RevisionsPage() {
   // BUG-78: Track upcoming reviews
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [upcomingNextDate, setUpcomingNextDate] = useState<string | null>(null);
+
+  // Session tracking (BLOC 4 enhancements)
+  const [, setSessionResults] = useState<SessionResult[]>([]);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [sessionElapsed, setSessionElapsed] = useState(0);
+  const [weakWords, setWeakWords] = useState<VocabWord[]>([]);
+  const MAX_SESSION_WORDS = 10;
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -72,15 +84,31 @@ export default function RevisionsPage() {
       .map(d => vocab.find(w => w.id === d.itemId))
       .filter((w): w is VocabWord => w !== undefined);
 
-    setReviewWords(shuffleArray(wordsToReview));
+    // BLOC 4: Limit to MAX_SESSION_WORDS for 3-5 min sessions targeting fragile words
+    const limitedWords = shuffleArray(wordsToReview).slice(0, MAX_SESSION_WORDS);
+    setReviewWords(limitedWords);
 
     // BUG-78: Get upcoming scheduled reviews
     const upcoming = getUpcomingReviews(currentUser.id, aLang);
     setUpcomingCount(upcoming.count);
     setUpcomingNextDate(upcoming.nextDate);
 
+    // BLOC 4: Initialize session timer
+    setSessionStartTime(new Date());
+
     setLoading(false);
   }, [router]);
+
+  // BLOC 4: Timer update effect
+  useEffect(() => {
+    if (!sessionStartTime || phase !== 'exercise') return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diff = Math.floor((now.getTime() - sessionStartTime.getTime()) / 1000);
+      setSessionElapsed(diff);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionStartTime, phase]);
 
   if (loading || !user) {
     return (
@@ -106,8 +134,20 @@ export default function RevisionsPage() {
     setTotalCount(prev => prev + 1);
     if (correct) setCorrectCount(prev => prev + 1);
 
+    // BLOC 4: Track session results for enhanced summary
+    if (currentWord) {
+      setSessionResults(prev => [...prev, { word: currentWord, correct }]);
+    }
+
+    // BLOC 4: Track weak words (incorrect answers)
+    if (!correct && currentWord) {
+      setWeakWords(prev =>
+        prev.find(w => w.id === currentWord.id) ? prev : [...prev, currentWord]
+      );
+    }
+
     setTimeout(() => {
-      // Save review result with spaced repetition
+      // Save review result with spaced repetition (SM-2 via saveReviewItem)
       if (currentWord) {
         saveReviewItem(user.id, activeLang, currentWord.id, 'word', correct ? 100 : 0);
       }
@@ -163,30 +203,140 @@ export default function RevisionsPage() {
     );
   }
 
-  // Summary phase
+  // Summary phase — BLOC 4 enhanced with session stats
   if (phase === 'summary') {
     const pct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+    const reprogrammedCount = totalCount - correctCount;
+    const gameScore = correctCount * 3; // +3 pts per correct answer
+    const nextReviewDate = new Date();
+    nextReviewDate.setDate(nextReviewDate.getDate() + 1);
+
+    // Calculate "prochaine révision" info (next session shows "J+1" for rescheduled items)
+    const nextReviewDateStr = nextReviewDate.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+
     return (
       <div className="min-h-screen pb-20 bg-[#F0F0F0]">
         <PageHeader title={lang === 'fr' ? 'Révisions terminées' : 'Reviews complete'} backHref="/dashboard" />
-        <div className="px-4 py-8 max-w-lg mx-auto text-center">
-          <div className="w-20 h-20 rounded-full bg-[#D9B438]/20 flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="h-10 w-10 text-[#D9B438]" />
+        <div className="px-4 py-8 max-w-lg mx-auto">
+          {/* Micro-réussite celebratory section */}
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 rounded-full bg-[#D9B438]/20 flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <CheckCircle className="h-10 w-10 text-[#D9B438]" />
+            </div>
+            <h2 className="text-3xl font-bold text-[#002844] mb-1">
+              {lang === 'fr' ? '✨ Excellent !' : '✨ Excellent!'}
+            </h2>
+            <p className="text-sm text-[#555555] mb-6 italic">
+              {lang === 'fr'
+                ? 'Tu renforces ta mémoire à chaque session.'
+                : 'You strengthen your memory with every session.'}
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-[#002844] mb-2">
-            {lang === 'fr' ? 'Bravo !' : 'Well done!'}
-          </h2>
-          <p className="text-sm text-[#555555] mb-6">
+
+          {/* Session stats grid */}
+          <div className="space-y-3 mb-8">
+            {/* Réussis */}
+            <div className="bg-white rounded-xl p-4 border-l-4 border-green-500">
+              <p className="text-xs text-[#999] font-semibold uppercase tracking-wide mb-1">
+                {lang === 'fr' ? 'Items réussis' : 'Successful items'}
+              </p>
+              <p className="text-2xl font-bold text-green-600">{correctCount}</p>
+              <p className="text-xs text-[#555] mt-1">
+                {lang === 'fr'
+                  ? "Ne seront pas posés avant quelques jours"
+                  : "Won't be asked again for several days"}
+              </p>
+            </div>
+
+            {/* Reprogrammés */}
+            {reprogrammedCount > 0 && (
+              <div className="bg-white rounded-xl p-4 border-l-4 border-orange-500">
+                <p className="text-xs text-[#999] font-semibold uppercase tracking-wide mb-1">
+                  {lang === 'fr' ? 'Items reprogrammés' : 'Rescheduled items'}
+                </p>
+                <p className="text-2xl font-bold text-orange-600">{reprogrammedCount}</p>
+                <p className="text-xs text-[#555] mt-1">
+                  {lang === 'fr'
+                    ? `Révision prévue pour ${nextReviewDateStr}`
+                    : `Scheduled for review on ${nextReviewDateStr}`}
+                </p>
+              </div>
+            )}
+
+            {/* Faiblesses identifiées */}
+            {weakWords.length > 0 && (
+              <div className="bg-white rounded-xl p-4 border-l-4 border-red-400">
+                <p className="text-xs text-[#999] font-semibold uppercase tracking-wide mb-2">
+                  {lang === 'fr' ? 'Faiblesses identifiées' : 'Areas to focus on'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {weakWords.slice(0, 3).map(w => (
+                    <span key={w.id} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">
+                      {w.word_target}
+                    </span>
+                  ))}
+                  {weakWords.length > 3 && (
+                    <span className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">
+                      +{weakWords.length - 3}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Points earned */}
+            <div className="bg-gradient-to-r from-[#002844] to-[#003d66] rounded-xl p-4 text-white">
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1 text-white/60">
+                {lang === 'fr' ? 'Points gagnés' : 'Points earned'}
+              </p>
+              <p className="text-3xl font-bold">+{gameScore} pts</p>
+            </div>
+          </div>
+
+          {/* Prochaine révision info */}
+          <div className="bg-blue-50 rounded-xl p-3 mb-8 flex items-start gap-2">
+            <Clock className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-700">
+              <p className="font-bold">
+                {lang === 'fr'
+                  ? `Prochaine révision dans ~${Math.max(1, Math.ceil(upcomingCount / 5))} jours`
+                  : `Next review in ~${Math.max(1, Math.ceil(upcomingCount / 5))} days`}
+              </p>
+              {upcomingNextDate && (
+                <p className="text-xs text-blue-600 mt-0.5">
+                  {lang === 'fr' ? 'Le ' : 'On '}{upcomingNextDate}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Score breakdown */}
+          <p className="text-center text-sm text-[#555555] mb-6 font-medium">
             {correctCount}/{totalCount} {lang === 'fr' ? 'bonnes réponses' : 'correct'} ({pct}%)
           </p>
+
+          {/* Actions */}
           <div className="flex gap-3 justify-center">
             <a href="/dashboard"
-              className="px-6 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm">
+              className="px-6 py-3 rounded-xl bg-[#002844] text-white font-bold text-sm hover:opacity-90 transition">
               {lang === 'fr' ? 'Retour' : 'Back'}
             </a>
             {dueItems.length > reviewWords.length && (
-              <button onClick={() => { setCurrentIdx(0); setCorrectCount(0); setTotalCount(0); setPhase('exercise'); }}
-                className="px-6 py-3 rounded-xl bg-[#D9B438] text-[#002844] font-bold text-sm">
+              <button onClick={() => {
+                setCurrentIdx(0);
+                setCorrectCount(0);
+                setTotalCount(0);
+                setSessionResults([]);
+                setWeakWords([]);
+                setSessionStartTime(new Date());
+                setSessionElapsed(0);
+                setPhase('exercise');
+              }}
+                className="px-6 py-3 rounded-xl bg-[#D9B438] text-[#002844] font-bold text-sm hover:opacity-90 transition">
                 {lang === 'fr' ? 'Répète les mots' : 'Repeat words'}
               </button>
             )}
@@ -205,19 +355,38 @@ export default function RevisionsPage() {
   const options = shuffleArray([correctAnswer, ...distractors]);
   const progressPct = Math.round(((currentIdx) / reviewWords.length) * 100);
 
+  // Format timer display (MM:SS)
+  const minutes = Math.floor(sessionElapsed / 60);
+  const seconds = sessionElapsed % 60;
+  const timerDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
   return (
     <div className="min-h-screen pb-20 bg-[#F0F0F0]">
       <PageHeader title={lang === 'fr' ? 'Révisions' : 'Reviews'} backHref="/dashboard" />
 
-      {/* Progress bar */}
-      <div className="bg-[#002844] px-4 pb-3">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <div className="flex-1">
-            <div className="h-1.5 w-full bg-white/20 rounded-full">
-              <div className="h-full bg-[#D9B438] rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+      {/* Progress bar and timer section — BLOC 4 enhanced */}
+      <div className="bg-[#002844] px-4 pb-4">
+        <div className="max-w-lg mx-auto">
+          {/* Main progress bar with counter */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1">
+              <div className="h-1.5 w-full bg-white/20 rounded-full">
+                <div className="h-full bg-[#D9B438] rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+              </div>
             </div>
+            <span className="text-xs text-white/60 font-medium whitespace-nowrap">{currentIdx + 1}/{reviewWords.length}</span>
           </div>
-          <span className="text-xs text-white/60">{currentIdx + 1}/{reviewWords.length}</span>
+
+          {/* Timer display — soft mode with Clock icon */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-[#D9B438]/70" />
+              <span className="text-sm font-semibold text-white/80">{timerDisplay}</span>
+            </div>
+            <p className="text-xs text-white/50">
+              {lang === 'fr' ? '3-5 min' : '3-5 min'}
+            </p>
+          </div>
         </div>
       </div>
 

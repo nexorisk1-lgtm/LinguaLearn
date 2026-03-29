@@ -1264,12 +1264,19 @@ function SessionContent() {
             </div>
           )}
 
+          {/* BLOC 3 Étape 1: Stats du cours */}
+          <div className="rounded-2xl bg-white/10 p-4 mb-6 flex items-center justify-center gap-6">
+            <span className="text-sm text-white/80">📚 {courseData?.vocabulary?.length || 7} {lang === 'fr' ? 'mots' : 'words'}</span>
+            {courseData?.rule?.en && <span className="text-sm text-white/80">📖 1 {lang === 'fr' ? 'règle' : 'rule'}</span>}
+            <span className="text-sm text-white/80">⏱ {Math.round(((courseData?.vocabulary?.length || 7) * 0.5) + 2)} min</span>
+          </div>
+
           {/* Start button */}
           <button
             onClick={() => setPhase('preactivation')}
-            className="w-full py-4 rounded-2xl bg-[#D9B438] text-[#002844] font-bold text-lg shadow-lg hover:bg-[#c9a428] transition-all"
+            className="w-full py-4 rounded-2xl bg-[#D9B438] text-[#002844] font-bold text-lg shadow-lg hover:bg-[#c9a428] transition-all active:scale-95 transition-transform"
           >
-            {lang === 'fr' ? "C'est parti ! 🚀" : "Let's go! 🚀"}
+            {lang === 'fr' ? "Commencer →" : "Start →"}
           </button>
         </div>
       </div>
@@ -1542,14 +1549,25 @@ function SessionContent() {
                 }} />
             </div>
 
-            {/* V4: Micro-réussite celebration — BUG-81: localized to interface language */}
+            {/* BLOC 3 Étape 5: Micro-réussite émotionnelle forte */}
             {courseId && /^a1_c\d+$/.test(courseId) && (() => {
               const microText = getMicroReussite(courseId, lang)
-              return microText ? (
+              const courseNum = parseInt(courseId.replace('a1_c', ''), 10)
+              const remaining = 40 - courseNum
+              const streakVal = user?.progress?.[user?.activeLang || 'en']?.streak || 0
+              return (
                 <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-[#D9B438]/10 to-[#002844]/10 border border-[#D9B438]/20">
-                  <p className="text-lg font-bold text-[#002844]">🏆 {microText}</p>
+                  {microText && <p className="text-lg font-bold text-[#002844] mb-2">🎉 {microText}</p>}
+                  <p className="text-sm text-[#002844]">
+                    ⭐ {stars} {lang === 'fr' ? 'étoiles' : 'stars'} · +{pct > 0 ? Math.round(pct * 0.5) : 0} pts · 🔥 Streak : {streakVal} {lang === 'fr' ? 'jours' : 'days'}
+                  </p>
+                  {remaining > 0 && (
+                    <p className="text-xs text-[#555] mt-1">
+                      👉 {lang === 'fr' ? `Encore ${remaining} cours pour finir A1` : `${remaining} more courses to finish A1`}
+                    </p>
+                  )}
                 </div>
-              ) : null
+              )
             })()}
 
             {/* Unlock indicators (for course sessions) */}
@@ -1698,6 +1716,17 @@ function SessionContent() {
             </div>
           </div>
         )}
+
+        {/* BLOC 3: Étape X/N + barre de progression */}
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-bold text-[#002844]">
+            {lang === 'fr' ? `Étape ${currentIdx + 1}/${exercises.length}` : `Step ${currentIdx + 1}/${exercises.length}`}
+          </span>
+          <span className="text-[10px] font-bold text-[#D9B438]">{progressPct}%</span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-gray-200 mb-3">
+          <div className="h-full rounded-full bg-gradient-to-r from-[#002844] to-[#D9B438] transition-all" style={{ width: `${progressPct}%` }} />
+        </div>
 
         {/* Lesson indicator */}
         <div className="mb-3 flex items-center gap-2">
@@ -2040,18 +2069,25 @@ function SessionContent() {
           {/* Feedback */}
           {showFeedback && (
             <div className={`mt-4 p-4 rounded-xl border-2 ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              {/* BLOC 3: Micro-feedback immédiat */}
               <div className="flex items-center gap-2 mb-2">
                 {isCorrect
                   ? <CheckCircle className="h-5 w-5 text-green-600" />
                   : <XCircle className="h-5 w-5 text-red-500" />}
                 <span className="font-bold text-sm" style={{ color: isCorrect ? '#2E7D32' : '#C62828' }}>
                   {isCorrect
-                    ? (lang === 'fr' ? 'Correct !' : 'Correct!')
+                    ? (lang === 'fr' ? '✔️ Bien joué !' : '✔️ Well done!')
                     : currentExercise.type === 'speaking_repeat'
-                    ? (lang === 'fr' ? 'À retravailler' : 'Need improvement')
-                    : (lang === 'fr' ? 'Incorrect' : 'Incorrect')}
+                    ? (lang === 'fr' ? '💡 Presque — réécoute et réessaie' : '💡 Almost — listen again and retry')
+                    : (lang === 'fr' ? '❌ On corrige ensemble' : '❌ Let\'s fix this together')}
                 </span>
               </div>
+              {/* +1% A1 after correct answer */}
+              {isCorrect && (
+                <p className="text-[10px] font-bold text-[#D9B438] mb-2 animate-pulse">
+                  +1% {lang === 'fr' ? 'du niveau A1' : 'of A1 level'} 🎯
+                </p>
+              )}
 
               {/* P0-4: Full feedback on EVERY answer (Curriculum §1.2 Étape 4) */}
               {/* Always show: Ta réponse / Réponse correcte / Explication */}

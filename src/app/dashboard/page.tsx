@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, setActiveLang, logoutUser, getAllUsers, getDueReviews, getSessionHistory, addSessionDate } from '@/lib/db/localStorage'
-import { User, InterfaceLanguage, LearningLanguage, DayOfWeek, LEARNING_LANGUAGES } from '@/types'
+import { getCurrentUser, setActiveLang, logoutUser, getDueReviews } from '@/lib/db/localStorage'
+import { User, InterfaceLanguage, LearningLanguage, LEARNING_LANGUAGES } from '@/types'
 import { t } from '@/lib/i18n'
 import { initNotifications, scheduleReminder } from '@/lib/notifications'
 import {
-  Flame, GraduationCap, Trophy, ChevronDown, ChevronRight, Calendar, Clock,
-  BookOpen, PenTool, Languages, Mic, Pencil, LogOut, Sparkles,
+  Flame, ChevronDown, LogOut,
+  BookOpen, PenTool, Languages, Mic, Pencil, Map, X,
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { useEngine } from '@/lib/engine/useEngine'
+import { getRevisionSummary } from '@/lib/engine/revisionEngine'
+import { BANK_A1_COURSES, getA1CourseData } from '@/lib/db/bankA1Courses'
+import { calculateStreak, getDailyObjective, getMilestoneMessage } from '@/lib/engine/engagementEngine'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -21,11 +24,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [isPending, setIsPending] = useState(false)
   const [langSelectorOpen, setLangSelectorOpen] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [tasksOpen, setTasksOpen] = useState(false)
-  // V3.15: "No session today" modal state
-  const [showNoSessionModal, setShowNoSessionModal] = useState(false)
-  const [noSessionNextUrl, setNoSessionNextUrl] = useState('')
+  const [milestoneShown, setMilestoneShown] = useState<number | null>(null)
 
   const loadUser = () => {
     const currentUser = getCurrentUser()
@@ -38,7 +37,6 @@ export default function DashboardPage() {
       setLoading(false)
       return
     }
-    // If activeLang was removed from learningLangs, reset it
     if (currentUser.activeLang && !currentUser.settings.learningLangs.includes(currentUser.activeLang)) {
       currentUser.activeLang = currentUser.settings.learningLangs[0] || undefined
     }
@@ -48,30 +46,21 @@ export default function DashboardPage() {
     setUser(currentUser)
     setLang(currentUser.settings.interfaceLang || 'fr')
     setLoading(false)
-
-    // Initialize notifications
-    initNotifications().catch(err => console.error('Failed to initialize notifications:', err))
-
-    // Schedule reminder for active language
+    initNotifications().catch(err => console.error('Notifications init failed:', err))
     if (currentUser.activeLang) {
-      const activeLangConfig = currentUser.settings.schedules?.[currentUser.activeLang] || currentUser.settings.schedule
-      if (activeLangConfig?.days) {
-        scheduleReminder(activeLangConfig.days, currentUser.activeLang)
-      }
+      const cfg = currentUser.settings.schedules?.[currentUser.activeLang] || currentUser.settings.schedule
+      if (cfg?.days) scheduleReminder(cfg.days, currentUser.activeLang)
     }
   }
 
   useEffect(() => {
     loadUser()
-    // Reload user data when returning to this page (e.g. back from Profile)
     const handleReload = () => loadUser()
     const handleVisibility = () => { if (document.visibilityState === 'visible') loadUser() }
     window.addEventListener('focus', handleReload)
-    window.addEventListener('popstate', handleReload)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       window.removeEventListener('focus', handleReload)
-      window.removeEventListener('popstate', handleReload)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,6 +71,21 @@ export default function DashboardPage() {
     const updated = setActiveLang(user.id, newLang)
     if (updated) { setUser(updated); setLangSelectorOpen(false) }
   }
+
+  // Milestone popup effect — must be before early returns per React rules of hooks
+  const activeLangPre = user?.activeLang || user?.settings?.learningLangs?.[0] || 'en'
+  const streakDataPre = user ? calculateStreak(user.id, activeLangPre) : null
+  const milestonePre = streakDataPre?.milestone ?? null
+
+  useEffect(() => {
+    if (milestonePre && !milestoneShown) {
+      setMilestoneShown(milestonePre)
+      const timer = setTimeout(() => {
+        setMilestoneShown(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [milestonePre, milestoneShown])
 
   if (loading || !user) {
     return (
@@ -96,21 +100,17 @@ export default function DashboardPage() {
       <div className="flex h-screen items-center justify-center bg-[#F0F0F0] px-6">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#D9B438]/20 flex items-center justify-center">
-            <svg className="h-8 w-8 text-[#D9B438]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Flame className="h-8 w-8 text-[#D9B438]" />
           </div>
           <h2 className="text-xl font-bold text-[#002844] mb-2">
-            {lang === 'fr' ? 'Compte en attente de validation' : 'Account pending approval'}
+            {lang === 'fr' ? 'Compte en attente' : 'Account pending'}
           </h2>
-          <p className="text-sm text-[#555555] mb-6">
-            {lang === 'fr'
-              ? 'Votre compte a bien été créé. Un administrateur doit valider votre accès avant que vous puissiez utiliser les modules.'
-              : 'Your account has been created. An administrator must approve your access before you can use the modules.'}
+          <p className="text-sm text-[#555] mb-6">
+            {lang === 'fr' ? 'Un admin doit valider votre accès.' : 'An admin must approve your access.'}
           </p>
           <button onClick={() => { logoutUser(); router.push('/auth') }}
-            className="px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold hover:bg-[#003a5c] transition-colors">
-            {lang === 'fr' ? 'Retour à la connexion' : 'Back to login'}
+            className="px-6 py-2 rounded-xl bg-[#002844] text-white text-sm font-bold">
+            {lang === 'fr' ? 'Retour' : 'Back'}
           </button>
         </div>
       </div>
@@ -119,170 +119,140 @@ export default function DashboardPage() {
 
   const activeLang = user.activeLang || user.settings.learningLangs[0]
   const activeLangInfo = LEARNING_LANGUAGES.find(l => l.code === activeLang)
-  const rawProgress = user.progress?.[activeLang]
+  const progress = user.progress?.[activeLang]
+  const displayName = user.firstName && !user.firstName.includes('@')
+    ? user.firstName
+    : user.firstName?.split('@')[0] || (lang === 'fr' ? 'apprenant' : 'learner')
 
-  // BUG-61 (V3.9): Reset daily counters if day has changed
-  const progress = (() => {
-    if (!rawProgress) return rawProgress
-    const todayStr = new Date().toISOString().split('T')[0]
-    const lastDay = rawProgress.lastActivityDate?.split('T')[0]
-    if (lastDay && lastDay !== todayStr) {
-      return { ...rawProgress, dailyWordsCompleted: 0, dailyExercisesCompleted: 0 }
-    }
-    return rawProgress
-  })()
-  const langConfig = user.settings.languageConfigs?.[activeLang]
-  const hasGrc = langConfig?.hasGrcThemes || false
-  const objectives = langConfig?.objectives || []
-
-  // 5 objective blocks (Spec V3 §6) — Entraînement is a mode, not an objective
-  const moduleBlocks = [
-    { id: 'vocabulaire', label: lang === 'fr' ? 'Vocabulaire' : 'Vocabulary', icon: BookOpen, color: '#1976D2', bgLight: '#E3F2FD', href: '/module/vocabulaire', objective: 'vocabulaire' },
-    { id: 'grammaire', label: lang === 'fr' ? 'Grammaire' : 'Grammar', icon: PenTool, color: '#F9A825', bgLight: '#FFF8E1', href: '/module/grammaire', objective: 'grammaire' },
-    { id: 'lecture', label: lang === 'fr' ? 'Lecture' : 'Reading', icon: Languages, color: '#2E7D32', bgLight: '#E8F5E9', href: '/module/lecture', objective: 'lecture' },
-    { id: 'oral', label: lang === 'fr' ? 'Oral' : 'Speaking', icon: Mic, color: '#7B1FA2', bgLight: '#F3E5F5', href: '/module/oral', objective: 'oral' },
-    { id: 'ecrit', label: lang === 'fr' ? 'Écrit' : 'Writing', icon: Pencil, color: '#E65100', bgLight: '#FFF3E0', href: '/module/ecrit', objective: 'ecrit' },
-  ]
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const sessionModules = (() => {
-    // First: modules matching user's objectives, sorted by lowest progression
-    const objectiveModules = moduleBlocks
-      .filter(b => (objectives as string[]).includes(b.objective))
-      .sort((a, b) => {
-        const pctA = progress?.objectiveProgress?.[a.objective as keyof typeof progress.objectiveProgress] || 0
-        const pctB = progress?.objectiveProgress?.[b.objective as keyof typeof progress.objectiveProgress] || 0
-        return pctA - pctB
-      })
-    // If less than 2, fill with other modules by lowest progression
-    if (objectiveModules.length >= 2) return objectiveModules.slice(0, 2)
-    const remaining = moduleBlocks
-      .filter(b => !(objectives as string[]).includes(b.objective))
-      .sort((a, b) => {
-        const pctA = progress?.objectiveProgress?.[a.objective as keyof typeof progress.objectiveProgress] || 0
-        const pctB = progress?.objectiveProgress?.[b.objective as keyof typeof progress.objectiveProgress] || 0
-        return pctA - pctB
-      })
-    return [...objectiveModules, ...remaining].slice(0, 2)
-  })()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const sessionDuration = user.settings.schedules?.[activeLang]?.duration || user.settings.schedule?.duration || 10
-
-  // §5 V3.8: Find next uncompleted course with full details
-  const nextCourseInfo = (() => {
+  // --- Compute next course info ---
+  const courseInfo = (() => {
     try {
       const key = `lingualearn_course_scores_${user.id}_${activeLang}`
       const stored = localStorage.getItem(key)
       const scores: Record<string, { score: number }> = stored ? JSON.parse(stored) : {}
-
-      const paths = langConfig?.learningPath
-        ? (Array.isArray(langConfig.learningPath) ? langConfig.learningPath : [langConfig.learningPath])
-        : []
-      const isPathB = paths.includes('B') && !paths.includes('A')
-
-      // Course catalog with names
-      const a1Courses = [
-        // Bloc 0: Communication basics
-        { id: 'a1_c1', n: 1, fr: 'Salutations', en: 'Greetings' },
-        { id: 'a1_c2', n: 2, fr: 'Politesse essentielle', en: 'Essential politeness' },
-        { id: 'a1_c3', n: 3, fr: 'Se présenter', en: 'Introducing yourself' },
-        { id: 'a1_c4', n: 4, fr: 'Expressions du quotidien', en: 'Daily expressions' },
-        { id: 'a1_c5', n: 5, fr: "Demander de l'aide", en: 'Asking for help' },
-        // Bloc 1: Je me présente
-        { id: 'a1_c6', n: 6, fr: 'Verbe To Be', en: 'Verb To Be' },
-        { id: 'a1_c7', n: 7, fr: 'Ma famille', en: 'My family' },
-        { id: 'a1_c8', n: 8, fr: 'Adjectifs personnels', en: 'Personal adjectives' },
-        { id: 'a1_c9', n: 9, fr: 'To Be : questions', en: 'To Be: questions' },
-        { id: 'a1_c10', n: 10, fr: 'Adjectifs possessifs', en: 'Possessive adj.' },
-        { id: 'a1_c11', n: 11, fr: 'Famille élargie', en: 'Extended family' },
-        { id: 'a1_c12', n: 12, fr: 'Articles A/An/The', en: 'Articles' },
-        { id: 'a1_c13', n: 13, fr: 'Le pluriel', en: 'Plural nouns' },
-        { id: 'a1_cp1', n: 0, fr: 'Checkpoint 1', en: 'Checkpoint 1' },
-        // Bloc 2: Ma vie quotidienne
-        { id: 'a1_c14', n: 14, fr: 'Verbes essentiels', en: 'Essential verbs' },
-        { id: 'a1_c15', n: 15, fr: 'Present Simple', en: 'Present Simple' },
-        { id: 'a1_c16', n: 16, fr: 'PS : interrogation', en: 'PS: questions' },
-        { id: 'a1_c17', n: 17, fr: 'PS : négation', en: 'PS: negation' },
-        { id: 'a1_c18', n: 18, fr: 'Mots interrogatifs', en: 'Question words' },
-        { id: 'a1_c19', n: 19, fr: 'Adverbes de fréquence', en: 'Frequency adverbs' },
-        { id: 'a1_c20', n: 20, fr: 'Nourriture 1', en: 'Food 1' },
-        { id: 'a1_c21', n: 21, fr: 'Nourriture 2 — Commander', en: 'Food 2 — Ordering' },
-        { id: 'a1_cp2', n: 0, fr: 'Checkpoint 2', en: 'Checkpoint 2' },
-        // Bloc 3: Mon monde
-        { id: 'a1_c22', n: 22, fr: 'Nombres 1 à 100', en: 'Numbers 1-100' },
-        { id: 'a1_c23', n: 23, fr: 'Couleurs et adjectifs', en: 'Colors & adjectives' },
-        { id: 'a1_c24', n: 24, fr: 'Have Got — Animaux', en: 'Have Got — Animals' },
-        { id: 'a1_c25', n: 25, fr: 'Pronoms', en: 'Pronouns' },
-        { id: 'a1_c26', n: 26, fr: 'La maison', en: 'The house' },
-        { id: 'a1_c27', n: 27, fr: 'Prépositions de lieu', en: 'Prepositions' },
-        { id: 'a1_c28', n: 28, fr: 'Lieux du quotidien', en: 'Everyday places' },
-        { id: 'a1_cp3', n: 0, fr: 'Checkpoint 3', en: 'Checkpoint 3' },
-        // Bloc 4: Je communique
-        { id: 'a1_c29', n: 29, fr: "L'heure et les jours", en: 'Time and days' },
-        { id: 'a1_c30', n: 30, fr: 'Present Progressive', en: 'Present Progressive' },
-        { id: 'a1_c31', n: 31, fr: 'Simple vs Progressive', en: 'Simple vs Progressive' },
-        { id: 'a1_c32', n: 32, fr: 'Réponses courtes', en: 'Short answers' },
-        { id: 'a1_c33', n: 33, fr: 'Cas possessif', en: 'Possessive case' },
-        { id: 'a1_c34', n: 34, fr: 'Transport', en: 'Transport' },
-        { id: 'a1_c35', n: 35, fr: 'Mois et saisons', en: 'Months & seasons' },
-        { id: 'a1_cp4', n: 0, fr: 'Checkpoint 4', en: 'Checkpoint 4' },
-        // Bloc 5: Je voyage
-        { id: 'a1_c36', n: 36, fr: 'La météo', en: 'Weather' },
-        { id: 'a1_c37', n: 37, fr: 'Can / Can\'t', en: 'Can / Can\'t' },
-        { id: 'a1_c38', n: 38, fr: 'Les impératifs', en: 'Imperatives' },
-        { id: 'a1_c39', n: 39, fr: 'Le voyage', en: 'Travel' },
-        { id: 'a1_c40', n: 40, fr: 'Révision A1', en: 'A1 Revision' },
-        { id: 'a1_cert', n: 0, fr: 'Certification A1', en: 'A1 Certification' },
-      ]
-      const bCourses = [
-        { id: 'b_b1_c1', n: 1, fr: 'Salutations', en: 'Greetings' }, { id: 'b_b1_c2', n: 2, fr: 'To be + Pronoms', en: 'To be + Pronouns' },
-        { id: 'b_b1_c3', n: 3, fr: 'Adj. possessifs', en: 'Possessive adj.' }, { id: 'b_b1_d', n: 0, fr: 'Dialogue B1', en: 'Dialogue B1' },
-        { id: 'b_b1_cp', n: 0, fr: 'Badge B1', en: 'Badge B1' }, { id: 'b_b2_c1', n: 1, fr: 'Famille', en: 'Family' },
-        { id: 'b_b2_c2', n: 2, fr: 'Have got', en: 'Have got' }, { id: 'b_b2_c3', n: 3, fr: 'Questions simples', en: 'Simple questions' },
-        { id: 'b_b2_d', n: 0, fr: 'Dialogue B2', en: 'Dialogue B2' }, { id: 'b_b2_cp', n: 0, fr: 'Badge B2', en: 'Badge B2' },
-        { id: 'b_b3_c1', n: 1, fr: 'Nourriture', en: 'Food' }, { id: 'b_b3_c2', n: 2, fr: 'Can + Impératifs', en: 'Can + Imperatives' },
-        { id: 'b_b3_c3', n: 3, fr: 'Articles', en: 'Articles' }, { id: 'b_b3_d', n: 0, fr: 'Dialogue B3', en: 'Dialogue B3' },
-        { id: 'b_b3_cp', n: 0, fr: 'Badge B3', en: 'Badge B3' }, { id: 'b_b4_c1', n: 1, fr: 'Voyage', en: 'Travel' },
-        { id: 'b_b4_c2', n: 2, fr: 'Prépositions', en: 'Prepositions' }, { id: 'b_b4_c3', n: 3, fr: 'Where/How', en: 'Where/How' },
-        { id: 'b_b4_d', n: 0, fr: 'Dialogue B4', en: 'Dialogue B4' }, { id: 'b_b4_cp', n: 0, fr: 'Badge B4', en: 'Badge B4' },
-        { id: 'b_b5_c1', n: 1, fr: 'Vêtements', en: 'Clothes' }, { id: 'b_b5_c2', n: 2, fr: 'Nombres + Adj.', en: 'Numbers + Adj.' },
-        { id: 'b_b5_c3', n: 3, fr: 'How much/many', en: 'How much/many' }, { id: 'b_b5_d', n: 0, fr: 'Dialogue B5', en: 'Dialogue B5' },
-        { id: 'b_b5_cp', n: 0, fr: 'Badge B5', en: 'Badge B5' }, { id: 'b_b6_c1', n: 1, fr: 'Actions', en: 'Actions' },
-        { id: 'b_b6_c2', n: 2, fr: 'Present Progressive', en: 'Present Progressive' }, { id: 'b_b6_c3', n: 3, fr: 'Adverbes de temps', en: 'Time adverbs' },
-        { id: 'b_b6_d', n: 0, fr: 'Dialogue B6', en: 'Dialogue B6' }, { id: 'b_b6_cp', n: 0, fr: 'Badge B6', en: 'Badge B6' },
-      ]
-      const courses = isPathB ? bCourses : a1Courses
-      const next = courses.find(c => !scores[c.id] || scores[c.id].score < 60)
-      const course = next || courses[0]
-      const total = courses.length
-      const completedCount = courses.filter(c => scores[c.id] && scores[c.id].score >= 60).length
-
+      const totalCourses = BANK_A1_COURSES.length
+      const completedCount = BANK_A1_COURSES.filter(c => scores[c.id] && scores[c.id].score >= 60).length
+      const nextCourse = BANK_A1_COURSES.find(c => !scores[c.id] || scores[c.id].score < 60)
+      const courseData = nextCourse ? getA1CourseData(nextCourse.id) : null
+      const vocabCount = courseData?.vocabulary?.length || 7
+      const hasRule = !!courseData?.rule?.en
+      const estimatedMin = Math.round((vocabCount * 0.5) + (hasRule ? 1 : 0) + 1)
+      const pctA1 = totalCourses > 0 ? Math.round((completedCount / totalCourses) * 100) : 0
+      // Check if session in progress (resume)
+      const resumeKey = nextCourse ? `lingualearn_resume_${user.id}_${nextCourse.id}` : null
+      let hasResume = false
+      if (resumeKey) {
+        try {
+          const resumeStr = localStorage.getItem(resumeKey)
+          if (resumeStr) {
+            const r = JSON.parse(resumeStr)
+            hasResume = Date.now() - new Date(r.savedAt).getTime() < 24 * 60 * 60 * 1000
+          }
+        } catch { /* ignore */ }
+      }
       return {
-        url: `/session?courseId=${course.id}`,
-        nameFr: course.n > 0 ? `Cours ${course.n} — ${course.fr}` : course.fr,
-        nameEn: course.n > 0 ? `Course ${course.n} — ${course.en}` : course.en,
-        progress: `${completedCount}/${total}`,
-        isPathB,
+        courseId: nextCourse?.id || 'a1_c1',
+        title: courseData?.title || (nextCourse?.id || 'Course 1'),
+        vocabCount,
+        hasRule,
+        estimatedMin,
+        pctA1,
+        completedCount,
+        totalCourses,
+        remaining: totalCourses - completedCount,
+        hasResume,
+        isFirstTime: completedCount === 0 && !hasResume,
+        sessionUrl: `/session?courseId=${nextCourse?.id || 'a1_c1'}`,
       }
     } catch {
-      return { url: '/session', nameFr: 'Cours 1', nameEn: 'Course 1', progress: '0/35', isPathB: false }
+      return {
+        courseId: 'a1_c1', title: 'Greetings', vocabCount: 7, hasRule: true,
+        estimatedMin: 4, pctA1: 0, completedCount: 0, totalCourses: 40,
+        remaining: 40, hasResume: false, isFirstTime: true,
+        sessionUrl: '/session?courseId=a1_c1',
+      }
     }
   })()
 
-  // V3.10: Spaced repetition — compute due reviews
-  const dueReviews = getDueReviews(user.id, activeLang)
-  const dueWordReviews = dueReviews.filter(r => r.type === 'word').length
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dueGrammarReviews = dueReviews.filter(r => r.type === 'grammar').length
+  // --- Revision info ---
+  const revisionInfo = (() => {
+    if (!engine.progress) {
+      const dueReviews = getDueReviews(user.id, activeLang)
+      return { dueCount: dueReviews.length, lateCount: 0, estimatedMin: Math.max(2, Math.round(dueReviews.length * 0.5)) }
+    }
+    const summary = getRevisionSummary(engine.progress)
+    return {
+      dueCount: summary.dueToday,
+      lateCount: summary.weakestItems.length,
+      estimatedMin: Math.max(2, Math.round(summary.dueToday * 0.5)),
+    }
+  })()
+
+  // --- Streak with engagement engine ---
+  const streakData = calculateStreak(user.id, activeLang)
+  const streak = streakData.streak
+
+  // --- Daily objective with engagement engine ---
+  const dailyObjective = getDailyObjective(user.id, activeLang)
+  const dailyPct = Math.min(
+    100,
+    Math.round(
+      ((dailyObjective.minutesDone / dailyObjective.targetMinutes) * 100)
+    )
+  )
+  const objectiveReached = dailyObjective.completed
+
+  // --- Engine recommended step (SYNC rule: this determines CTA) ---
+  const engineStep = engine.progress ? engine.getNextStep() : null
+  const isRevisionPriority = engineStep?.type === 'revision' && revisionInfo.dueCount > 0
+
+  // --- CTA text ---
+  const ctaText = (() => {
+    if (isRevisionPriority) return lang === 'fr' ? '🧠 Réviser maintenant' : '🧠 Review now'
+    if (courseInfo.hasResume) return lang === 'fr' ? '🚀 Reprendre là où tu t\'es arrêté' : '🚀 Resume where you left off'
+    if (courseInfo.isFirstTime) return lang === 'fr' ? '🎯 Commencer ton parcours' : '🎯 Start your journey'
+    return lang === 'fr' ? '🎯 Continuer ton parcours' : '🎯 Continue your journey'
+  })()
+
+  // --- CTA href (SYNC rule: matches parcours node) ---
+  const ctaHref = isRevisionPriority ? '/module/revisions' : courseInfo.sessionUrl
+
+  // --- Module blocks for progression section ---
+  const moduleBlocks = [
+    { id: 'vocabulaire', label: lang === 'fr' ? 'Vocabulaire' : 'Vocabulary', icon: BookOpen, color: '#1976D2' },
+    { id: 'grammaire', label: lang === 'fr' ? 'Grammaire' : 'Grammar', icon: PenTool, color: '#F9A825' },
+    { id: 'lecture', label: lang === 'fr' ? 'Lecture' : 'Reading', icon: Languages, color: '#2E7D32' },
+    { id: 'oral', label: lang === 'fr' ? 'Oral' : 'Speaking', icon: Mic, color: '#7B1FA2' },
+    { id: 'ecrit', label: lang === 'fr' ? 'Écrit' : 'Writing', icon: Pencil, color: '#E65100' },
+  ]
+
+  const engineModules = engine.progress ? engine.getModules() : null
+  const allowedIds = engineModules ? engineModules.modules.map(m => m.id) : moduleBlocks.map(b => b.id)
+  const visibleModules = moduleBlocks.filter(b => allowedIds.includes(b.id))
+
+  // --- Coach contextual message ---
+  const coachMessage = (() => {
+    if (courseInfo.hasResume) return lang === 'fr'
+      ? `Tu veux reprendre les ${courseInfo.title} ? On y va !`
+      : `Want to resume ${courseInfo.title}? Let's go!`
+    if (revisionInfo.dueCount > 0) return lang === 'fr'
+      ? `${revisionInfo.dueCount} mots à renforcer — 3 min suffisent.`
+      : `${revisionInfo.dueCount} words to reinforce — 3 min is enough.`
+    return lang === 'fr'
+      ? `Tu veux faire ${courseInfo.estimatedMin} min maintenant ? On travaille ${courseInfo.title}.`
+      : `Want to do ${courseInfo.estimatedMin} min now? Let's work on ${courseInfo.title}.`
+  })()
+
+  // --- Planning ---
+  const sched = user.settings.schedules?.[activeLang] || user.settings.schedule
+  const duration = sched?.duration || 10
 
   return (
     <div className="min-h-screen bg-[#F0F0F0] pb-20">
-      {/* TOP BAR — compact: logo + lang selector + logout */}
+      {/* TOP BAR */}
       <div className="sticky top-0 z-50 bg-[#002844] px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-bold text-white">Lingua<span className="text-[#D9B438]">Learn</span></h1>
-
         <div className="flex items-center gap-2">
-          {/* Language selector */}
           <div className="relative">
             <button onClick={() => setLangSelectorOpen(!langSelectorOpen)}
               className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white">
@@ -306,590 +276,246 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          {/* Logout button */}
           <button onClick={() => { logoutUser(); router.push('/auth') }}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={lang === 'fr' ? 'Déconnexion' : 'Logout'}>
+            className="p-2 hover:bg-white/10 rounded-lg" title={lang === 'fr' ? 'Déconnexion' : 'Logout'}>
             <LogOut className="h-4 w-4 text-white/70" />
           </button>
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
-      <main className="px-4 pt-4">
-        {/* BLOC-01: Greeting + BLOC-04: Streak + Daily objective */}
-        {(() => {
-          const streak = progress?.streak || 0
-          const dailyWords = progress?.dailyWordsCompleted || 0
-          const dailyExercises = progress?.dailyExercisesCompleted || 0
-          const wordsTarget = user.settings.schedules?.[activeLang]?.wordsPerDay || 8
-          // BUG-61 V3.9: dailyTarget = wordsPerDay from profile, no hardcoded addition
-          const dailyTotalRaw = dailyWords + dailyExercises
-          const dailyTarget = wordsTarget
-          // BUG-52: Cap display at target max
-          const dailyTotal = Math.min(dailyTotalRaw, dailyTarget)
-          const dailyPct = Math.min(100, Math.round((dailyTotalRaw / dailyTarget) * 100))
-          const objectiveReached = dailyTotalRaw >= dailyTarget
-          const displayName = user.firstName && !user.firstName.includes('@') ? user.firstName : user.firstName?.split('@')[0] || (lang === 'fr' ? 'apprenant' : 'learner')
-          return (
+      <main className="px-4 pt-4 max-w-lg mx-auto">
+        {/* ---- 1. HEADER: Hello + Streak + % A1 ---- */}
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {displayName} 👋</h2>
+          <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 shadow-sm">
+            <Flame className="h-5 w-5 text-[#D9B438]" fill="#D9B438" />
+            <span className="text-lg font-bold text-[#002844]">{streak}</span>
+          </div>
+        </div>
+        <p className="text-sm font-semibold text-[#002844] mb-4">
+          {lang === 'fr' ? `Tu es à ${courseInfo.pctA1}% du niveau A1` : `You're ${courseInfo.pctA1}% through A1`}
+        </p>
+
+        {/* ---- 2. CTA PRINCIPAL (dominant) ---- */}
+        <a href={ctaHref}
+          className="block mb-4 rounded-2xl bg-gradient-to-br from-[#002844] to-[#004466] p-5 shadow-lg active:scale-[0.98] transition-transform">
+          {!isRevisionPriority ? (
             <>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h2 className="text-xl font-bold text-[#002844]">{t('dashboard.hello', lang)} {displayName} 👋</h2>
-                  <p className="text-xs text-[#555555] mt-0.5">
-                    {streak > 0
-                      ? (lang === 'fr' ? `Jour ${streak} — Continue comme ça !` : `Day ${streak} — Keep it up!`)
-                      : (lang === 'fr' ? 'Commence ta première session !' : 'Start your first session!')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 shadow-sm">
-                  <Flame className="h-5 w-5 text-[#D9B438]" fill="#D9B438" />
-                  <span className="text-lg font-bold text-[#002844]">{streak}</span>
-                </div>
+              <p className="text-xs font-semibold text-[#D9B438] mb-1">
+                {lang === 'fr' ? 'Cours suivant' : 'Next course'} : {courseInfo.title}
+              </p>
+              <p className="text-[11px] text-white/70 mb-3">
+                📚 {courseInfo.vocabCount} {lang === 'fr' ? 'mots' : 'words'}
+                {courseInfo.hasRule && ` · 1 ${lang === 'fr' ? 'règle' : 'rule'}`}
+                {` · ⏱ ${courseInfo.estimatedMin} min`}
+              </p>
+              <div className="h-2 w-full rounded-full bg-white/10 mb-3">
+                <div className="h-full rounded-full bg-[#D9B438] transition-all" style={{ width: `${courseInfo.pctA1}%` }} />
               </div>
-              {/* Daily objective bar */}
-              <div className="rounded-xl bg-white p-3 shadow-sm mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-[#002844]">
-                    {lang === 'fr' ? "Objectif du jour" : "Today's goal"}
-                  </span>
-                  <span className={`text-xs font-bold ${objectiveReached ? 'text-green-600' : 'text-[#D9B438]'}`}>
-                    {objectiveReached
-                      ? (lang === 'fr' ? `${dailyTarget}/${dailyTarget} ✓ Objectif atteint !` : `${dailyTarget}/${dailyTarget} ✓ Goal reached!`)
-                      : `${dailyTotal}/${dailyTarget}`}
-                  </span>
-                </div>
-                <div className="h-2.5 w-full rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-[#D9B438] to-[#f0c84a] transition-all" style={{ width: `${dailyPct}%` }} />
-                </div>
-                <div className="flex justify-between mt-1.5">
-                  <span className="text-[10px] text-[#555555]">{dailyWords} {lang === 'fr' ? 'mots' : 'words'}</span>
-                  <span className="text-[10px] text-[#555555]">{dailyExercises} {lang === 'fr' ? 'exercices' : 'exercises'}</span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-white/50">{courseInfo.pctA1}% {lang === 'fr' ? 'complété' : 'completed'}</span>
+                <span className="bg-[#D9B438] text-[#002844] px-5 py-2.5 rounded-xl text-sm font-bold">
+                  {ctaText}
+                </span>
               </div>
             </>
-          )
-        })()}
-
-        {/* BLOC 2 — V3.10: Niveau / Certification (1 ligne) */}
-        <div className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm mb-4">
-          <GraduationCap className="h-5 w-5 text-[#002844] flex-shrink-0" />
-          <span className="text-sm font-bold text-[#002844]">
-            CECRL : {progress?.diagnosticCompleted ? (progress.levelCecrl || 'A1') : (lang === 'fr' ? 'Non évalué' : 'N/A')}
-          </span>
-          {hasGrc && (
+          ) : (
             <>
-              <span className="text-[#555555]">|</span>
-              <Trophy className="h-5 w-5 text-[#D9B438] flex-shrink-0" />
-              <span className="text-sm font-bold text-[#002844]">GRC : {progress?.levelGrc || 'Junior'}</span>
+              <p className="text-xs font-semibold text-amber-300 mb-2">
+                ⚠️ {revisionInfo.dueCount} {lang === 'fr' ? 'mots vont être oubliés' : 'words at risk'}
+                {revisionInfo.lateCount > 0 && ` · ${revisionInfo.lateCount} ${lang === 'fr' ? 'en retard' : 'overdue'}`}
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-white/70">⏱ {revisionInfo.estimatedMin} min</span>
+                <span className="bg-amber-400 text-[#002844] px-5 py-2.5 rounded-xl text-sm font-bold">
+                  {ctaText}
+                </span>
+              </div>
             </>
           )}
-        </div>
+        </a>
 
-        {/* V2.1.1: Engine-driven recommended next step */}
-        {engine.progress && (() => {
-          const step = engine.getNextStep()
-          if (!step || step.reason === 'Loading...') return null
-          const stepHref = step.type === 'revision' ? '/module/revisions'
-            : step.type === 'course' && step.courseId ? `/session?courseId=${step.courseId}`
-            : step.type === 'coach' ? '/module/oral'
-            : '/module/entrainement'
-          const stepIcon = step.type === 'revision' ? '🔄' : step.type === 'course' ? '▶️' : step.type === 'coach' ? '🎙️' : '🎯'
-          return (
-            <a href={stepHref} className="block mb-4 rounded-xl bg-gradient-to-r from-[#002844] to-[#003a5c] p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{stepIcon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[#D9B438] mb-0.5">
-                    <Sparkles className="h-3 w-3 inline mr-1" />
-                    {lang === 'fr' ? 'Prochaine étape recommandée' : 'Recommended next step'}
-                  </p>
-                  <p className="text-sm font-bold text-white truncate">{step.reason}</p>
-                </div>
-                <ChevronRight className="h-5 w-5 text-white/60 flex-shrink-0" />
-              </div>
-            </a>
-          )
-        })()}
-
-        {/* V2.1.1: 3 scores display (learningScore, gameScore, battleScore) */}
-        {engine.progress && (
-          <div className="flex gap-2 mb-4">
-            <div className="flex-1 rounded-xl bg-white p-3 shadow-sm text-center">
-              <GraduationCap className="h-4 w-4 mx-auto text-[#002844] mb-1" />
-              <p className="text-lg font-bold text-[#002844]">{engine.progress.learningScore}</p>
-              <p className="text-[10px] font-semibold text-[#555]">{lang === 'fr' ? 'Apprentissage' : 'Learning'}</p>
+        {/* ---- 3. COACH IA (personnage contextuel) ---- */}
+        <a href="/module/coach" className="block mb-4 rounded-xl bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
+          <div className="flex gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7B1FA2] to-[#9C27B0] flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">🤖</span>
             </div>
-            <div className="flex-1 rounded-xl bg-white p-3 shadow-sm text-center">
-              <Trophy className="h-4 w-4 mx-auto text-[#D9B438] mb-1" />
-              <p className="text-lg font-bold text-[#D9B438]">{engine.progress.gameScore}</p>
-              <p className="text-[10px] font-semibold text-[#555]">{lang === 'fr' ? 'Jeu' : 'Game'}</p>
-            </div>
-            <div className="flex-1 rounded-xl bg-white p-3 shadow-sm text-center">
-              <Flame className="h-4 w-4 mx-auto text-[#E65100] mb-1" />
-              <p className="text-lg font-bold text-[#E65100]">{engine.progress.battleScore}</p>
-              <p className="text-[10px] font-semibold text-[#555]">{lang === 'fr' ? 'Battle' : 'Battle'}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-[#002844] leading-snug">&ldquo;{coachMessage}&rdquo;</p>
+              <p className="text-[10px] font-bold text-[#7B1FA2] mt-1.5">
+                {lang === 'fr' ? 'Répondre au coach →' : 'Reply to coach →'}
+              </p>
             </div>
           </div>
-        )}
+        </a>
 
-        {/* Diagnostic banner */}
-        {progress && !progress.diagnosticCompleted && (
-          <a href="/onboarding/diagnostic"
-            className="block mb-4 rounded-xl bg-gradient-to-r from-[#D9B438]/20 to-[#002844]/10 border border-[#D9B438] p-4">
+        {/* ---- 4. RÉVISIONS (tension douce — visible si dues, masqué sinon) ---- */}
+        {!isRevisionPriority && revisionInfo.dueCount > 0 && (
+          <a href="/module/revisions" className="block mb-4 rounded-xl bg-amber-50 border border-amber-200 p-4 active:scale-[0.99] transition-transform">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Passez votre diagnostic' : 'Take your diagnostic'}</p>
-                <p className="text-xs text-[#555555]">{lang === 'fr' ? 'Évaluez votre niveau CECRL' : 'Assess your CECRL level'}</p>
+                <p className="text-sm font-bold text-amber-800">
+                  ⚠️ {revisionInfo.dueCount} {lang === 'fr' ? 'mots vont être oubliés' : 'words at risk'}
+                  {revisionInfo.lateCount > 0 && (
+                    <span className="text-amber-600"> · {revisionInfo.lateCount} {lang === 'fr' ? 'en retard' : 'overdue'}</span>
+                  )}
+                </p>
               </div>
-              <ChevronRight className="h-5 w-5 text-[#002844]" />
+              <span className="bg-amber-400 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">
+                {lang === 'fr' ? `Réviser — ${revisionInfo.estimatedMin} min` : `Review — ${revisionInfo.estimatedMin} min`}
+              </span>
             </div>
           </a>
         )}
 
-        {/* BLOC 3 — V3.12: Explorer — grands ronds ≥120px, titre+étoiles à l'intérieur, couleurs par entrée */}
-        {(() => {
-          const todayStr = new Date().toISOString().split('T')[0]
-          // V3.19 BUG-66: Removed premature addSessionDate here (was using lastActivityDate alone).
-          // The planning section now handles persistence with proper trio validation.
-
-          // Stars helper: grey ☆ or gold ★ — V3.13: 24px minimum
-          const renderStars = (filled: number, total: number = 3) => (
-            <span style={{ letterSpacing: '4px', fontSize: '24px', lineHeight: '1' }}>
-              {Array.from({ length: total }, (_, i) => (
-                <span key={i} style={{ color: i < filled ? '#D9B438' : '#CCCCCC' }}>{i < filled ? '★' : '☆'}</span>
-              ))}
+        {/* ---- 5. ENTRAÎNEMENT ---- */}
+        <a href="/module/entrainement" className="block mb-4 rounded-xl bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🎮</span>
+              <p className="text-sm font-bold text-[#002844]">{lang === 'fr' ? 'Renforcer ce que tu sais' : 'Reinforce what you know'}</p>
+            </div>
+            <span className="bg-[#E65100] text-white px-3 py-1.5 rounded-lg text-xs font-bold">
+              {lang === 'fr' ? 'Lancer — 5 min' : 'Start — 5 min'}
             </span>
-          )
+          </div>
+          <p className="text-[10px] text-[#555]">
+            💡 {lang === 'fr' ? 'Astuce : le mode Battle précision est recommandé pour ton niveau' : '💡 Tip: Precision Battle mode is recommended for your level'}
+          </p>
+        </a>
 
-          // Explorer entries config
-          const entries = [
-            {
-              href: `/module/coffre?courseId=${nextCourseInfo.url.split('courseId=')[1] || 'a1_c1'}`,
-              bg: '#D9B438',
-              icon: (
-                <svg viewBox="0 0 64 64" width="48" height="48" fill="none">
-                  <rect x="8" y="20" width="48" height="32" rx="4" fill="#8B6914" />
-                  <rect x="8" y="20" width="48" height="12" rx="4" fill="#D9B438" />
-                  <rect x="26" y="26" width="12" height="8" rx="2" fill="#8B6914" />
-                  <circle cx="32" cy="30" r="2" fill="#D9B438" />
-                  <path d="M16 20 Q32 8 48 20" stroke="#D9B438" strokeWidth="3" fill="none" />
-                </svg>
-              ),
-              label: lang === 'fr' ? 'Nouveaux mots' : 'New words',
-              // V3.18 BUG-70: Check coffre_done_today marker first (most reliable)
-              indicator: (() => {
-                try {
-                  // 1. Check if coffre was completed today (dedicated marker — same pattern as course_done_today)
-                  const coffreDoneKey = `lingualearn_coffre_done_today_${user.id}`
-                  if (localStorage.getItem(coffreDoneKey) === todayStr) return renderStars(3)
-
-                  // 2. Check in-progress coffre session for partial stars
-                  const coffreKey = `lingualearn_coffre_progress_${user.id}_${activeLang}`
-                  const saved = localStorage.getItem(coffreKey)
-                  if (saved) {
-                    const s = JSON.parse(saved)
-                    if (s.date === todayStr && s.exercises?.length > 0) {
-                      const pct = Math.round((s.exerciseIndex / s.exercises.length) * 100)
-                      if (pct >= 100) return renderStars(3)
-                      if (pct >= 66) return renderStars(2)
-                      if (pct >= 33) return renderStars(1)
-                      return renderStars(0)
-                    }
-                  }
-                  // 3. Fallback: check dailyWordsCompleted
-                  const freshUser = getCurrentUser()
-                  const freshProgress = freshUser?.progress?.[activeLang]
-                  const freshLastDay = freshProgress?.lastActivityDate?.split('T')[0]
-                  const freshWords = (freshLastDay === todayStr ? freshProgress?.dailyWordsCompleted : 0) || 0
-                  if (freshWords > 0) return renderStars(3)
-                } catch { /* ignore */ }
-                return renderStars(0)
-              })(),
-            },
-            {
-              href: '/module/revisions',
-              bg: '#7B1FA2',
-              icon: <span style={{ fontSize: '36px' }}>🔄</span>,
-              label: lang === 'fr' ? 'Révisions' : 'Reviews',
-              // V3.15: 0 étoiles si rien fait aujourd'hui, sinon afficher le nombre de mots dus
-              indicator: (() => {
-                // Check if any revision was done today
-                const sessionHistory = getSessionHistory(user.id, activeLang)
-                const todayDone = sessionHistory.includes(todayStr)
-                if (dueWordReviews > 0) {
-                  return <span className="font-bold" style={{ fontSize: '16px', color: '#fff' }}>{dueWordReviews} {lang === 'fr' ? 'mots' : 'words'}</span>
-                }
-                // If no revisions due AND session done today → 3 stars, otherwise 0
-                return renderStars(todayDone ? 3 : 0)
-              })(),
-            },
-            {
-              href: nextCourseInfo.url,
-              // V3.15: Check if today is a planned course day
-              noSessionCheck: true,
-              bg: '#1976D2',
-              icon: <span style={{ fontSize: '36px' }}>▶️</span>,
-              label: lang === 'fr' ? 'Cours du jour' : "Today's course",
-              // V3.19b BUG-68: Read course completion + partial progress for accurate stars
-              indicator: (() => {
-                try {
-                  // 1. Check if a course was fully completed today → 3 stars
-                  const todayKey = `lingualearn_course_done_today_${user.id}`
-                  const courseDone = localStorage.getItem(todayKey) === todayStr
-                  if (courseDone) return renderStars(3)
-
-                  // 2. Check in-progress course today (partial stars from auto-save)
-                  const progressStr = localStorage.getItem(`lingualearn_course_progress_today_${user.id}`)
-                  if (progressStr) {
-                    const prog = JSON.parse(progressStr)
-                    if (prog.date === todayStr && prog.progressPct > 0) {
-                      const pct = prog.progressPct
-                      if (pct >= 100) return renderStars(3)
-                      if (pct >= 66) return renderStars(2)
-                      if (pct >= 33) return renderStars(1)
-                      return renderStars(0)
-                    }
-                  }
-
-                  // 3. Fallback: check saved course scores
-                  const key = `lingualearn_course_scores_${user.id}_${activeLang}`
-                  const stored = localStorage.getItem(key)
-                  const scores = stored ? JSON.parse(stored) : {}
-                  const courseId = nextCourseInfo.url.split('courseId=')[1]
-                  if (courseId && scores[courseId]) {
-                    const score = scores[courseId].score || 0
-                    if (score >= 100) return renderStars(3)
-                    if (score >= 66) return renderStars(2)
-                    if (score >= 33) return renderStars(1)
-                  }
-                } catch { /* ignore */ }
-                return renderStars(0)
-              })(),
-            },
-            {
-              href: '/module/cours',
-              bg: '#2E7D32',
-              icon: <span style={{ fontSize: '36px' }}>📘</span>,
-              label: lang === 'fr' ? (nextCourseInfo.isPathB ? 'Parcours B' : 'Parcours A1') : (nextCourseInfo.isPathB ? 'Path B' : 'A1 Path'),
-              indicator: <span className="font-bold" style={{ fontSize: '16px', color: '#fff' }}>{nextCourseInfo.progress}</span>,
-            },
-            {
-              href: '/module/entrainement',
-              bg: '#E65100',
-              icon: <span style={{ fontSize: '36px' }}>🎯</span>,
-              label: lang === 'fr' ? 'Entraînement' : 'Training',
-              // V3.15: No stars — free choice activity, show activity types instead
-              indicator: <span className="text-white/80 text-center leading-tight" style={{ fontSize: 'clamp(8px, 1.3vw, 12px)' }}>Flashcard · Quiz · Jeux</span>,
-            },
-          ]
-
-          return (
-            <div className="mb-4">
-              <p className="font-bold text-sm text-[#002844] mb-3">{lang === 'fr' ? 'Explorer' : 'Explore'}</p>
-              {/* V3.13: 5 ronds répartis uniformément sur toute la largeur */}
-              <div className="flex justify-between items-center w-full overflow-x-auto pb-2">
-                {entries.map((entry, idx) => {
-                  // V3.16: Check planning + resume — resume always takes priority
-                  const handleClick = (e: React.MouseEvent) => {
-                    if ((entry as Record<string, unknown>).noSessionCheck) {
-                      // Check if there's an active resume — if so, go directly (no modal)
-                      try {
-                        const courseId = entry.href.split('courseId=')[1]
-                        if (courseId) {
-                          const resumeKey = `lingualearn_resume_${user.id}_${courseId}`
-                          const resumeStr = localStorage.getItem(resumeKey)
-                          if (resumeStr) {
-                            const resume = JSON.parse(resumeStr)
-                            if (Date.now() - new Date(resume.savedAt).getTime() < 24 * 60 * 60 * 1000) {
-                              return // Resume exists → navigate directly
-                            }
-                          }
-                        }
-                      } catch { /* ignore */ }
-
-                      // Check if user already chose "Continue anyway" today
-                      try {
-                        const overrideKey = `lingualearn_continue_override_${user.id}`
-                        const override = localStorage.getItem(overrideKey)
-                        if (override === todayStr) return // Already overridden today → navigate directly
-                      } catch { /* ignore */ }
-
-                      const schedule = user.settings.schedules?.[activeLang] || user.settings.schedule
-                      const days = schedule?.days || []
-                      const dayNames: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-                      const todayDay = dayNames[new Date().getDay()]
-                      const isTodayPlanned = days.length === 0 || days.includes(todayDay)
-                      if (!isTodayPlanned) {
-                        e.preventDefault()
-                        setNoSessionNextUrl(entry.href)
-                        setShowNoSessionModal(true)
-                        return
-                      }
-                    }
-                  }
-                  return (
-                    <a key={idx} href={entry.href} onClick={handleClick}
-                      className="flex flex-col items-center justify-center rounded-full active:scale-95 transition-transform shadow-md"
-                      style={{
-                        width: 'calc((100% - 2rem) / 5)',
-                        maxWidth: '200px',
-                        aspectRatio: '1',
-                        minWidth: '80px',
-                        background: `linear-gradient(135deg, ${entry.bg}, ${entry.bg}dd)`,
-                      }}>
-                      <div className="mb-1">{entry.icon}</div>
-                      <p className="font-bold text-white text-center leading-tight px-1" style={{ fontSize: 'clamp(14px, 2.4vw, 24px)' }}>{entry.label}</p>
-                      <div className="mt-1">{entry.indicator}</div>
-                    </a>
-                  )
-                })}
-              </div>
+        {/* ---- 6. PROGRESSION (compact) ---- */}
+        <div className="rounded-xl bg-white p-4 shadow-sm mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Progression' : 'Progress'}</p>
+            <a href="/module/parcours" className="flex items-center gap-1 text-[10px] font-bold text-[#D9B438]">
+              <Map className="h-3 w-3" />
+              {lang === 'fr' ? 'Voir le parcours' : 'View path'}
+            </a>
+          </div>
+          <div className="space-y-2">
+            {visibleModules.map(block => {
+              const Icon = block.icon
+              const engineMod = engineModules?.modules.find(m => m.id === block.id)
+              const pct = engineMod?.percent
+                ?? (progress?.objectiveProgress?.[block.id as keyof typeof progress.objectiveProgress] || 0)
+              return (
+                <div key={block.id} className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: block.color }} />
+                  <span className="text-[10px] font-bold w-16 truncate" style={{ color: block.color }}>{block.label}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-100">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
+                  </div>
+                  <span className="text-[10px] font-bold w-7 text-right" style={{ color: block.color }}>{pct}%</span>
+                </div>
+              )
+            })}
+          </div>
+          {/* Global A1 bar */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold text-[#002844]">{lang === 'fr' ? 'Niveau A1 global' : 'Overall A1'}</span>
+              <span className="text-xs font-bold text-[#002844]">{courseInfo.pctA1}%</span>
             </div>
-          )
-        })()}
-
-        {/* V3.15: Modal "No session planned today" */}
-        {showNoSessionModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6">
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl text-center">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
-                <Calendar className="h-7 w-7 text-[#1976D2]" />
-              </div>
-              <h3 className="text-lg font-bold text-[#002844] mb-2">
-                {lang === 'fr' ? 'Pas de session prévue aujourd\'hui' : 'No session planned today'}
-              </h3>
-              <p className="text-sm text-[#555555] mb-6">
-                {lang === 'fr'
-                  ? 'Tu peux quand même continuer ton parcours !'
-                  : 'You can still continue your course!'}
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowNoSessionModal(false)}
-                  className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-[#555555]">
-                  {lang === 'fr' ? 'Fermer' : 'Close'}
-                </button>
-                <a href={noSessionNextUrl}
-                  onClick={() => {
-                    // V3.16: Mark that user chose to continue — skip modal on return
-                    try {
-                      localStorage.setItem(`lingualearn_continue_override_${user.id}`, new Date().toISOString().split('T')[0])
-                    } catch { /* ignore */ }
-                  }}
-                  className="flex-1 py-3 rounded-xl bg-[#002844] text-white text-sm font-bold text-center">
-                  {lang === 'fr' ? 'Continuer quand même →' : 'Continue anyway →'}
-                </a>
-              </div>
+            <div className="h-2 w-full rounded-full bg-gray-100">
+              <div className="h-full rounded-full bg-gradient-to-r from-[#002844] to-[#D9B438] transition-all" style={{ width: `${courseInfo.pctA1}%` }} />
             </div>
           </div>
-        )}
+        </div>
 
-        {/* BLOC 4 — V3.10: Progression + Planning (gauche 60%) | Classement (droite 40%) */}
-        <div className="md:grid md:grid-cols-5 md:gap-4">
-          {/* Left column (60%) — Objectifs + Planning */}
-          <div className="md:col-span-3 space-y-4 mb-4 md:mb-0">
-            {/* V3.11: Objective blocks — empilés verticalement, 1 par ligne */}
-            {/* V2.1.1: Engine-driven module blocks — Path B = no écrit */}
-            {(() => {
-              // Use engine modules if available, fallback to legacy
-              const engineModules = engine.progress ? engine.getModules() : null
-              const allowedIds = engineModules
-                ? engineModules.modules.map(m => m.id)
-                : moduleBlocks.map(b => b.id) // fallback: all 5
-              const visibleBlocks = moduleBlocks.filter(b => allowedIds.includes(b.objective))
-              return (
-                <div className="space-y-2">
-                  {visibleBlocks.map(block => {
-                    const Icon = block.icon
-                    // V2.1.1: Read from engine modulePercent if available
-                    const engineMod = engineModules?.modules.find(m => m.id === block.objective)
-                    const pct = engineMod?.percent
-                      ?? progress?.objectiveProgress?.[block.objective as keyof typeof progress.objectiveProgress]
-                      ?? 0
-                    return (
-                      <a key={block.id} href={block.href}
-                        className="flex items-center gap-3 rounded-xl p-3 shadow-sm transition-transform active:scale-[0.98]"
-                        style={{ backgroundColor: block.bgLight }}>
-                        <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: block.color }}>
-                          <Icon className="h-4 w-4 text-white" />
-                        </div>
-                        <p className="font-bold text-xs flex-shrink-0 w-20" style={{ color: block.color }}>{block.label}</p>
-                        <div className="flex-1">
-                          <div className="h-2 w-full rounded-full bg-white/60">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: block.color }} />
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold flex-shrink-0 w-8 text-right" style={{ color: block.color }}>{pct}%</span>
-                      </a>
-                    )
-                  })}
-                </div>
-              )
-            })()}
-            {/* Planning hebdo — V3.11: jours verts persistants */}
-            {(() => {
-              const sched = user.settings.schedules?.[activeLang] || user.settings.schedule
-              const today = new Date()
-              const todayStr = today.toISOString().split('T')[0]
-              // V3.16 BUG-66: Planning validated only if trio Cours + Nouveaux mots + Révisions done
-              // V3.18 BUG-70: Use dedicated coffre marker for reliable detection
-              const coffreDoneToday = (() => {
-                try {
-                  return localStorage.getItem(`lingualearn_coffre_done_today_${user.id}`) === todayStr
-                } catch { return false }
-              })() || (progress?.dailyWordsCompleted || 0) > 0
-              const courseDoneToday = (() => {
-                try {
-                  const todayKey = `lingualearn_course_done_today_${user.id}`
-                  return localStorage.getItem(todayKey) === todayStr
-                } catch { return false }
-              })()
-              const revisionsDoneToday = (() => {
-                try {
-                  const reviews = getDueReviews(user.id, activeLang)
-                  // If there are 0 due reviews, revisions are "done" (nothing to do)
-                  // If there are due reviews, check if user did revisions today
-                  if (reviews.length === 0) return true
-                  const revKey = `lingualearn_revision_done_today_${user.id}`
-                  return localStorage.getItem(revKey) === todayStr
-                } catch { return false }
-              })()
-              const sessionDoneToday = coffreDoneToday && courseDoneToday && revisionsDoneToday
-              // V3.19 BUG-66: Only persist today as completed when trio is validated
-              if (sessionDoneToday) {
-                addSessionDate(user.id, activeLang, todayStr)
-              }
-              // V3.11: Persistent completed days history
-              const sessionHistory = getSessionHistory(user.id, activeLang)
-              const dayNames = lang === 'fr'
-                ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
-                : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-              const dayIds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-              const todayDayId = dayIds[today.getDay()]
-              const isScheduledToday = sched?.days?.includes(todayDayId as DayOfWeek) || false
-
-              // Compute date for each day of current week (Sun-Sat)
-              const weekStart = new Date(today)
-              weekStart.setDate(today.getDate() - today.getDay()) // Sunday
-
-              return (
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-[#002844]" />
-                      <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Mon planning' : 'My schedule'}</span>
-                    </div>
-                    <a href="/module/profil" className="text-[10px] font-semibold text-[#D9B438]">{lang === 'fr' ? 'Modifier' : 'Edit'}</a>
-                  </div>
-                  <div className="flex gap-1 mb-3">
-                    {dayNames.map((name, i) => {
-                      const isActive = sched?.days?.includes(dayIds[i] as DayOfWeek) || false
-                      const isToday = i === today.getDay()
-                      // Check if this day was completed (persistent history)
-                      const dayDate = new Date(weekStart)
-                      dayDate.setDate(weekStart.getDate() + i)
-                      const dayDateStr = dayDate.toISOString().split('T')[0]
-                      const wasCompleted = sessionHistory.includes(dayDateStr)
-                      const isDoneToday = isToday && sessionDoneToday
-                      return (
-                        <div key={i} className={`flex-1 rounded-lg py-1.5 text-center text-[10px] font-bold transition-all ${
-                          wasCompleted || isDoneToday ? 'bg-[#1A7A4A] text-white ring-2 ring-[#1A7A4A]/30' :
-                          isToday && isActive ? 'bg-[#D9B438] text-[#002844] ring-2 ring-[#D9B438]/30' :
-                          isToday ? 'bg-[#002844]/10 text-[#002844] ring-2 ring-[#002844]/20' :
-                          isActive ? 'bg-[#002844] text-white' :
-                          'bg-[#F0F0F0] text-[#999]'
-                        }`}>
-                          {wasCompleted || isDoneToday ? '✓' : name}
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {isScheduledToday && sessionDoneToday ? (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1A7A4A]/10">
-                      <span className="text-xs font-semibold text-[#1A7A4A]">
-                        {lang === 'fr' ? 'Session du jour terminée !' : "Today's session complete!"} ✓
-                      </span>
-                    </div>
-                  ) : isScheduledToday ? (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-[#D9B438]/10">
-                      <Clock className="h-3.5 w-3.5 text-[#D9B438]" />
-                      <span className="text-xs font-semibold text-[#002844]">
-                        {lang === 'fr' ? `Session prévue aujourd'hui · ${sched?.duration || 20} min` : `Session scheduled today · ${sched?.duration || 20} min`}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[#555555]">{lang === 'fr' ? "Pas de session prévue aujourd'hui" : 'No session scheduled today'}</p>
-                  )}
-                </div>
-              )
-            })()}
-
+        {/* ---- 7. PLANNING (compact) ---- */}
+        <div className="rounded-xl bg-white p-4 shadow-sm mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-[#002844]">{lang === 'fr' ? 'Planning' : 'Schedule'}</p>
+            <a href="/module/profil" className="text-[10px] font-bold text-[#D9B438]">
+              {lang === 'fr' ? 'Modifier' : 'Edit'}
+            </a>
           </div>
-
-          {/* Right column (40%) — BUG-63 V3.9: Multi-profile leaderboard */}
-          <div className="md:col-span-2">
-            {(() => {
-              // BUG-63: Read ALL users and compute weekly scores
-              const allUsers = getAllUsers()
-              const sevenDaysAgo = new Date()
-              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-              const sevenDaysStr = sevenDaysAgo.toISOString()
-
-              const rankings = allUsers
-                .map(u => {
-                  // Check all language progress
-                  let totalScore = 0
-                  let isActive = false
-                  for (const langKey of Object.keys(u.progress || {})) {
-                    const p = u.progress[langKey]
-                    if (p?.lastActivityDate && p.lastActivityDate >= sevenDaysStr) {
-                      isActive = true
-                      const stk = p.streak || 0
-                      const dw = p.dailyWordsCompleted || 0
-                      const de = p.dailyExercisesCompleted || 0
-                      totalScore += (stk * 10) + (dw * 2) + (de * 3)
-                    }
-                  }
-                  return { id: u.id, name: u.firstName || u.email?.split('@')[0] || '?', score: totalScore, isActive, isMe: u.id === user.id }
-                })
-                .filter(r => r.isActive && r.score > 0)
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 5)
-
+          {/* Days row */}
+          <div className="flex gap-1.5 mb-2">
+            {(['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'] as const).map((d, i) => {
+              const dayMap: Record<string, string> = { lun: 'mon', mar: 'tue', mer: 'wed', jeu: 'thu', ven: 'fri', sam: 'sat', dim: 'sun' }
+              const days = sched?.days || []
+              const isPlanned = days.length === 0 || days.includes(dayMap[d] as typeof days[number])
+              const isToday = new Date().getDay() === (i === 6 ? 0 : i + 1)
               return (
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Trophy className="h-4 w-4 text-[#D9B438]" />
-                    <span className="font-bold text-sm text-[#002844]">{lang === 'fr' ? 'Classement hebdo' : 'Weekly ranking'}</span>
-                  </div>
-                  {rankings.length > 0 ? (
-                    <div className="space-y-2">
-                      {rankings.map((r, idx) => (
-                        <div key={r.id} className={`flex items-center gap-3 p-2 rounded-lg ${r.isMe ? 'bg-[#D9B438]/10' : ''}`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            idx === 0 ? 'bg-[#D9B438]/20' : idx === 1 ? 'bg-gray-200' : idx === 2 ? 'bg-orange-100' : 'bg-gray-100'
-                          }`}>
-                            <span className={`text-sm font-bold ${idx === 0 ? 'text-[#D9B438]' : 'text-[#555555]'}`}>{idx + 1}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-bold truncate ${r.isMe ? 'text-[#002844]' : 'text-[#555555]'}`}>{r.name}{r.isMe ? ' ⭐' : ''}</p>
-                          </div>
-                          <span className="text-xs font-bold text-[#002844]">{r.score} pts</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[#555555]">
-                      {lang === 'fr' ? 'Complète des exercices pour apparaître au classement !' : 'Complete exercises to appear in the ranking!'}
-                    </p>
-                  )}
+                <div key={d} className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold ${
+                  isToday ? 'bg-[#002844] text-white' : isPlanned ? 'bg-[#D9B438]/20 text-[#002844]' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {lang === 'fr' ? d.charAt(0).toUpperCase() : ['M','T','W','T','F','S','S'][i]}
                 </div>
               )
-            })()}
+            })}
           </div>
+          <p className="text-[10px] text-[#555]">⏱ {duration} min/{lang === 'fr' ? 'jour' : 'day'}</p>
+        </div>
+
+        {/* ---- OBJECTIF QUOTIDIEN ---- */}
+        <div className="rounded-xl bg-white p-4 shadow-sm mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-[#002844]">
+              🎯 {lang === 'fr' ? 'Aujourd\'hui' : 'Today'}
+            </span>
+            <span className={`text-xs font-bold ${objectiveReached ? 'text-green-600' : 'text-[#D9B438]'}`}>
+              {objectiveReached
+                ? (lang === 'fr' ? '✔️ Objectif atteint → +30 pts' : '✔️ Goal reached → +30 pts')
+                : `${dailyObjective.minutesDone}/${dailyObjective.targetMinutes} min`}
+            </span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-100">
+            <div className="h-full rounded-full bg-gradient-to-r from-[#D9B438] to-[#f0c84a] transition-all" style={{ width: `${dailyPct}%` }} />
+          </div>
+          {!objectiveReached && (
+            <p className="text-[10px] text-[#555] mt-1.5">
+              {lang === 'fr'
+                ? `1 cours · 1 révision · 5 min`
+                : `1 course · 1 review · 5 min`}
+            </p>
+          )}
         </div>
       </main>
 
-      {/* V3.10: Use shared BottomNav component */}
+      {/* ---- MILESTONE CELEBRATION POPUP ---- */}
+      {milestoneShown && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm mx-4 text-center animate-bounce">
+            <button
+              onClick={() => setMilestoneShown(null)}
+              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <X className="h-5 w-5 text-[#555]" />
+            </button>
+            <div className="text-5xl mb-4">
+              {milestoneShown === 3 && '🔥'}
+              {milestoneShown === 7 && '⭐'}
+              {milestoneShown === 30 && '👑'}
+            </div>
+            <h3 className="text-xl font-bold text-[#002844] mb-2">
+              {getMilestoneMessage(milestoneShown, lang as 'fr' | 'en')}
+            </h3>
+            <p className="text-sm text-[#555] mb-4">
+              {lang === 'fr'
+                ? 'Ton engagement crée les meilleures habitudes d\'apprentissage !'
+                : 'Your commitment creates the best learning habits!'}
+            </p>
+            <div className="flex items-center justify-center gap-1 mb-4">
+              <Flame className="h-5 w-5 text-[#D9B438]" fill="#D9B438" />
+              <span className="text-lg font-bold text-[#002844]">{streak}</span>
+              <span className="text-sm text-[#555]">
+                {lang === 'fr' ? 'jour(s)' : 'day(s)'}
+              </span>
+            </div>
+            <button
+              onClick={() => setMilestoneShown(null)}
+              className="w-full py-2.5 rounded-xl bg-[#002844] text-white font-bold text-sm"
+            >
+              {lang === 'fr' ? 'Continuer' : 'Continue'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <BottomNav lang={lang} />
     </div>
   )

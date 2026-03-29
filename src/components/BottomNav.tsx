@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, MessageCircle, User as UserIcon } from 'lucide-react';
+import { Home, Map, MessageCircle, User as UserIcon } from 'lucide-react';
 
 interface NavItem {
   id: string;
@@ -13,7 +13,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'home', labelFr: 'Accueil', labelEn: 'Home', icon: Home, href: '/dashboard' },
-  { id: 'dict', labelFr: 'Dictionnaire', labelEn: 'Dictionary', icon: BookOpen, href: '/module/dictionnaire' },
+  { id: 'parcours', labelFr: 'Parcours', labelEn: 'Path', icon: Map, href: '/module/parcours' },
   { id: 'coach', labelFr: 'Coach IA', labelEn: 'AI Coach', icon: MessageCircle, href: '/module/coach' },
   { id: 'profil', labelFr: 'Profil', labelEn: 'Profile', icon: UserIcon, href: '/module/profil' },
 ];
