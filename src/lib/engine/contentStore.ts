@@ -235,6 +235,36 @@ export function searchVocabulary(query: string, langueId: LangueId): TaggedVocab
   );
 }
 
+// --- Localized content overlay (Phase 14) ---
+// Applies validated translations to vocabulary for non-EN languages
+import { getValidatedTranslation, syncCanonicalFromContent } from './translationStore';
+
+/** Get vocabulary with localized overlay for a target language */
+export function getLocalizedVocabulary(langueId: LangueId): TaggedVocabWord[] {
+  if (langueId === 'en') return getAllVocabulary();
+
+  return getAllVocabulary().map(word => {
+    const translation = getValidatedTranslation(word.id, langueId);
+    if (!translation) return word;
+
+    return {
+      ...word,
+      langueId,
+      word_target: translation.word_target || word.word_target,
+      definition_target: translation.definition_target || word.definition_target,
+      example_target: translation.example_target || word.example_target,
+      phonetic: translation.phonetic || word.phonetic,
+    };
+  });
+}
+
+/** Sync existing content IDs into canonical registry */
+export function syncContentToCanonical(): number {
+  const vocabIds = getAllVocabulary().map(w => w.id);
+  const ruleIds = getAllGrammarRules().map(r => r.id);
+  return syncCanonicalFromContent(vocabIds, ruleIds);
+}
+
 // --- Invalidation du cache (après import admin) ---
 export function invalidateContentCache(): void {
   _vocabulary = null;

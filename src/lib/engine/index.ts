@@ -90,6 +90,8 @@ export {
   getVocabularyByIds,
   searchVocabulary,
   invalidateContentCache,
+  getLocalizedVocabulary,
+  syncContentToCanonical,
 } from './contentStore';
 export type { ContentStatus, CanonicalContent, LocalizedContent } from './contentStore';
 
@@ -130,6 +132,31 @@ export {
   recordRevisionResult,
   pruneReviewItems,
 } from './revisionEngine';
+
+// --- TranslationStore (Phase 14) ---
+export type {
+  TranslationContentType,
+  CanonicalEntry,
+  LocalizedEntry,
+  TranslationProgress,
+} from './translationStore';
+export {
+  TARGET_LANGUAGES,
+  ALL_CONTENT_LANGUAGES,
+  getCanonicalEntries,
+  registerCanonical,
+  syncCanonicalFromContent,
+  getLocalizedEntries,
+  getLocalizedForLanguage,
+  getLocalizedEntry,
+  upsertLocalizedEntry,
+  validateLocalizedEntry,
+  rejectLocalizedEntry,
+  getTranslationProgress,
+  getValidatedTranslation,
+  bulkImportTranslations,
+  initializeEmptyLocalizations,
+} from './translationStore';
 
 // --- Migration ---
 export {

@@ -25,6 +25,20 @@ import {
   Users, Eye, EyeOff, UserPlus, Trash2, Shield, ImageIcon, Pencil, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
+import {
+  getTranslationProgress,
+  initializeEmptyLocalizations,
+  getCanonicalEntries,
+  getLocalizedForLanguage,
+  upsertLocalizedEntry,
+  validateLocalizedEntry,
+  rejectLocalizedEntry,
+  TARGET_LANGUAGES,
+} from '@/lib/engine/translationStore'
+import { syncContentToCanonical } from '@/lib/engine/contentStore'
+import type { TranslationProgress, LocalizedEntry } from '@/lib/engine/translationStore'
+import type { ContentStatus } from '@/lib/engine/contentStore'
+import type { LangueId } from '@/lib/engine/types'
 
 type ImportType = 'vocab' | 'grammarRules' | 'grammarExercises' | 'readingTexts' | 'irregularVerbs'
 
@@ -106,6 +120,14 @@ export default function AdminImportsPage() {
   // BUG-92: Track deletions to trigger re-render
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [deletedItems, setDeletedItems] = useState<string[]>([])
+  // Phase 14 — Translation state
+  const [translationProgress, setTranslationProgress] = useState<TranslationProgress[]>([])
+  const [selectedTransLang, setSelectedTransLang] = useState<string | null>(null)
+  const [transEntries, setTransEntries] = useState<LocalizedEntry[]>([])
+  const [transEditId, setTransEditId] = useState<string | null>(null)
+  const [transEditData, setTransEditData] = useState<Record<string, string>>({})
+  const [transSynced, setTransSynced] = useState(false)
+
   const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({ niveau_a1: true })
   const [tabState, setTabState] = useState<TabState>({
     selectedType: null,
@@ -1916,42 +1938,257 @@ export default function AdminImportsPage() {
             </div>
           </div>
         )}
-        {/* V2.1.1 Phase 9: Translations tab */}
+        {/* V2.1.1 Phase 14: Translations tab — CanonicalContent + LocalizedContent */}
         {activeTab === 'translations' && (
           <div className="px-4 pt-4 pb-8">
             <h2 className="text-lg font-bold text-[#002844] mb-4">
               {lang === 'fr' ? 'Gestion des traductions' : 'Translation Management'}
             </h2>
-            <div className="rounded-xl bg-white p-6 shadow-sm mb-4">
-              <p className="text-sm text-[#555] mb-4">
-                {lang === 'fr'
-                  ? 'Phase 14 activera le système CanonicalContent + LocalizedContent pour gérer les traductions dans 7 langues (en, es, ko, ar, zh, ja, fr).'
-                  : 'Phase 14 will enable the CanonicalContent + LocalizedContent system for managing translations in 7 languages (en, es, ko, ar, zh, ja, fr).'}
+
+            {/* Sync canonical button */}
+            {!transSynced && (
+              <button
+                onClick={() => {
+                  const added = syncContentToCanonical()
+                  initializeEmptyLocalizations()
+                  setTranslationProgress(getTranslationProgress())
+                  setTransSynced(true)
+                  console.log(`[Admin] Canonical sync: ${added} entries added`)
+                }}
+                className="w-full mb-4 py-3 rounded-xl font-bold text-white bg-[#002844] active:scale-95 transition-transform"
+              >
+                {lang === 'fr' ? 'Synchroniser le contenu canonical' : 'Sync canonical content'}
+              </button>
+            )}
+
+            {transSynced && (
+              <div className="rounded-xl bg-green-50 border border-green-200 p-3 mb-4">
+                <p className="text-xs text-green-700 font-medium">
+                  {lang === 'fr'
+                    ? `${getCanonicalEntries().length} entrées canonical synchronisées. Structures vides créées pour ${TARGET_LANGUAGES.length} langues.`
+                    : `${getCanonicalEntries().length} canonical entries synced. Empty structures created for ${TARGET_LANGUAGES.length} languages.`}
+                </p>
+              </div>
+            )}
+
+            {/* Progress overview */}
+            <div className="rounded-xl bg-white p-4 shadow-sm mb-4">
+              <p className="text-xs font-bold text-[#002844] mb-3">
+                {lang === 'fr' ? 'Progression par langue' : 'Progress by language'}
               </p>
               <div className="space-y-3">
-                {['en', 'es', 'ko', 'ar', 'zh', 'ja', 'fr'].map(langCode => {
-                  const flags: Record<string, string> = { en: '🇬🇧', es: '🇪🇸', ko: '🇰🇷', ar: '🇸🇦', zh: '🇨🇳', ja: '🇯🇵', fr: '🇫🇷' }
-                  const names: Record<string, string> = { en: 'English', es: 'Español', ko: '한국어', ar: 'العربية', zh: '中文', ja: '日本語', fr: 'Français' }
-                  const isReady = langCode === 'en'
+                {/* English canonical — always 100% */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🇬🇧</span>
+                    <span className="text-sm font-semibold text-[#002844]">English (Canonical)</span>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 rounded bg-green-100 text-green-700">100%</span>
+                </div>
+
+                {/* Target languages */}
+                {(translationProgress.length > 0 ? translationProgress : getTranslationProgress()).map(tp => {
+                  const flags: Record<string, string> = { es: '🇪🇸', ko: '🇰🇷', ar: '🇸🇦', zh: '🇨🇳', ja: '🇯🇵', fr: '🇫🇷' }
+                  const names: Record<string, string> = { es: 'Español', ko: '한국어', ar: 'العربية', zh: '中文', ja: '日本語', fr: 'Français' }
                   return (
-                    <div key={langCode} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                    <button
+                      key={tp.langueId}
+                      onClick={() => {
+                        setSelectedTransLang(tp.langueId)
+                        setTransEntries(getLocalizedForLanguage(tp.langueId))
+                        setTransEditId(null)
+                      }}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${
+                        selectedTransLang === tp.langueId ? 'bg-[#002844] text-white' : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
                       <div className="flex items-center gap-3">
-                        <span className="text-xl">{flags[langCode]}</span>
-                        <span className="text-sm font-semibold text-[#002844]">{names[langCode]}</span>
+                        <span className="text-xl">{flags[tp.langueId] || ''}</span>
+                        <div className="text-left">
+                          <span className={`text-sm font-semibold ${selectedTransLang === tp.langueId ? 'text-white' : 'text-[#002844]'}`}>
+                            {names[tp.langueId] || tp.langueId}
+                          </span>
+                          <p className={`text-[10px] ${selectedTransLang === tp.langueId ? 'text-gray-300' : 'text-[#999]'}`}>
+                            {tp.validated}/{tp.total} {lang === 'fr' ? 'validés' : 'validated'} · {tp.draft} {lang === 'fr' ? 'brouillons' : 'drafts'}
+                          </p>
+                        </div>
                       </div>
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${isReady ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
-                        {isReady ? (lang === 'fr' ? 'Actif' : 'Active') : (lang === 'fr' ? 'Phase 14' : 'Phase 14')}
-                      </span>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500 rounded-full transition-all"
+                            style={{ width: `${tp.percent}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-bold ${selectedTransLang === tp.langueId ? 'text-white' : 'text-[#002844]'}`}>
+                          {tp.percent}%
+                        </span>
+                      </div>
+                    </button>
                   )
                 })}
               </div>
             </div>
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-              <p className="text-xs text-amber-700 font-medium">
+
+            {/* Selected language detail */}
+            {selectedTransLang && (
+              <div className="rounded-xl bg-white p-4 shadow-sm mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-[#002844]">
+                    {lang === 'fr' ? `Traductions ${selectedTransLang.toUpperCase()}` : `${selectedTransLang.toUpperCase()} Translations`}
+                  </p>
+                  <button
+                    onClick={() => { setSelectedTransLang(null); setTransEditId(null) }}
+                    className="text-xs text-[#555] underline"
+                  >
+                    {lang === 'fr' ? 'Fermer' : 'Close'}
+                  </button>
+                </div>
+
+                {/* Filter by status */}
+                <div className="flex gap-2 mb-3">
+                  {(['draft', 'validated', 'rejected'] as ContentStatus[]).map(s => {
+                    const count = transEntries.filter(e => e.status === s).length
+                    const colors: Record<string, string> = {
+                      draft: 'bg-amber-100 text-amber-700',
+                      validated: 'bg-green-100 text-green-700',
+                      rejected: 'bg-red-100 text-red-700',
+                    }
+                    return (
+                      <span key={s} className={`text-[10px] font-bold px-2 py-1 rounded ${colors[s]}`}>
+                        {s}: {count}
+                      </span>
+                    )
+                  })}
+                </div>
+
+                {/* Entries list (first 20) */}
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {transEntries.slice(0, 20).map((entry, idx) => {
+                    const isEditing = transEditId === entry.canonicalId
+                    const statusColors: Record<string, string> = {
+                      draft: 'border-amber-300 bg-amber-50',
+                      validated: 'border-green-300 bg-green-50',
+                      rejected: 'border-red-300 bg-red-50',
+                    }
+                    return (
+                      <div key={idx} className={`p-3 rounded-lg border ${statusColors[entry.status] || 'border-gray-200'}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-mono text-[#999]">{entry.canonicalId}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            entry.status === 'validated' ? 'bg-green-200 text-green-800'
+                              : entry.status === 'rejected' ? 'bg-red-200 text-red-800'
+                              : 'bg-amber-200 text-amber-800'
+                          }`}>
+                            {entry.status}
+                          </span>
+                        </div>
+
+                        {!isEditing ? (
+                          <div>
+                            {entry.data?.word_target && (
+                              <p className="text-sm font-semibold text-[#002844]">{entry.data.word_target}</p>
+                            )}
+                            {!entry.data?.word_target && (
+                              <p className="text-xs text-[#999] italic">{lang === 'fr' ? 'Non traduit' : 'Not translated'}</p>
+                            )}
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => {
+                                  setTransEditId(entry.canonicalId)
+                                  setTransEditData(entry.data || {})
+                                }}
+                                className="text-[10px] font-bold text-[#002844] underline"
+                              >
+                                <Pencil className="h-3 w-3 inline mr-1" />
+                                {lang === 'fr' ? 'Éditer' : 'Edit'}
+                              </button>
+                              {entry.status === 'draft' && (
+                                <button
+                                  onClick={() => {
+                                    validateLocalizedEntry(entry.canonicalId, selectedTransLang as LangueId, 'admin')
+                                    setTransEntries(getLocalizedForLanguage(selectedTransLang as LangueId))
+                                    setTranslationProgress(getTranslationProgress())
+                                  }}
+                                  className="text-[10px] font-bold text-green-600 underline"
+                                >
+                                  <CheckCircle className="h-3 w-3 inline mr-1" />
+                                  {lang === 'fr' ? 'Valider' : 'Validate'}
+                                </button>
+                              )}
+                              {entry.status !== 'rejected' && (
+                                <button
+                                  onClick={() => {
+                                    rejectLocalizedEntry(entry.canonicalId, selectedTransLang as LangueId)
+                                    setTransEntries(getLocalizedForLanguage(selectedTransLang as LangueId))
+                                    setTranslationProgress(getTranslationProgress())
+                                  }}
+                                  className="text-[10px] font-bold text-red-500 underline"
+                                >
+                                  <XCircle className="h-3 w-3 inline mr-1" />
+                                  {lang === 'fr' ? 'Rejeter' : 'Reject'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 mt-2">
+                            {['word_target', 'definition_target', 'example_target', 'phonetic'].map(field => (
+                              <div key={field}>
+                                <label className="text-[10px] font-bold text-[#555] block mb-0.5">{field}</label>
+                                <input
+                                  type="text"
+                                  value={transEditData[field] || ''}
+                                  onChange={(e) => setTransEditData(prev => ({ ...prev, [field]: e.target.value }))}
+                                  className="w-full px-2 py-1.5 rounded border border-gray-300 text-xs text-[#002844]"
+                                  placeholder={field}
+                                />
+                              </div>
+                            ))}
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => {
+                                  upsertLocalizedEntry(entry.canonicalId, selectedTransLang as LangueId, transEditData, 'draft')
+                                  setTransEntries(getLocalizedForLanguage(selectedTransLang as LangueId))
+                                  setTranslationProgress(getTranslationProgress())
+                                  setTransEditId(null)
+                                }}
+                                className="flex-1 py-2 rounded-lg text-xs font-bold bg-[#002844] text-white"
+                              >
+                                {lang === 'fr' ? 'Sauvegarder' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => setTransEditId(null)}
+                                className="flex-1 py-2 rounded-lg text-xs font-bold bg-gray-100 text-[#555]"
+                              >
+                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {transEntries.length > 20 && (
+                    <p className="text-center text-[10px] text-[#999] pt-2">
+                      +{transEntries.length - 20} {lang === 'fr' ? 'autres entrées' : 'more entries'}
+                    </p>
+                  )}
+                  {transEntries.length === 0 && (
+                    <p className="text-center text-xs text-[#999] py-4">
+                      {lang === 'fr' ? 'Synchronisez d\'abord le contenu canonical.' : 'Sync canonical content first.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Status validation rule info */}
+            <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+              <p className="text-xs text-blue-700 font-medium">
                 {lang === 'fr'
-                  ? '⚠️ Seul l\'anglais (EN) est actuellement actif. Les autres langues seront activées avec l\'architecture CanonicalContent (Phase 14).'
-                  : '⚠️ Only English (EN) is currently active. Other languages will be enabled with the CanonicalContent architecture (Phase 14).'}
+                  ? 'Règle de validation : seul le contenu avec le statut "validated" est servi aux utilisateurs. Le contenu "draft" et "rejected" reste invisible.'
+                  : 'Validation rule: only content with "validated" status is served to users. "draft" and "rejected" content remains invisible.'}
               </p>
             </div>
           </div>
