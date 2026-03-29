@@ -100,27 +100,25 @@ function CoffreContent() {
       setTotalCount(savedSession.totalCount || 0);
       setPhase('learning'); // Resume saved session
     } else {
-      // V3.20: Use course-specific vocabulary if courseId is a real A1 course
-      // BUG-95: Path B courses use all V4 vocabulary pool
+      // V2.1.1: Coffre = COURSE_CONTENT_MAP[courseId].vocabularyIds uniquement
+      // Supprimé mapping b_b1_cN → a1_cN — un seul chemin via courseId
       const isA1Course = courseIdParam && /^a1_c\d+$/.test(courseIdParam);
-      const isBCourse = courseIdParam && /^b_/.test(courseIdParam);
       let allVocab: VocabWord[] = [];
 
       if (isA1Course) {
         allVocab = getA1CourseVocabulary(courseIdParam);
-      } else if (isBCourse) {
-        // BUG-95: Path B courses map to A1 course vocabulary
-        // b_b1_c1 → a1_c1, b_b1_c2 → a1_c2, etc.
-        const bMatch = courseIdParam.match(/b_b\d+_c(\d+)/);
-        if (bMatch) {
-          const a1CourseId = `a1_c${bMatch[1]}`;
-          allVocab = getA1CourseVocabulary(a1CourseId);
-        }
-        // Fallback: if mapping fails, use first A1 course
-        if (allVocab.length === 0) {
-          allVocab = getA1CourseVocabulary('a1_c1');
-        }
-      } else {
+      } else if (courseIdParam) {
+        // Tout courseId non-A1 : essayer quand même (rétro-compat)
+        allVocab = getA1CourseVocabulary(courseIdParam);
+      }
+
+      // FAIL FAST : pas de fallback silencieux
+      if (allVocab.length === 0 && courseIdParam) {
+        console.error(`[Engine:Coffre] No vocabulary found for courseId: ${courseIdParam}`);
+      }
+
+      // Dernier recours sans courseId : vocabulaire global (sera supprimé Phase 7)
+      if (allVocab.length === 0 && !courseIdParam) {
         allVocab = getVocabulary(aLang, config?.themes || [], 'A1');
       }
 
@@ -195,6 +193,7 @@ function CoffreContent() {
     try {
       localStorage.setItem(savedKey, JSON.stringify({
         date: todayStr,
+        courseId: courseIdParam, // V2.1.1: stocker coffreCourseId pour reprise exacte
         exerciseIndex: nextIdx,
         dailyWords,
         exercises,
@@ -492,9 +491,9 @@ function CoffreContent() {
                   {/* BUG-75 + BUG-87: Image du mot ou placeholder */}
                   <div className="mt-3">
                     {word.image ? (
-                      <img src={word.image} alt={word.word_target} className="w-24 h-24 object-cover rounded-lg mx-auto" />
+                      <img src={word.image} alt={word.word_target} className="w-60 h-60 object-cover rounded-lg mx-auto" style={{ minWidth: '240px', minHeight: '240px' }} />
                     ) : (
-                      <div className="w-24 h-24 rounded-lg mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
+                      <div className="w-60 h-60 rounded-lg mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center" style={{ minWidth: '240px', minHeight: '240px' }}>
                         <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
