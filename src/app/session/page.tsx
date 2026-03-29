@@ -18,6 +18,8 @@ import {
 } from '@/lib/db/bankHelpers'
 import { getA1CourseData, getA1CourseVocabulary, getA1CourseGrammarExercises, getMicroReussite } from '@/lib/db/bankA1Courses'
 import type { VocabWord, GrammarExercise, ReadingText, SpeakingExercise, WritingExercise } from '@/lib/db/bankTypes'
+import { useEngine } from '@/lib/engine/useEngine'
+import { awardPoints } from '@/lib/engine/gamificationEngine'
 
 // ==========================================
 // TYPES
@@ -229,6 +231,7 @@ function SessionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const courseId = searchParams.get('courseId')
+  const engine = useEngine()
   const [user, setUser] = useState<User | null>(null)
   const [lang, setLang] = useState<InterfaceLanguage>('fr')
   const [loading, setLoading] = useState(true)
@@ -954,6 +957,24 @@ function SessionContent() {
           localStorage.setItem(key, JSON.stringify(allScores))
         }
       } catch { /* ignore storage errors */ }
+
+      // Phase 12: Award engine gamification points
+      if (engine.progress) {
+        engine.updateProgress(prev => {
+          let updated = awardPoints(prev, 'course_completed', courseId)
+          // Award points for each correct exercise
+          const correctExercises = results.filter(r => r.correct)
+          for (const ex of correctExercises) {
+            updated = awardPoints(updated, 'exercise_correct', ex.exercise?.data?.id || courseId)
+          }
+          // Award word_learned for each vocab word in the course
+          const courseVocab = getA1CourseVocabulary(courseId)
+          for (const w of courseVocab) {
+            updated = awardPoints(updated, 'word_learned', w.id)
+          }
+          return updated
+        })
+      }
     }
   }
 
