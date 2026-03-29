@@ -201,7 +201,13 @@ export default function OralModule() {
     }
   }
 
+  // BUG-100: Enhanced retry — play correct pronunciation on mismatch
   const handleTryAgain = () => {
+    // Play correct pronunciation before retry so user hears the target
+    const activeLang = user?.activeLang || user?.settings?.learningLangs?.[0] || 'en'
+    if (currentExercise?.target_text) {
+      speakText(currentExercise.target_text, activeLang)
+    }
     setResult(null)
     setHeardText('')
   }
@@ -426,6 +432,25 @@ export default function OralModule() {
                       ? t('writing.result.correct', interfaceLang)
                       : t('writing.result.incorrect', interfaceLang)}
                   </h3>
+                  {/* BUG-100: Show correct answer + listen button on mismatch */}
+                  {result === 'mismatch' && currentExercise && (
+                    <div className="mt-2">
+                      <p className="text-sm text-red-700 mb-2">
+                        <span className="font-semibold">{interfaceLang === 'fr' ? 'Réponse attendue : ' : 'Expected: '}</span>
+                        {currentExercise.target_text}
+                      </p>
+                      <button
+                        onClick={() => {
+                          const activeLang = user?.activeLang || user?.settings?.learningLangs?.[0] || 'en'
+                          speakText(currentExercise.target_text, activeLang)
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                        {interfaceLang === 'fr' ? 'Écouter la prononciation' : 'Listen to pronunciation'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

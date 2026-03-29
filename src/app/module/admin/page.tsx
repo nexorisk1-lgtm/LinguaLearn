@@ -1712,6 +1712,10 @@ export default function AdminImportsPage() {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-bold text-[#002844]">{v.word}</p>
                                   <p className="text-xs text-[#555555]">{v.trad_fr}</p>
+                                  {/* BUG-102: Show example sentences */}
+                                  {v.example_en && (
+                                    <p className="text-[10px] text-[#888] mt-1 italic">&ldquo;{v.example_en}&rdquo;</p>
+                                  )}
                                   <div className="mt-2 flex items-center gap-2">
                                     <label className="flex items-center gap-2 px-3 py-1.5 bg-[#002844] text-white text-xs font-semibold rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
                                       <ImageIcon className="h-3.5 w-3.5" />
