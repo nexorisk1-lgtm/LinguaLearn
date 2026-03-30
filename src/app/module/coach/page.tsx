@@ -10,7 +10,7 @@ import { User, InterfaceLanguage } from '@/types'
 import PageHeader from '@/components/PageHeader'
 import BottomNav from '@/components/BottomNav'
 import { Send, Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react'
-import { getA1CourseVocabulary, getA1CourseData } from '@/lib/db/bankA1Courses'
+import { getA1CourseVocabulary, getA1CourseData, getEnglishSynonymsForFrench } from '@/lib/db/bankA1Courses'
 
 type CoachMode = 'discussion' | 'revision'
 
@@ -46,62 +46,121 @@ export default function CoachPage() {
   const [isThinking, setIsThinking] = useState(false)
   const [courseWords, setCourseWords] = useState<CourseWord[]>([])
   const [activeCourseId, setActiveCourseId] = useState<string>('')
+  const [courseScenario, setCourseScenario] = useState('')
 
-  // P0-1: Track which word is currently being asked
+  // Revision mode: track which word is being asked
   const [currentWordIdx, setCurrentWordIdx] = useState(0)
 
   // P0-2B: Global sound toggle
   const [soundEnabled, setSoundEnabled] = useState(true)
+  // P0-B: Track if Google TTS is available
+  const [googleTtsAvailable, setGoogleTtsAvailable] = useState<boolean | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
-
-  // P0-2A: Auto-send timer ref
   const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null)
   const pendingTranscriptRef = useRef<string>('')
 
-  // TTS function — P0-2B: respects global toggle
-  const speakText = useCallback((text: string, speechLang: string = 'fr') => {
-    if (!soundEnabled) return
+  // ============================================================
+  // P0-B: TTS — Google Cloud TTS Neural2 with Web Speech API fallback
+  // ============================================================
+
+  const playGoogleTts = useCallback(async (text: string, ttsLang: string = 'fr'): Promise<boolean> => {
+    try {
+      const resp = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, lang: ttsLang }),
+      })
+      if (!resp.ok) return false
+      const data = await resp.json()
+      if (!data.audio) return false
+
+      // Decode base64 → play audio
+      const binary = atob(data.audio)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+      const blob = new Blob([bytes], { type: 'audio/mp3' })
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audio.onended = () => URL.revokeObjectURL(url)
+      await audio.play()
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  // Web Speech API fallback with proper language selection
+  const speakWebSpeech = useCallback((text: string, speechLang: string = 'fr') => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return
     window.speechSynthesis.cancel()
     const utter = new SpeechSynthesisUtterance(text)
     utter.lang = speechLang === 'en' ? 'en-US' : 'fr-FR'
     utter.rate = 0.9
     window.speechSynthesis.speak(utter)
-  }, [soundEnabled])
+  }, [])
 
-  // P0-2B: Auto-TTS on coach messages — extract clean text for speech
-  const speakCoachMessage = useCallback((text: string) => {
+  // Smart TTS: try Google first, fall back to Web Speech
+  const speakText = useCallback(async (text: string, ttsLang: string = 'fr') => {
     if (!soundEnabled) return
-    if (typeof window === 'undefined' || !window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    // Clean emojis and special chars for cleaner TTS
-    // Remove emojis for cleaner TTS — keep only ASCII + accented letters
+    // If we already know Google TTS is unavailable, skip the request
+    if (googleTtsAvailable === false) {
+      speakWebSpeech(text, ttsLang)
+      return
+    }
+    const success = await playGoogleTts(text, ttsLang)
+    if (!success) {
+      setGoogleTtsAvailable(false)
+      speakWebSpeech(text, ttsLang)
+    } else if (googleTtsAvailable === null) {
+      setGoogleTtsAvailable(true)
+    }
+  }, [soundEnabled, googleTtsAvailable, playGoogleTts, speakWebSpeech])
+
+  // P0-B: Auto-TTS on coach messages — detect language segments
+  const speakCoachMessage = useCallback(async (text: string) => {
+    if (!soundEnabled) return
+
+    // Clean emojis
     const clean = text.replace(/[^a-zA-Z0-9\u00C0-\u024F\s.,;:!?'"()-]/g, '').trim()
     if (!clean) return
-    const utter = new SpeechSynthesisUtterance(clean)
-    utter.lang = 'fr-FR' // Coach speaks French (with English words inline)
-    utter.rate = 0.9
-    window.speechSynthesis.speak(utter)
-  }, [soundEnabled])
 
-  // P0-1: Compute contextual fields for current word
+    // Extract English words in quotes for native pronunciation
+    const englishQuoted = text.match(/"([a-zA-Z\s]+)"/g)
+    if (englishQuoted && englishQuoted.length > 0) {
+      // Speak the English parts with en-US voice
+      for (const match of englishQuoted) {
+        const word = match.replace(/"/g, '')
+        await speakText(word, 'en')
+        // Small pause between words
+        await new Promise(r => setTimeout(r, 400))
+      }
+    }
+
+    // Speak the full message in French
+    await speakText(clean, 'fr')
+  }, [soundEnabled, speakText])
+
+  // ============================================================
+  // P0-D: Compute synonyms using FR_SYNONYMS cross-reference
+  // ============================================================
+
   const getContextualFields = useCallback((wordIdx: number) => {
-    if (courseWords.length === 0) return null
+    if (courseWords.length === 0 || mode !== 'revision') return null
     const idx = wordIdx % courseWords.length
     const currentWord = courseWords[idx]
     const isFr = lang === 'fr'
 
-    // Build question string
     const questionAsked = isFr
       ? `comment dit-on "${currentWord.trad}" en anglais ?`
       : `how do you say "${currentWord.trad}" in English?`
 
-    // Find English synonyms: other course words with same French translation
-    const acceptableSynonyms = courseWords
-      .filter((w, i) => i !== idx && w.trad.toLowerCase() === currentWord.trad.toLowerCase())
-      .map(w => w.word)
+    // P0-D: Use FR_SYNONYMS cross-reference for proper synonyms
+    const allTranslations = getEnglishSynonymsForFrench(currentWord.trad, activeCourseId)
+    const acceptableSynonyms = allTranslations.filter(
+      w => w.toLowerCase() !== currentWord.word.toLowerCase()
+    )
 
     return {
       questionAsked,
@@ -109,36 +168,22 @@ export default function CoachPage() {
       expectedTrad: currentWord.trad,
       acceptableSynonyms,
     }
-  }, [courseWords, lang])
+  }, [courseWords, lang, mode, activeCourseId])
 
-  // Build the question text for a given word index
-  const buildQuestionText = useCallback((wordIdx: number, courseData: any = null) => {
-    if (courseWords.length === 0) return ''
-    const idx = wordIdx % courseWords.length
-    const w = courseWords[idx]
-    const isFr = lang === 'fr'
+  // ============================================================
+  // P0-C: Speech recognition with interimResults for short words
+  // ============================================================
 
-    if (mode === 'revision') {
-      return isFr
-        ? `Mot ${idx + 1}/${courseWords.length} :\nComment dit-on "${w.trad}" en anglais ?`
-        : `Word ${idx + 1}/${courseWords.length}:\nHow do you say "${w.trad}" in English?`
-    } else {
-      const scenario = courseData?.scenario || ''
-      return isFr
-        ? `${scenario ? `Imagine : ${scenario}\n` : ''}Comment dit-on "${w.trad}" en anglais ?`
-        : `${scenario ? `Imagine: ${scenario}\n` : ''}How do you say "${w.trad}" in English?`
-    }
-  }, [courseWords, lang, mode])
-
-  // Initialize speech recognition with P0-2A auto-send
   useEffect(() => {
     const SpeechRecognition = window.webkitSpeechRecognition || (window as any).SpeechRecognition
     if (SpeechRecognition) {
       setSpeechSupported(true)
       const recognition = new SpeechRecognition()
       recognition.continuous = false
-      recognition.interimResults = false
-      recognition.lang = lang === 'fr' ? 'fr-FR' : 'en-US'
+      // P0-C: Enable interim results for short words like "hi"
+      recognition.interimResults = true
+      // P0-C: Always listen in English (user speaks English to the coach)
+      recognition.lang = 'en-US'
 
       recognition.onstart = () => {
         setIsListening(true)
@@ -150,26 +195,41 @@ export default function CoachPage() {
       }
 
       recognition.onresult = (event: any) => {
+        let finalTranscript = ''
+        let interimTranscript = ''
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript
           if (event.results[i].isFinal) {
-            pendingTranscriptRef.current = transcript.trim()
-            setInput(transcript.trim())
+            finalTranscript += transcript
+          } else {
+            interimTranscript += transcript
+          }
+        }
+
+        // P0-C: Show interim results in input field for visual feedback
+        if (finalTranscript) {
+          pendingTranscriptRef.current = finalTranscript.trim()
+          setInput(finalTranscript.trim())
+        } else if (interimTranscript) {
+          setInput(interimTranscript.trim())
+          // P0-C: For short words, if interim matches a course word, accept it early
+          const interim = interimTranscript.trim().toLowerCase()
+          if (interim.length <= 8) {
+            // Check if it's a valid course word — auto-validate short words
+            pendingTranscriptRef.current = interimTranscript.trim()
           }
         }
       }
 
-      // P0-2A: On speech end, auto-send after 1.5s
+      // Auto-send after speech ends
       recognition.onend = () => {
         setIsListening(false)
         const transcript = pendingTranscriptRef.current
         if (transcript) {
           autoSendTimerRef.current = setTimeout(() => {
-            // Trigger auto-send by setting a flag — handled in effect
-            setInput(transcript)
-            // Use a custom event to trigger send
             window.dispatchEvent(new CustomEvent('coach-auto-send', { detail: transcript }))
-          }, 1500)
+          }, 1200)
         }
       }
 
@@ -182,7 +242,7 @@ export default function CoachPage() {
     }
   }, [lang])
 
-  // P0-2A: Listen for auto-send event
+  // Auto-send event listener
   const handleSendRef = useRef<((text?: string) => void) | null>(null)
 
   useEffect(() => {
@@ -195,6 +255,10 @@ export default function CoachPage() {
     window.addEventListener('coach-auto-send', handler)
     return () => window.removeEventListener('coach-auto-send', handler)
   }, [])
+
+  // ============================================================
+  // Init: load user, course, build initial message
+  // ============================================================
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -228,36 +292,50 @@ export default function CoachPage() {
 
     const courseData = getA1CourseData(latestCourseId)
     const courseTitle = courseData?.title || latestCourseId
+    const scenario = courseData?.scenario || ''
+    setCourseScenario(scenario)
     const firstName = currentUser.firstName || 'apprenant'
+    const isFr = interfaceLang === 'fr'
 
     const initialMsgs: Message[] = []
 
     if (words.length > 0) {
-      const greeting = interfaceLang === 'fr'
-        ? `Salut ${firstName} ! On travaille le cours "${courseTitle}" ensemble. 🎓`
-        : `Hi ${firstName}! Let's work on "${courseTitle}" together. 🎓`
-      initialMsgs.push({ role: 'coach', text: greeting, timestamp: new Date() })
+      initialMsgs.push({
+        role: 'coach',
+        text: isFr
+          ? `Salut ${firstName} ! Je suis Lea, ta coach d'anglais. On travaille "${courseTitle}" ensemble. 🎓`
+          : `Hi ${firstName}! I'm Lea, your English coach. Let's work on "${courseTitle}" together. 🎓`,
+        timestamp: new Date(),
+      })
 
-      // First question — word 0
-      const isFr = interfaceLang === 'fr'
-      let firstQ = ''
-      if (mode === 'revision') {
-        firstQ = isFr
-          ? `On révise ! Mot 1/${words.length} :\nComment dit-on "${words[0].trad}" en anglais ? 🤔`
-          : `Let's review! Word 1/${words.length}:\nHow do you say "${words[0].trad}" in English? 🤔`
+      // P0-A: Discussion mode = situational, NOT drill
+      if (mode === 'discussion') {
+        initialMsgs.push({
+          role: 'coach',
+          text: isFr
+            ? `${scenario ? `Imagine : ${scenario}.\n` : ''}Tu arrives dans cette situation. Que dis-tu ? Reponds librement en anglais !`
+            : `${scenario ? `Imagine: ${scenario}.\n` : ''}You're in this situation. What do you say? Answer freely in English!`,
+          timestamp: new Date(),
+        })
       } else {
-        const scenario = courseData?.scenario || ''
-        firstQ = isFr
-          ? `${scenario ? `Imagine : ${scenario}\n` : ''}Comment dit-on "${words[0].trad}" en anglais ? 🤔`
-          : `${scenario ? `Imagine: ${scenario}\n` : ''}How do you say "${words[0].trad}" in English? 🤔`
+        // Revision mode = drill
+        initialMsgs.push({
+          role: 'coach',
+          text: isFr
+            ? `On revise ! Mot 1/${words.length} :\nComment dit-on "${words[0].trad}" en anglais ?`
+            : `Let's review! Word 1/${words.length}:\nHow do you say "${words[0].trad}" in English?`,
+          timestamp: new Date(),
+        })
+        setCurrentWordIdx(0)
       }
-      initialMsgs.push({ role: 'coach', text: firstQ, timestamp: new Date() })
-      setCurrentWordIdx(0)
     } else {
-      const greeting = interfaceLang === 'fr'
-        ? `Salut ${firstName} ! Termine un cours d'abord pour qu'on puisse s'entraîner ensemble.`
-        : `Hi ${firstName}! Complete a course first so we can practice together.`
-      initialMsgs.push({ role: 'coach', text: greeting, timestamp: new Date() })
+      initialMsgs.push({
+        role: 'coach',
+        text: isFr
+          ? `Salut ${firstName} ! Termine un cours d'abord pour qu'on puisse s'entrainer ensemble.`
+          : `Hi ${firstName}! Complete a course first so we can practice together.`,
+        timestamp: new Date(),
+      })
     }
 
     setMessages(initialMsgs)
@@ -265,26 +343,29 @@ export default function CoachPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
-  // Auto-scroll on new messages
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // P0-2B: Auto-TTS when a new coach message is added
+  // P0-B: Auto-TTS when new coach message arrives
   const lastCoachMsgRef = useRef<string>('')
   useEffect(() => {
     if (messages.length === 0) return
     const lastMsg = messages[messages.length - 1]
     if (lastMsg.role === 'coach' && lastMsg.text !== lastCoachMsgRef.current) {
       lastCoachMsgRef.current = lastMsg.text
-      // Small delay to let UI render first
       setTimeout(() => speakCoachMessage(lastMsg.text), 300)
     }
   }, [messages, speakCoachMessage])
 
-  // P0-1: Call API with contextual fields + handle isCorrect/nextWordIdx
+  // ============================================================
+  // API call: mode-aware
+  // ============================================================
+
   const getCoachResponse = useCallback(async (userText: string, currentMessages: Message[]) => {
-    const contextFields = getContextualFields(currentWordIdx)
+    const isRevision = mode === 'revision'
+    const contextFields = isRevision ? getContextualFields(currentWordIdx) : null
 
     try {
       const controller = new AbortController()
@@ -297,7 +378,8 @@ export default function CoachPage() {
           userMessage: userText,
           courseId: activeCourseId,
           mode,
-          // P0-1: contextual fields
+          scenario: courseScenario,
+          // Revision-only fields
           questionAsked: contextFields?.questionAsked || '',
           expectedWord: contextFields?.expectedWord || '',
           expectedTrad: contextFields?.expectedTrad || '',
@@ -315,73 +397,76 @@ export default function CoachPage() {
       if (!response.ok) throw new Error('API error')
       const data = await response.json()
 
-      // P0-1: Update currentWordIdx based on API response
-      if (data.nextWordIdx !== undefined) {
+      // Revision mode: update word index
+      if (isRevision && data.nextWordIdx !== undefined) {
         setCurrentWordIdx(data.nextWordIdx)
       }
 
       return data.response || 'Continuons !'
     } catch {
-      // Fallback: contextual rule-based
       return generateLocalFallback(userText, contextFields)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCourseId, mode, courseWords, user, lang, currentWordIdx, getContextualFields])
+  }, [activeCourseId, mode, courseWords, user, lang, currentWordIdx, getContextualFields, courseScenario])
 
-  // P0-1: Local fallback now uses contextual fields (same logic as API)
+  // Local fallback
   const generateLocalFallback = useCallback((userText: string, contextFields: ReturnType<typeof getContextualFields>): string => {
-    if (!contextFields) return lang === 'fr' ? 'Continuons !' : "Let's continue!"
+    const isFr = lang === 'fr'
+
+    // Discussion mode: flexible matching
+    if (mode === 'discussion') {
+      const lower = userText.toLowerCase().trim()
+      const matched = courseWords.find(w =>
+        lower.includes(w.word.toLowerCase()) || lower.includes(w.trad.toLowerCase())
+      )
+      if (matched) {
+        return isFr
+          ? `Bien joue ! "${matched.word}" est correct ici.\nPar exemple : "${matched.example_en || matched.word}"\nContinue, essaie une autre expression !`
+          : `Well done! "${matched.word}" works here.\nFor example: "${matched.example_en || matched.word}"\nKeep going!`
+      }
+      return isFr
+        ? `Hmm, essaie d'utiliser des mots du cours comme "${courseWords[0]?.word}" (${courseWords[0]?.trad}).\nQue dirais-tu dans cette situation ?`
+        : `Hmm, try using course words like "${courseWords[0]?.word}" (${courseWords[0]?.trad}).\nWhat would you say?`
+    }
+
+    // Revision mode: strict contextual validation
+    if (!contextFields) return isFr ? 'Continuons !' : "Let's continue!"
 
     const lower = userText.toLowerCase().trim()
     const expected = contextFields.expectedWord.toLowerCase()
-    const expectedTrad = contextFields.expectedTrad
     const synonyms = contextFields.acceptableSynonyms.map(s => s.toLowerCase())
-    const isFr = lang === 'fr'
-
     const nextIdx = (currentWordIdx + 1) % courseWords.length
     const nextWord = courseWords[nextIdx]
 
-    // "I don't know"
-    const unknowns = ['je ne sais pas', "i don't know", 'idk', 'dunno', 'no idea', 'aucune idée']
-    if (unknowns.some(p => lower === p || lower.includes(p))) {
-      setCurrentWordIdx(nextIdx)
-      return isFr
-        ? `Pas de souci ! La réponse était "${contextFields.expectedWord}" (${expectedTrad}). Mot suivant : comment dit-on "${nextWord?.trad}" en anglais ?`
-        : `No worries! The answer was "${contextFields.expectedWord}" (${expectedTrad}). Next: how do you say "${nextWord?.trad}" in English?`
-    }
-
-    // EXACT match
     if (lower === expected) {
       setCurrentWordIdx(nextIdx)
-      const cw = courseWords[currentWordIdx]
-      const ex = cw?.example_en ? ` Ex: "${cw.example_en}"` : ''
       return isFr
-        ? `Exactement ! ✅ "${contextFields.expectedWord}" = ${expectedTrad}.${ex} Mot suivant : comment dit-on "${nextWord?.trad}" en anglais ?`
-        : `Exactly! ✅ "${contextFields.expectedWord}" = ${expectedTrad}.${ex} Next: how do you say "${nextWord?.trad}" in English?`
+        ? `Exactement ! "${contextFields.expectedWord}" = ${contextFields.expectedTrad}.\nAllez, mot suivant !`
+        : `Exactly! "${contextFields.expectedWord}" = ${contextFields.expectedTrad}.\nNext!`
     }
 
-    // SYNONYM match
     if (synonyms.includes(lower)) {
       setCurrentWordIdx(nextIdx)
       return isFr
-        ? `Oui, ça marche aussi ⚠️ "${userText}" est correct pour "${expectedTrad}". La réponse principale est "${contextFields.expectedWord}". Mot suivant : comment dit-on "${nextWord?.trad}" en anglais ?`
-        : `Yes, that works too ⚠️ "${userText}" is correct for "${expectedTrad}". The main answer is "${contextFields.expectedWord}". Next: how do you say "${nextWord?.trad}" in English?`
+        ? `Oui, "${userText}" marche aussi !\n"${contextFields.expectedWord}" est plus courant pour "${contextFields.expectedTrad}", mais "${userText}" est correct.\nOn continue !`
+        : `Yes, "${userText}" works too!\n"${contextFields.expectedWord}" is more common for "${contextFields.expectedTrad}", but "${userText}" is fine.\nNext!`
     }
 
-    // WRONG: another course word
     const wrongWord = courseWords.find(w => w.word.toLowerCase() === lower)
     if (wrongWord) {
-      // Stay on same word
       return isFr
-        ? `Non, "${wrongWord.word}" veut dire "${wrongWord.trad}" ❌. Pour "${expectedTrad}", on dit "${contextFields.expectedWord}". On réessaie : comment dit-on "${expectedTrad}" en anglais ?`
-        : `No, "${wrongWord.word}" means "${wrongWord.trad}" ❌. For "${expectedTrad}", we say "${contextFields.expectedWord}". Let's try again: how do you say "${expectedTrad}" in English?`
+        ? `Non, "${wrongWord.word}" veut dire "${wrongWord.trad}".\nPour "${contextFields.expectedTrad}", on dit "${contextFields.expectedWord}".\nEssaie encore !`
+        : `No, "${wrongWord.word}" means "${wrongWord.trad}".\nFor "${contextFields.expectedTrad}", we say "${contextFields.expectedWord}".\nTry again!`
     }
 
-    // WRONG: outside course
     return isFr
-      ? `"${userText}" n'est pas dans notre cours ❌. Pour "${expectedTrad}", on dit "${contextFields.expectedWord}". On réessaie : comment dit-on "${expectedTrad}" en anglais ?`
-      : `"${userText}" is not in our course ❌. For "${expectedTrad}", we say "${contextFields.expectedWord}". Let's try again: how do you say "${expectedTrad}" in English?`
-  }, [courseWords, lang, currentWordIdx])
+      ? `"${userText}" n'est pas le mot attendu.\nPour "${contextFields.expectedTrad}", on dit "${contextFields.expectedWord}".\nEssaie encore !`
+      : `"${userText}" is not the expected word.\nFor "${contextFields.expectedTrad}", we say "${contextFields.expectedWord}".\nTry again!`
+  }, [courseWords, lang, currentWordIdx, mode])
+
+  // ============================================================
+  // Send message
+  // ============================================================
 
   const handleSend = useCallback(async (overrideText?: string) => {
     const text = overrideText || input.trim()
@@ -392,7 +477,6 @@ export default function CoachPage() {
     setInput('')
     setIsThinking(true)
 
-    // Cancel any pending auto-send timer
     if (autoSendTimerRef.current) {
       clearTimeout(autoSendTimerRef.current)
       autoSendTimerRef.current = null
@@ -403,7 +487,6 @@ export default function CoachPage() {
     setIsThinking(false)
   }, [input, isThinking, messages, getCoachResponse])
 
-  // Keep handleSendRef updated for auto-send
   useEffect(() => {
     handleSendRef.current = handleSend
   }, [handleSend])
@@ -413,7 +496,6 @@ export default function CoachPage() {
     if (isListening) {
       recognitionRef.current.stop()
       setIsListening(false)
-      // Cancel auto-send if manually stopping
       if (autoSendTimerRef.current) {
         clearTimeout(autoSendTimerRef.current)
         autoSendTimerRef.current = null
@@ -425,39 +507,60 @@ export default function CoachPage() {
     }
   }
 
-  // Mode change: reset conversation with new first question
+  // ============================================================
+  // P0-A: Mode change — different initial messages per mode
+  // ============================================================
+
   const handleModeChange = (newMode: CoachMode) => {
     setMode(newMode)
-    setCurrentWordIdx(0) // Reset to first word
+    setCurrentWordIdx(0)
     if (courseWords.length === 0) return
     const courseData = activeCourseId ? getA1CourseData(activeCourseId) : null
+    const scenario = courseData?.scenario || ''
     const isFr = lang === 'fr'
+    const firstName = user?.firstName || 'apprenant'
 
-    let modeMsg = ''
-    let firstQ = ''
+    const newMsgs: Message[] = []
 
     if (newMode === 'revision') {
-      modeMsg = isFr
-        ? `Mode révision ciblée activé ! On passe en revue tous les mots. 🎯`
-        : `Targeted review mode activated! Let's go through all words. 🎯`
-      firstQ = isFr
-        ? `On révise ! Mot 1/${courseWords.length} :\nComment dit-on "${courseWords[0].trad}" en anglais ?`
-        : `Let's review! Word 1/${courseWords.length}:\nHow do you say "${courseWords[0].trad}" in English?`
+      newMsgs.push({
+        role: 'coach',
+        text: isFr
+          ? `Mode revision ciblee active ! On passe en revue tous les mots. 🎯`
+          : `Targeted review mode! Let's go through all words. 🎯`,
+        timestamp: new Date(),
+      })
+      newMsgs.push({
+        role: 'coach',
+        text: isFr
+          ? `Mot 1/${courseWords.length} :\nComment dit-on "${courseWords[0].trad}" en anglais ?`
+          : `Word 1/${courseWords.length}:\nHow do you say "${courseWords[0].trad}" in English?`,
+        timestamp: new Date(),
+      })
     } else {
-      const scenario = courseData?.scenario || ''
-      modeMsg = isFr
-        ? `Mode discussion activé ! On pratique en situation. 💬`
-        : `Discussion mode activated! Let's practice in context. 💬`
-      firstQ = isFr
-        ? `${scenario ? `Imagine : ${scenario}\n` : ''}Comment dit-on "${courseWords[0].trad}" en anglais ?`
-        : `${scenario ? `Imagine: ${scenario}\n` : ''}How do you say "${courseWords[0].trad}" in English?`
+      // P0-A: Discussion = conversational, situational
+      newMsgs.push({
+        role: 'coach',
+        text: isFr
+          ? `Mode discussion active ! On pratique en situation reelle. 💬`
+          : `Discussion mode! Let's practice in real situations. 💬`,
+        timestamp: new Date(),
+      })
+      newMsgs.push({
+        role: 'coach',
+        text: isFr
+          ? `${scenario ? `Imagine : ${scenario}.\n` : ''}${firstName}, tu es dans cette situation. Que dis-tu en anglais ?`
+          : `${scenario ? `Imagine: ${scenario}.\n` : ''}${firstName}, you're in this situation. What do you say in English?`,
+        timestamp: new Date(),
+      })
     }
 
-    setMessages([
-      { role: 'coach', text: modeMsg, timestamp: new Date() },
-      { role: 'coach', text: firstQ, timestamp: new Date() },
-    ])
+    setMessages(newMsgs)
   }
+
+  // ============================================================
+  // Render
+  // ============================================================
 
   if (loading || !user) {
     return (
@@ -473,12 +576,12 @@ export default function CoachPage() {
       labelFr: 'Discussion',
       labelEn: 'Discussion',
       icon: '💬',
-      descFr: 'Pratique en situation réelle',
-      descEn: 'Real-life practice',
+      descFr: 'Conversation libre en situation',
+      descEn: 'Free conversation in context',
     },
     {
       id: 'revision',
-      labelFr: 'Révision ciblée',
+      labelFr: 'Revision ciblee',
       labelEn: 'Targeted review',
       icon: '🎯',
       descFr: 'Mot par mot, validation stricte',
@@ -488,7 +591,7 @@ export default function CoachPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#F0F0F0]">
-      <PageHeader title={lang === 'fr' ? 'Coach IA' : 'AI Coach'} backHref="/dashboard" />
+      <PageHeader title={lang === 'fr' ? 'Coach IA — Lea' : 'AI Coach — Lea'} backHref="/dashboard" />
 
       {/* Mode selector + sound toggle */}
       <div className="px-4 py-2 bg-white border-b">
@@ -506,14 +609,13 @@ export default function CoachPage() {
             </button>
           ))}
         </div>
-        {/* Course context + sound toggle */}
         <div className="flex items-center justify-between mt-1.5">
           {activeCourseId && (
             <p className="text-[10px] text-[#888]">
-              📚 {lang === 'fr' ? 'Cours actif :' : 'Active course:'} {getA1CourseData(activeCourseId)?.title || activeCourseId} — {courseWords.length} {lang === 'fr' ? 'mots' : 'words'}
+              📚 {getA1CourseData(activeCourseId)?.title || activeCourseId} — {courseWords.length} {lang === 'fr' ? 'mots' : 'words'}
+              {googleTtsAvailable === true && <span className="ml-1 text-green-600">🔊 TTS native</span>}
             </p>
           )}
-          {/* P0-2B: Sound toggle */}
           <button
             onClick={() => {
               setSoundEnabled(prev => !prev)
@@ -535,7 +637,7 @@ export default function CoachPage() {
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'coach' && (
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7B1FA2] to-[#9C27B0] flex items-center justify-center flex-shrink-0 mr-2">
-                <span className="text-sm">🤖</span>
+                <span className="text-sm">👩‍🏫</span>
               </div>
             )}
             <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
@@ -544,12 +646,11 @@ export default function CoachPage() {
                 : 'bg-white text-[#002844] shadow-sm rounded-bl-md'
             }`}>
               {msg.text}
-              {/* Manual TTS replay button on coach messages */}
               {msg.role === 'coach' && (
                 <button
                   onClick={() => speakCoachMessage(msg.text)}
                   className="ml-2 inline-flex items-center opacity-50 hover:opacity-100 transition-opacity"
-                  title={lang === 'fr' ? 'Réécouter' : 'Replay'}
+                  title={lang === 'fr' ? 'Reecouter' : 'Replay'}
                 >
                   <Volume2 className="h-3 w-3" />
                 </button>
@@ -558,11 +659,10 @@ export default function CoachPage() {
           </div>
         ))}
 
-        {/* Thinking indicator */}
         {isThinking && (
           <div className="flex justify-start">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7B1FA2] to-[#9C27B0] flex items-center justify-center flex-shrink-0 mr-2">
-              <span className="text-sm">🤖</span>
+              <span className="text-sm">👩‍🏫</span>
             </div>
             <div className="bg-white text-[#002844] shadow-sm rounded-2xl rounded-bl-md px-4 py-3">
               <Loader2 className="h-4 w-4 animate-spin text-[#7B1FA2]" />
@@ -573,12 +673,11 @@ export default function CoachPage() {
         <div ref={messagesEndRef} />
       </main>
 
-      {/* Input bar */}
+      {/* Input */}
       <div className="bg-white border-t px-4 py-3 pb-20">
-        {/* P0-2A: Auto-send indicator */}
         {isListening && (
           <p className="text-center text-[10px] text-red-500 mb-1 animate-pulse">
-            🎙️ {lang === 'fr' ? 'Écoute en cours... envoi auto après silence' : 'Listening... auto-send after silence'}
+            🎙️ {lang === 'fr' ? 'Parle en anglais... envoi auto apres silence' : 'Speak English... auto-send after silence'}
           </p>
         )}
         <div className="flex gap-2 max-w-lg mx-auto items-center">
@@ -587,7 +686,7 @@ export default function CoachPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder={lang === 'fr' ? 'Écris ta réponse...' : 'Type your answer...'}
+            placeholder={lang === 'fr' ? 'Reponds en anglais...' : 'Answer in English...'}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#002844] focus:outline-none focus:border-[#D9B438]"
             disabled={isThinking}
           />

@@ -41,6 +41,32 @@ export function getA1CourseData(courseId: string): A1CourseData | null {
 }
 
 /**
+ * P0-D: Given a French word (e.g. "salut"), returns all English words from the course
+ * that are valid translations of it (using both trad_fr and FR_SYNONYMS).
+ * Used for synonym validation in coach.
+ */
+export function getEnglishSynonymsForFrench(frenchWord: string, courseId: string): string[] {
+  const course = getA1CourseData(courseId)
+  if (!course) return []
+  const frLower = frenchWord.toLowerCase().trim()
+  const results: string[] = []
+  for (const v of course.vocabulary) {
+    const key = v.word.toLowerCase()
+    // Direct match on trad_fr
+    if (v.trad_fr.toLowerCase() === frLower) {
+      results.push(v.word)
+      continue
+    }
+    // Match via FR_SYNONYMS
+    const syns = FR_SYNONYMS[key] || []
+    if (syns.some(s => s.toLowerCase() === frLower)) {
+      results.push(v.word)
+    }
+  }
+  return results
+}
+
+/**
  * Get vocabulary for a specific A1 course, converted to VocabWord-compatible format.
  * word_fr = trad_fr (the French translation), phonetic from V4 data.
  */
