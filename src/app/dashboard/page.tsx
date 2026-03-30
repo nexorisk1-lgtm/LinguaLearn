@@ -298,6 +298,11 @@ export default function DashboardPage() {
           <span className="text-[10px] bg-[#E8F4F8] text-[#002844] font-bold px-2 py-0.5 rounded-full ml-2">
             {lang === 'fr' ? 'Débutant' : 'Beginner'}
           </span>
+          {progress?.grcDiagnosticCompleted && user.settings.languageConfigs?.[activeLang]?.hasGrcThemes && (
+            <span className="text-[10px] bg-[#F3E5AB] text-[#002844] font-bold px-2 py-0.5 rounded-full ml-2">
+              {lang === 'fr' ? 'Parcours C' : 'Path C'} — GRC {progress.levelGrc || 'Junior'}
+            </span>
+          )}
         </p>
 
         {/* ---- 2. CTA PRINCIPAL (dominant) ---- */}
@@ -340,7 +345,7 @@ export default function DashboardPage() {
         </a>
 
         {/* ---- 3. COACH IA (personnage contextuel) ---- */}
-        <a href="/module/coach" className="block mb-4 rounded-xl bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
+        <a href="/module/pratiquer" className="block mb-4 rounded-xl bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
           <div className="flex gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7B1FA2] to-[#9C27B0] flex items-center justify-center flex-shrink-0">
               <span className="text-lg">🤖</span>

@@ -15,6 +15,45 @@ import {
   deleteUser,
   adminCreateUser,
 } from '@/lib/db/localStorage'
+
+// Image processing utility
+async function processImage(file: File, maxSize: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let w = img.width
+        let h = img.height
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = (h / w) * maxSize; w = maxSize }
+          else { w = (w / h) * maxSize; h = maxSize }
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = e.target?.result as string
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+// Get localStorage usage
+function getStorageUsage(): string {
+  let total = 0
+  for (const key in localStorage) {
+    if (key.startsWith('lingualearn_')) {
+      total += localStorage.getItem(key)?.length || 0
+    }
+  }
+  return (total / 1024 / 1024).toFixed(2)
+}
 import { BANK_VOCABULARY } from '@/lib/db/bankVocabulary'
 import { BANK_GRAMMAR } from '@/lib/db/bankGrammar'
 import { BANK_READING } from '@/lib/db/bankReading'
@@ -131,6 +170,7 @@ export default function AdminImportsPage() {
   const [transSynced, setTransSynced] = useState(false)
 
   const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({ niveau_a1: true })
+  const [storageUsageMB, setStorageUsageMB] = useState('0.00')
   const [tabState, setTabState] = useState<TabState>({
     selectedType: null,
     file: null,
@@ -154,6 +194,7 @@ export default function AdminImportsPage() {
     setLang(currentUser.settings.interfaceLang || 'fr')
     setPendingWordsCount(getPendingProposedWords().length)
     setUsers(getAllUsers())
+    setStorageUsageMB(getStorageUsage())
     setLoading(false)
   }, [router])
 
@@ -1732,11 +1773,16 @@ export default function AdminImportsPage() {
                 <ImageIcon className="h-8 w-8 text-[#D9B438]" />
                 {lang === 'fr' ? 'Images vocabulaire V4' : 'V4 Vocabulary Images'}
               </h2>
-              <p className="text-[#555555]">
+              <p className="text-[#555555] mb-3">
                 {lang === 'fr'
-                  ? 'Téléchargez une image (PNG/JPG/WEBP, max 2MB) pour chaque mot de vocabulaire.'
-                  : 'Upload an image (PNG/JPG/WEBP, max 2MB) for each vocabulary word.'}
+                  ? 'Téléchargez une image (PNG/JPG/WEBP, max 10MB) pour chaque mot de vocabulaire. Les images sont automatiquement compressées en 3 versions (800px, 400px, 150px).'
+                  : 'Upload an image (PNG/JPG/WEBP, max 10MB) for each vocabulary word. Images are automatically compressed into 3 versions (800px, 400px, 150px).'}
               </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
+                <p className="text-sm font-semibold text-blue-900">
+                  {lang === 'fr' ? 'Stockage utilisé' : 'Storage Used'}: <span className="text-blue-700">{storageUsageMB} MB</span>
+                </p>
+              </div>
             </div>
 
             {/* Niveau A1 Accordion */}
@@ -1777,14 +1823,17 @@ export default function AdminImportsPage() {
                         <div className="bg-gray-50 p-4 grid gap-3">
                           {course.vocabulary.map((v, idx) => {
                             const storageKey = `lingualearn_vocab_image_${course.id}_${idx}`;
+                            const thumbKey = `${storageKey}_thumb`;
                             const storedImage = localStorage.getItem(storageKey);
+                            const thumbImage = localStorage.getItem(thumbKey);
                             const displayImage = storedImage || v.image;
+                            const displayThumb = thumbImage || displayImage;
 
                             return (
                               <div key={idx} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200">
                                 <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                  {displayImage ? (
-                                    <img src={displayImage} alt={v.word} className="w-16 h-16 object-cover" />
+                                  {displayThumb ? (
+                                    <img src={displayThumb} alt={v.word} className="w-16 h-16 object-cover" />
                                   ) : (
                                     <ImageIcon className="h-8 w-8 text-gray-400" />
                                   )}
@@ -1804,13 +1853,13 @@ export default function AdminImportsPage() {
                                         type="file"
                                         accept="image/png,image/jpeg,image/webp"
                                         className="hidden"
-                                        onChange={(e) => {
+                                        onChange={async (e) => {
                                           const file = e.target.files?.[0];
                                           if (!file) return;
 
-                                          // Check file size (max 2MB)
-                                          if (file.size > 2 * 1024 * 1024) {
-                                            alert(lang === 'fr' ? 'L\'image dépasse 2MB' : 'Image exceeds 2MB');
+                                          // Validate file size (max 10MB)
+                                          if (file.size > 10 * 1024 * 1024) {
+                                            alert(lang === 'fr' ? 'L\'image dépasse 10MB' : 'Image exceeds 10MB');
                                             return;
                                           }
 
@@ -1820,52 +1869,36 @@ export default function AdminImportsPage() {
                                             return;
                                           }
 
-                                          // Phase 11: Aggressive compression to prevent crash after 2+ images
-                                          const canvas = document.createElement('canvas');
-                                          const ctx = canvas.getContext('2d');
-                                          if (!ctx) {
-                                            alert(lang === 'fr' ? 'Erreur canvas' : 'Canvas error');
-                                            return;
-                                          }
-                                          const img = new Image();
-                                          img.onload = () => {
-                                            // Phase 11: Reduce to 120x120 max, quality 0.4 to fit more images
-                                            const maxSize = 120;
-                                            const scale = Math.min(maxSize / img.width, maxSize / img.height);
-                                            canvas.width = Math.round(img.width * scale);
-                                            canvas.height = Math.round(img.height * scale);
-                                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
+                                          try {
+                                            // Generate 3 versions: exercise (800px), mobile (400px), vignette (150px)
+                                            const exerciseVersion = await processImage(file, 800, 0.7);
+                                            const mobileVersion = await processImage(file, 400, 0.7);
+                                            const vignetteVersion = await processImage(file, 150, 0.7);
 
-                                            // Phase 11: Check size before storing (~5KB per image limit)
-                                            if (compressedBase64.length > 8000) {
-                                              // Re-compress at even lower quality
-                                              const ultra = canvas.toDataURL('image/jpeg', 0.2);
-                                              try {
-                                                localStorage.setItem(storageKey, ultra);
-                                              } catch {
-                                                alert(lang === 'fr' ? 'Stockage plein. Supprimez des images avant d\'en ajouter.' : 'Storage full. Remove images before adding more.');
-                                                return;
-                                              }
-                                            } else {
-                                              try {
-                                                localStorage.setItem(storageKey, compressedBase64);
-                                              } catch {
-                                                alert(lang === 'fr' ? 'Stockage plein. Supprimez des images avant d\'en ajouter.' : 'Storage full. Remove images before adding more.');
-                                                return;
-                                              }
+                                            // Store all versions
+                                            const exerciseKey = storageKey; // existing key for compatibility
+                                            const mobileKey = `${storageKey}_mobile`;
+                                            const thumbKey = `${storageKey}_thumb`;
+
+                                            try {
+                                              localStorage.setItem(exerciseKey, exerciseVersion);
+                                              localStorage.setItem(mobileKey, mobileVersion);
+                                              localStorage.setItem(thumbKey, vignetteVersion);
+                                              setStorageUsageMB(getStorageUsage());
+                                            } catch {
+                                              alert(lang === 'fr' ? 'Stockage plein. Supprimez des images avant d\'en ajouter.' : 'Storage full. Remove images before adding more.');
+                                              return;
                                             }
+
                                             // Force re-render by toggling accordion
                                             setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
                                             setTimeout(() => {
                                               setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));
                                             }, 100);
-                                          };
-                                          const reader = new FileReader();
-                                          reader.onload = (event) => {
-                                            img.src = event.target?.result as string;
-                                          };
-                                          reader.readAsDataURL(file);
+                                          } catch (error) {
+                                            alert(lang === 'fr' ? 'Erreur lors du traitement de l\'image' : 'Error processing image');
+                                            console.error(error);
+                                          }
                                         }}
                                       />
                                     </label>
@@ -1873,6 +1906,9 @@ export default function AdminImportsPage() {
                                       <button
                                         onClick={() => {
                                           localStorage.removeItem(storageKey);
+                                          localStorage.removeItem(`${storageKey}_mobile`);
+                                          localStorage.removeItem(`${storageKey}_thumb`);
+                                          setStorageUsageMB(getStorageUsage());
                                           setExpandedAccordions(prev => ({ ...prev, [course.id]: false }));
                                           setTimeout(() => {
                                             setExpandedAccordions(prev => ({ ...prev, [course.id]: true }));

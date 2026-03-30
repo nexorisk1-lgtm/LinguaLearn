@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 import BottomNav from '@/components/BottomNav';
-import { updateUserSettings, updateUserProgress, completeOnboarding } from '@/lib/db/localStorage';
+import { updateUserSettings, updateUserProgress, completeOnboarding, getCurrentUser } from '@/lib/db/localStorage';
 import {
   LEARNING_LANGUAGES,
   PERSONAL_THEMES,
@@ -347,7 +347,24 @@ export default function OnboardingPage() {
         });
       }
       completeOnboarding(user.id);
-      router.push('/dashboard');
+
+      // Check if any language has Parcours C (GRC themes)
+      const hasGrcInAnyLang = learningLangs.some(lang => hasGrcForLang(lang));
+      if (hasGrcInAnyLang) {
+        // Set active language to first GRC language
+        const grcLang = learningLangs.find(lang => hasGrcForLang(lang));
+        if (grcLang) {
+          // Temporarily set activeLang so GRC diagnostic knows which language to process
+          const currentUser = getCurrentUser();
+          if (currentUser) {
+            currentUser.activeLang = grcLang;
+            localStorage.setItem('lingualearn_current_user', JSON.stringify(currentUser));
+          }
+        }
+        router.push('/onboarding/grc-diagnostic');
+      } else {
+        router.push('/dashboard');
+      }
     }
   };
 
