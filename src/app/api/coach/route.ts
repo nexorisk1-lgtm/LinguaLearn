@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 
-// P0-1: Coach LLM API route — Gemini Flash
-// Fallback: rule-based if API key missing or error
+// Coach LLM API route — contextual matching
+// The coach evaluates if the answer matches THE QUESTION ASKED, not just any course word
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 
@@ -10,6 +10,12 @@ interface CoachRequest {
   userMessage: string
   courseId: string
   mode: 'discussion' | 'revision'
+  // CRITICAL: the specific word being asked about
+  questionAsked: string           // e.g. "comment dit-on 'salut' en anglais ?"
+  expectedWord: string            // e.g. "hi"
+  expectedTrad: string            // e.g. "salut"
+  acceptableSynonyms: string[]    // e.g. ["hello"] (other valid translations)
+  // Full course context for reference
   courseWords: { word: string; trad: string; example_en?: string; phonetic?: string }[]
   conversationHistory: { role: string; text: string }[]
   userName: string
@@ -17,46 +23,42 @@ interface CoachRequest {
 }
 
 function buildSystemPrompt(req: CoachRequest): string {
-  const wordList = req.courseWords.map(w => `- ${w.word} = ${w.trad}${w.example_en ? ` (ex: "${w.example_en}")` : ''}`).join('\n')
+  const wordList = req.courseWords.map(w => `- ${w.word} = ${w.trad}`).join('\n')
 
-  return `Tu es le coach de l'app LinguaLearn.
-Tu travailles UNIQUEMENT sur les mots du cours en cours.
-Cours actuel : ${req.courseId}
-Mots autorisés :
-${wordList}
-Mode actif : ${req.mode === 'discussion' ? 'Discussion' : 'Révision ciblée'}
+  return `Tu es le coach de l'app LinguaLearn. Tu te comportes comme un PROFESSEUR, pas comme un validateur de mots.
 
-Règles absolues :
-- Uniquement le vocabulaire de la liste transmise
-- Valider toute réponse sémantiquement correcte
-- Distinguer : réponse exacte / acceptable / incorrecte
-- Toujours expliquer après validation ou correction
-- Français sauf contenu en anglais
-- Niveau A1 : phrases courtes, vocabulaire simple
-- Toujours prendre l'initiative : poser une question, ne pas attendre
-- Jamais de message générique ou de répétition inutile
+CONTEXTE ACTUEL :
+- Question posée : "${req.questionAsked}"
+- Mot attendu : "${req.expectedWord}" (= ${req.expectedTrad})
+- Synonymes acceptables : ${req.acceptableSynonyms.length > 0 ? req.acceptableSynonyms.join(', ') : 'aucun'}
+- Réponse de l'utilisateur : "${req.userMessage}"
 
-Classification des réponses :
-1. Si la réponse correspond EXACTEMENT à un mot de la liste → "Exactement ! ✅" + explication courte
-2. Si la réponse correspond à un AUTRE mot de la liste → "Oui, ça marche aussi ⚠️" + nuance (explique la différence)
-3. Sinon → "On cherchait X ❌" + explication + exemple
+RÈGLE DE VALIDATION ABSOLUE :
+Tu dois évaluer si la réponse de l'utilisateur RÉPOND À LA QUESTION POSÉE.
+PAS si la réponse existe dans le cours.
 
-Boucle conversationnelle :
-1. Pose UNE question claire (mode discussion = mise en situation / mode révision = traduction directe)
-2. Attends la réponse
-3. Classe et donne un feedback (exacte/acceptable/incorrecte)
-4. Donne UNE explication courte
-5. Enchaîne sur le mot suivant
+Exemple critique :
+- Question : "comment dit-on 'salut' en anglais ?"
+- Réponse : "good evening"
+- MAUVAIS : "Exactement ! good evening = bonsoir ✅" (car good evening EST dans le cours)
+- BON : "Non, 'good evening' veut dire 'bonsoir'. Pour 'salut', on dit 'hi'. ❌"
 
-Format de réponse : texte naturel, 2-4 phrases max. Pas de markdown, pas de listes à puces.
+CLASSIFICATION :
+1. Si réponse = "${req.expectedWord}" → EXACTE ✅ "Exactement !" + explication courte
+2. Si réponse ∈ [${req.acceptableSynonyms.join(', ')}] → ACCEPTABLE ⚠️ "Oui, ça marche aussi" + nuance
+3. Si réponse = autre mot du cours mais PAS le mot attendu → INCORRECTE ❌ "Non, '[réponse]' veut dire '[sa traduction]'. Pour '${req.expectedTrad}', on dit '${req.expectedWord}'."
+4. Si réponse hors cours → INCORRECTE ❌ + correction
+
+APRÈS CHAQUE FEEDBACK : enchaîne sur le mot suivant avec une nouvelle question.
+Format : texte naturel, 2-4 phrases max. Français sauf contenu anglais. Niveau A1.
 L'utilisateur s'appelle ${req.userName}.
-Langue d'interface : ${req.interfaceLang === 'fr' ? 'français' : 'anglais'}.`
+
+Mots du cours pour référence :
+${wordList}`
 }
 
 function buildConversation(req: CoachRequest): any[] {
   const messages: any[] = []
-
-  // Add history (last 10 exchanges max for context window)
   const recentHistory = req.conversationHistory.slice(-10)
   for (const msg of recentHistory) {
     messages.push({
@@ -64,84 +66,96 @@ function buildConversation(req: CoachRequest): any[] {
       parts: [{ text: msg.text }],
     })
   }
-
-  // Add current user message
   messages.push({
     role: 'user',
     parts: [{ text: req.userMessage }],
   })
-
   return messages
 }
 
-// Rule-based fallback when API is unavailable
-function generateFallbackResponse(req: CoachRequest): string {
+// Rule-based fallback — CONTEXTUAL validation against expectedWord
+function generateFallbackResponse(req: CoachRequest): { response: string; isCorrect: boolean; nextWordIdx: number } {
   const userText = req.userMessage.toLowerCase().trim()
+  const expected = req.expectedWord.toLowerCase()
+  const expectedTrad = req.expectedTrad.toLowerCase()
+  const synonyms = req.acceptableSynonyms.map(s => s.toLowerCase())
   const words = req.courseWords
   const isFr = req.interfaceLang === 'fr'
 
-  // Check "I don't know"
-  const unknownPhrases = ['je ne sais pas', "i don't know", 'idk', 'dunno', 'no idea', 'i dont know', 'aucune idée']
+  // Find current word index to determine next
+  const currentIdx = words.findIndex(w => w.word.toLowerCase() === expected)
+  const nextIdx = (currentIdx + 1) % words.length
+  const nextWord = words[nextIdx]
+
+  // "I don't know"
+  const unknownPhrases = ['je ne sais pas', "i don't know", 'idk', 'dunno', 'no idea', 'aucune idée']
   if (unknownPhrases.some(p => userText === p || userText.includes(p))) {
-    const randomWord = words[Math.floor(Math.random() * words.length)]
-    return isFr
-      ? `Pas de souci ! La réponse était "${randomWord.word}" (${randomWord.trad}). On continue : comment dit-on "${words[(words.indexOf(randomWord) + 1) % words.length].trad}" en anglais ?`
-      : `No worries! The answer was "${randomWord.word}" (${randomWord.trad}). Let's continue: how do you say "${words[(words.indexOf(randomWord) + 1) % words.length].trad}" in English?`
+    const nextQ = isFr
+      ? `Pas de souci ! La réponse était "${req.expectedWord}" (${req.expectedTrad}). Mot suivant : comment dit-on "${nextWord.trad}" en anglais ?`
+      : `No worries! The answer was "${req.expectedWord}" (${req.expectedTrad}). Next word: how do you say "${nextWord.trad}" in English?`
+    return { response: nextQ, isCorrect: false, nextWordIdx: nextIdx }
   }
 
-  // Check exact match
-  const exactMatch = words.find(w => w.word.toLowerCase() === userText || w.trad.toLowerCase() === userText)
-  if (exactMatch) {
-    const nextIdx = (words.indexOf(exactMatch) + 1) % words.length
-    const next = words[nextIdx]
-    return isFr
-      ? `Exactement ! ✅ "${exactMatch.word}" = ${exactMatch.trad}. ${exactMatch.example_en ? `Ex: "${exactMatch.example_en}"` : ''} Suivant : comment dit-on "${next.trad}" en anglais ?`
-      : `Exactly! ✅ "${exactMatch.word}" = ${exactMatch.trad}. ${exactMatch.example_en ? `Ex: "${exactMatch.example_en}"` : ''} Next: how do you say "${next.trad}" in English?`
+  // EXACT match: answer = expected word
+  if (userText === expected) {
+    const exampleStr = words[currentIdx]?.example_en ? ` Ex: "${words[currentIdx].example_en}"` : ''
+    const resp = isFr
+      ? `Exactement ! ✅ "${req.expectedWord}" = ${req.expectedTrad}.${exampleStr} Mot suivant : comment dit-on "${nextWord.trad}" en anglais ?`
+      : `Exactly! ✅ "${req.expectedWord}" = ${req.expectedTrad}.${exampleStr} Next: how do you say "${nextWord.trad}" in English?`
+    return { response: resp, isCorrect: true, nextWordIdx: nextIdx }
   }
 
-  // Check acceptable (another word from the list)
-  const acceptable = words.find(w =>
-    userText.includes(w.word.toLowerCase()) || userText.includes(w.trad.toLowerCase())
-  )
-  if (acceptable) {
-    const next = words[(words.indexOf(acceptable) + 1) % words.length]
-    return isFr
-      ? `Oui, ça marche aussi ⚠️ "${acceptable.word}" = ${acceptable.trad}. On continue : comment dit-on "${next.trad}" en anglais ?`
-      : `Yes, that works too ⚠️ "${acceptable.word}" = ${acceptable.trad}. Let's continue: how do you say "${next.trad}" in English?`
+  // ACCEPTABLE: answer is a valid synonym for the same meaning
+  if (synonyms.includes(userText)) {
+    const resp = isFr
+      ? `Oui, ça marche aussi ⚠️ "${userText}" est correct pour "${expectedTrad}". La réponse principale est "${req.expectedWord}". Mot suivant : comment dit-on "${nextWord.trad}" en anglais ?`
+      : `Yes, that works too ⚠️ "${userText}" is correct for "${expectedTrad}". The main answer is "${req.expectedWord}". Next: how do you say "${nextWord.trad}" in English?`
+    return { response: resp, isCorrect: true, nextWordIdx: nextIdx }
   }
 
-  // Incorrect
-  const targetWord = words[0]
-  const next = words.length > 1 ? words[1] : words[0]
-  return isFr
-    ? `On cherchait "${targetWord.word}" (${targetWord.trad}) ❌. ${targetWord.example_en ? `Exemple : "${targetWord.example_en}"` : ''} Essaie maintenant : comment dit-on "${next.trad}" en anglais ?`
-    : `We were looking for "${targetWord.word}" (${targetWord.trad}) ❌. ${targetWord.example_en ? `Example: "${targetWord.example_en}"` : ''} Now try: how do you say "${next.trad}" in English?`
+  // WRONG: answer is another word from the course but NOT the expected one
+  const wrongCourseWord = words.find(w => w.word.toLowerCase() === userText)
+  if (wrongCourseWord) {
+    const resp = isFr
+      ? `Non, "${wrongCourseWord.word}" veut dire "${wrongCourseWord.trad}" ❌. Pour "${req.expectedTrad}", on dit "${req.expectedWord}". On réessaie : comment dit-on "${req.expectedTrad}" en anglais ?`
+      : `No, "${wrongCourseWord.word}" means "${wrongCourseWord.trad}" ❌. For "${req.expectedTrad}", we say "${req.expectedWord}". Let's try again: how do you say "${req.expectedTrad}" in English?`
+    // Stay on same word — don't advance
+    return { response: resp, isCorrect: false, nextWordIdx: currentIdx }
+  }
+
+  // WRONG: answer completely outside course
+  const resp = isFr
+    ? `"${req.userMessage}" n'est pas dans notre cours ❌. Pour "${req.expectedTrad}", on dit "${req.expectedWord}". On réessaie : comment dit-on "${req.expectedTrad}" en anglais ?`
+    : `"${req.userMessage}" is not in our course ❌. For "${req.expectedTrad}", we say "${req.expectedWord}". Let's try again: how do you say "${req.expectedTrad}" in English?`
+  return { response: resp, isCorrect: false, nextWordIdx: currentIdx }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const req: CoachRequest = await request.json()
 
-    // Validate required fields
     if (!req.userMessage || !req.courseWords || req.courseWords.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Check for API key
+    // Always run contextual fallback first to determine correctness
+    const fallbackResult = generateFallbackResponse(req)
+
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
-      // Fallback mode: rule-based
-      const fallback = generateFallbackResponse(req)
-      return NextResponse.json({ response: fallback, source: 'fallback' })
+      return NextResponse.json({
+        response: fallbackResult.response,
+        isCorrect: fallbackResult.isCorrect,
+        nextWordIdx: fallbackResult.nextWordIdx,
+        source: 'fallback',
+      })
     }
 
-    // Build request for Gemini
+    // Try LLM for richer response
     const systemPrompt = buildSystemPrompt(req)
     const contents = buildConversation(req)
-
-    // Call Gemini Flash with timeout
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 4000) // 4s timeout
+    const timeout = setTimeout(() => controller.abort(), 4000)
 
     try {
       const geminiResponse = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -150,11 +164,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 300,
-            topP: 0.9,
-          },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 300, topP: 0.9 },
           safetySettings: [
             { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
             { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -164,31 +174,29 @@ export async function POST(request: NextRequest) {
         }),
         signal: controller.signal,
       })
-
       clearTimeout(timeout)
 
-      if (!geminiResponse.ok) {
-        // API error → fallback
-        console.error('Gemini API error:', geminiResponse.status)
-        const fallback = generateFallbackResponse(req)
-        return NextResponse.json({ response: fallback, source: 'fallback' })
-      }
-
+      if (!geminiResponse.ok) throw new Error('API error')
       const data = await geminiResponse.json()
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
 
-      if (!text) {
-        const fallback = generateFallbackResponse(req)
-        return NextResponse.json({ response: fallback, source: 'fallback' })
-      }
+      if (!text) throw new Error('No text')
 
-      return NextResponse.json({ response: text.trim(), source: 'llm' })
-    } catch (fetchError: any) {
+      // Use LLM text but keep deterministic correctness from fallback
+      return NextResponse.json({
+        response: text.trim(),
+        isCorrect: fallbackResult.isCorrect,
+        nextWordIdx: fallbackResult.nextWordIdx,
+        source: 'llm',
+      })
+    } catch {
       clearTimeout(timeout)
-      // Timeout or network error → fallback
-      console.error('Gemini fetch error:', fetchError.message)
-      const fallback = generateFallbackResponse(req)
-      return NextResponse.json({ response: fallback, source: 'fallback' })
+      return NextResponse.json({
+        response: fallbackResult.response,
+        isCorrect: fallbackResult.isCorrect,
+        nextWordIdx: fallbackResult.nextWordIdx,
+        source: 'fallback',
+      })
     }
   } catch (error: any) {
     console.error('Coach API error:', error)

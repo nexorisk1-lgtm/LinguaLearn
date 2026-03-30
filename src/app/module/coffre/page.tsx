@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Volume2, Mic, MicOff, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
@@ -150,7 +151,7 @@ function CoffreContent() {
     }
 
     setLoading(false);
-  }, [router]);
+  }, [router, courseIdParam]);
 
   const currentExercise = exercises[currentExIdx];
 

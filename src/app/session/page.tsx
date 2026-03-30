@@ -1,6 +1,7 @@
 'use client'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -974,7 +975,7 @@ function SessionContent() {
         date: new Date().toISOString().split('T')[0],
       }))
     } catch { /* ignore */ }
-  }, [courseId, user, exercises, lessons])
+  }, [courseId, user, exercises, lessons, phase])
 
   const handleNext = () => {
     setShowFeedback(false)
